@@ -1,0 +1,119 @@
+# **Project: Neural Sieve**
+
+## **The High-Signal External Memory for AI Influence**
+
+### **1\. The Core Philosophy**
+
+Neural Sieve is a **filter, not a bucket**. It captures only "mind-blowing" insights—the 1% that change your perspective. It stores knowledge locally as plain-text **Knowledge Capsules**, making your wisdom accessible to any AI through context injection via a structured, logical map.
+
+**Selection is the Verification:** There are no "Experimental" or "Verified" tiers. If an insight is captured, it is considered high-signal by definition.
+
+### **2\. System Architecture (Local-First & Plain-Text)**
+
+#### **A. The Directory Schema**
+
+The vault uses a flat physical structure for safety, with logical grouping handled by the Indexing engine.
+
+Neural-Sieve-Vault/  
+├── README.md              \# THE MAP: Flat index of all active capsules  
+├── .sieve/                \# Configuration, tags, and local index files  
+├── Capsules/              \# The heart of the system (Markdown files)  
+│   ├── Business/          \# Broad Category  
+│   ├── Tech/              \# Broad Category  
+│   └── Philosophy/        \# Broad Category  
+├── Legacy/                \# DEPRECIATED KNOWLEDGE: Moved here to reduce noise  
+├── Assets/                \# Original screenshots, diagrams, and PDFs  
+│   └── 2026-01/           \# Sorted by month  
+└── Inbox/                 \# SINGLE ENTRY POINT: All raw captures land here
+
+#### **B. The Global README (V1 Architecture)**
+
+To ensure simplicity and stability in the initial version:
+
+* **The Map:** A single README.md at the root that categorizes all capsules.  
+* **Logical Tagging:** Instead of moving files physically (which risks path breakage), the engine uses YAML tags within the capsules to group related ideas.  
+* **Pinned Signal:** A dedicated section in the Root README for "Eternal Truths"—capsules manually pinned by the user. These are the highest-priority context for any AI reasoning.
+
+### **3\. The Technical Specification: The Knowledge Capsule**
+
+Every piece of information is transformed into a "Knowledge Capsule"—a transparent, human-readable Markdown file. This format ensures the data is "future-proof" and easily parsed by both humans and LLMs.
+
+**File Format:** \[ID\]\_\[SLUG\].md (e.g., 20260114\_neural\_sieve\_logic.md)
+
+\---  
+id: "2026-01-14-T1000"  
+title: "The Core Logic of Neural Sieve"  
+source\_url: "\[https://example.com/article\](https://example.com/article)"  
+tags: \[AI, Memory, Architecture\]  
+status: "active"   
+pinned: false  
+captured\_at: 2026-01-14  
+\---
+
+\# The Executive Summary  
+\> A brief 2-sentence hook defining the core value of this insight for instant AI comprehension.
+
+\# Core Insight  
+The single most important "Aha\!" moment or fact contained in this capsule.
+
+\# Full Content  
+The complete, cleaned text for deep-dive reasoning. This section is stripped of ads, navigation noise, and irrelevant sidebars by gpt-5-mini.
+
+\# Contextual Metadata  
+\- Capture Method: Global Visual Capture  
+\- Original Asset: ../Assets/2026-01/screenshot\_123.png  
+\- Processing Logic: "Extracted as a logic diagram and converted to text."
+
+### **4\. Key Features**
+
+#### **A. Zero-Friction Capture**
+
+Capturing is entirely silent and background-processed to ensure zero interruption to the user flow.
+
+* **The Global Visual Capture:** A system shortcut triggers a screenshot. The image is saved to Inbox/.  
+* **The Browser Brain:** One-click extension extracts "Clean Content" and saves it to Inbox/.  
+* **The Intelligent Inbox:** A "Drop Zone" for dragging files, links, or text snippets directly into the processing pipeline.
+
+#### **B. The Pin Rule**
+
+The **Pin** is the ultimate signal of "immutability" and user intent.
+
+* **Priority Logic:** Pinned capsules are immutable. Human intent (Pins) always overrides temporal recency.  
+* **Context Injection:** When providing context to an LLM, Pinned capsules are always included as the primary "Truth" foundation.
+
+#### **C. Semantic Compression (The "Tag Fold")**
+
+* **Tag-Based Clustering:** The engine identifies overlapping insights and assigns them shared semantic tags.  
+* **Logical Grouping:** Related capsules are presented together in the README.md and the Management Dashboard without changing their physical location on the disk.  
+* **Immunity:** Pinned capsules are anchors. They are never "folded" or modified by the automated tagging engine.
+
+### **5\. Lifecycle & Management (The Ghost Dashboard)**
+
+A local-only web interface accessible via sieve manage serves as the primary hub for maintenance and exploration.
+
+* **Knowledge Pinning:** The central place to elevate insights to "Pinned" status.  
+* **The Vault Chat:** A chatbot interface that allows you to chat directly with your entire vault using a local RAG (Retrieval-Augmented Generation) system.  
+* **Cull:** Swiftly move capsules to the Legacy/ folder to remove them from active AI context.  
+* **Export (Full Context):** Generates a single, combined Markdown file of your **entire active knowledge base**.
+
+### **6\. The Influence Protocol (The Bridge)**
+
+The system utilizes the **Model Context Protocol (MCP)** as the bridge to external AI agents.
+
+* **Context Injection:** The AI reads the README.md to understand the vault's structure and pulls Pinned and relevant capsules based on the query.  
+* **Direct Grounding:** The LLM receives Pinned truths as "System Constants" and handles any contradictions by prioritizing the Pinned content.
+
+### **7\. Implementation Roadmap**
+
+#### **V1: The Foundation (Current)**
+
+1. **The Engine:** A Python background process managed via **uv**. It watches Inbox/ and uses **gpt-5-mini** for extraction and semantic tagging.  
+2. **The Mapper:** Automatically regenerates the README.md index on every file change.  
+3. **One-Click Setup:** A setup.sh script using uv run to initialize the environment and global shortcuts.  
+4. **The Ghost Dashboard:** Lightweight local server for sieve manage and Vault Chat.
+
+#### **V2: Scale & Deep Integration**
+
+1. **Recursive READMEs:** Introduction of nested maps for vaults exceeding 500+ capsules.  
+2. **OpenCode Dependency:** Full integration with the OpenCode standard for structured code-traversal and deep reasoning across local codebases.  
+3. **Proactive Folder Clustering:** Optional "Physical Folding" for users who prefer directory-level organization over flat tagging.

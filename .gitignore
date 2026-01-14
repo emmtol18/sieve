@@ -1,0 +1,10 @@
+# Local configuration and indexes
+.sieve/cache/
+.sieve/local_index.json
+
+# OS files
+.DS_Store
+
+# Temporary files
+Inbox/*
+!Inbox/.gitkeep

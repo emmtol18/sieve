@@ -1,0 +1,63 @@
+<div class="bg-white rounded-lg border border-gray-200 p-4 sticky top-24">
+    <div class="flex items-center justify-between mb-4">
+        <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+            {{ capsule.category }}
+        </span>
+        <span class="text-xs text-gray-500">{{ capsule.captured_at }}</span>
+    </div>
+
+    <form
+        hx-post="/capsule/{{ capsule._filename }}/edit"
+        hx-target="closest div"
+        hx-swap="outerHTML"
+    >
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Title</label>
+            <input
+                type="text"
+                name="title"
+                value="{{ capsule.title }}"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Tags</label>
+            <input
+                type="text"
+                name="tags"
+                value="{{ capsule.tags | join(', ') }}"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                placeholder="tag1, tag2, tag3"
+            >
+        </div>
+
+        <button
+            type="submit"
+            class="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+        >
+            Save Changes
+        </button>
+    </form>
+
+    <hr class="my-4">
+
+    <div class="prose prose-sm max-w-none">
+        <div class="text-xs font-medium text-gray-500 mb-1">Content Preview</div>
+        <div class="text-sm text-gray-700 max-h-64 overflow-y-auto">
+            {{ capsule._content[:500] }}{% if capsule._content|length > 500 %}...{% endif %}
+        </div>
+    </div>
+
+    {% if capsule.source_url %}
+    <div class="mt-4">
+        <a
+            href="{{ capsule.source_url }}"
+            target="_blank"
+            class="text-xs text-blue-600 hover:underline"
+        >
+            View original source
+        </a>
+    </div>
+    {% endif %}
+</div>

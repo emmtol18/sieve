@@ -1,0 +1,7 @@
+{% for capsule in capsules %}
+{% include "partials/capsule_card.html" %}
+{% else %}
+<div class="text-gray-500 text-center py-8">
+    No capsules found
+</div>
+{% endfor %}

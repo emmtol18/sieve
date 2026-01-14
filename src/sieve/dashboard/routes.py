@@ -1,0 +1,226 @@
+"""Dashboard routes (API + HTMX)."""
+
+from collections import defaultdict
+from pathlib import Path
+from typing import Optional
+
+import frontmatter
+from fastapi import APIRouter, Request, Form, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+
+from ..config import Settings
+from ..engine import Processor, Indexer
+from ..capsule import CapsuleWriter
+
+
+class CaptureRequest(BaseModel):
+    """Request from browser extension."""
+
+    content: str
+    source_url: Optional[str] = None
+    title: Optional[str] = None
+    tags: list[str] = []
+    image_data: Optional[str] = None
+
+
+def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
+    """Create the dashboard router."""
+    router = APIRouter()
+    processor = Processor(settings)
+    indexer = Indexer(settings)
+    writer = CapsuleWriter(settings)
+
+    def load_capsules() -> list[dict]:
+        """Load all capsules with their content."""
+        capsules = []
+        capsules_dir = settings.capsules_path
+
+        if not capsules_dir.exists():
+            return capsules
+
+        for md_file in capsules_dir.rglob("*.md"):
+            try:
+                post = frontmatter.load(md_file)
+                capsule = dict(post.metadata)
+                capsule["_path"] = str(md_file)
+                capsule["_rel_path"] = str(md_file.relative_to(settings.vault_root))
+                capsule["_content"] = post.content
+                capsule["_filename"] = md_file.name
+
+                if capsule.get("status") != "legacy":
+                    capsules.append(capsule)
+            except Exception:
+                pass
+
+        return sorted(capsules, key=lambda c: c.get("captured_at", ""), reverse=True)
+
+    @router.get("/", response_class=HTMLResponse)
+    async def index(request: Request):
+        """Main dashboard page."""
+        capsules = load_capsules()
+
+        # Group by category
+        by_category = defaultdict(list)
+        for c in capsules:
+            by_category[c.get("category", "Uncategorized")].append(c)
+
+        # Get all unique tags
+        all_tags = set()
+        for c in capsules:
+            all_tags.update(c.get("tags", []))
+
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "capsules": capsules,
+                "by_category": dict(by_category),
+                "categories": sorted(by_category.keys()),
+                "all_tags": sorted(all_tags),
+                "total": len(capsules),
+                "pinned_count": sum(1 for c in capsules if c.get("pinned")),
+            },
+        )
+
+    @router.get("/capsules", response_class=HTMLResponse)
+    async def list_capsules(
+        request: Request,
+        category: Optional[str] = None,
+        tag: Optional[str] = None,
+        q: Optional[str] = None,
+    ):
+        """HTMX: List/filter capsules."""
+        capsules = load_capsules()
+
+        # Filter by category
+        if category:
+            capsules = [c for c in capsules if c.get("category") == category]
+
+        # Filter by tag
+        if tag:
+            capsules = [c for c in capsules if tag in c.get("tags", [])]
+
+        # Search
+        if q:
+            q_lower = q.lower()
+            capsules = [
+                c
+                for c in capsules
+                if q_lower in c.get("title", "").lower()
+                or q_lower in c.get("_content", "").lower()
+                or any(q_lower in t.lower() for t in c.get("tags", []))
+            ]
+
+        return templates.TemplateResponse(
+            "partials/capsule_list.html",
+            {"request": request, "capsules": capsules},
+        )
+
+    @router.get("/capsule/{filename}", response_class=HTMLResponse)
+    async def view_capsule(request: Request, filename: str):
+        """HTMX: View capsule detail."""
+        capsules = load_capsules()
+        capsule = next((c for c in capsules if c.get("_filename") == filename), None)
+
+        if not capsule:
+            raise HTTPException(404, "Capsule not found")
+
+        return templates.TemplateResponse(
+            "partials/capsule_detail.html",
+            {"request": request, "capsule": capsule},
+        )
+
+    @router.post("/capsule/{filename}/pin", response_class=HTMLResponse)
+    async def toggle_pin(request: Request, filename: str):
+        """HTMX: Toggle capsule pinned status."""
+        capsules_dir = settings.capsules_path
+
+        for md_file in capsules_dir.rglob("*.md"):
+            if md_file.name == filename:
+                post = frontmatter.load(md_file)
+                post.metadata["pinned"] = not post.metadata.get("pinned", False)
+
+                with open(md_file, "w") as f:
+                    f.write(frontmatter.dumps(post))
+
+                await indexer.regenerate()
+
+                return templates.TemplateResponse(
+                    "partials/pin_button.html",
+                    {"request": request, "pinned": post.metadata["pinned"], "filename": filename},
+                )
+
+        raise HTTPException(404, "Capsule not found")
+
+    @router.post("/capsule/{filename}/cull", response_class=HTMLResponse)
+    async def cull_capsule(request: Request, filename: str):
+        """HTMX: Move capsule to Legacy."""
+        capsules_dir = settings.capsules_path
+
+        for md_file in capsules_dir.rglob("*.md"):
+            if md_file.name == filename:
+                writer.move_to_legacy(md_file)
+                await indexer.regenerate()
+                return HTMLResponse('<div class="text-gray-500">Moved to Legacy</div>')
+
+        raise HTTPException(404, "Capsule not found")
+
+    @router.post("/capsule/{filename}/edit", response_class=HTMLResponse)
+    async def edit_capsule(
+        request: Request,
+        filename: str,
+        title: str = Form(...),
+        tags: str = Form(""),
+    ):
+        """HTMX: Edit capsule metadata."""
+        capsules_dir = settings.capsules_path
+
+        for md_file in capsules_dir.rglob("*.md"):
+            if md_file.name == filename:
+                post = frontmatter.load(md_file)
+                post.metadata["title"] = title
+                post.metadata["tags"] = [t.strip() for t in tags.split(",") if t.strip()]
+
+                with open(md_file, "w") as f:
+                    f.write(frontmatter.dumps(post))
+
+                await indexer.regenerate()
+
+                capsule = dict(post.metadata)
+                capsule["_filename"] = filename
+                capsule["_content"] = post.content
+
+                return templates.TemplateResponse(
+                    "partials/capsule_card.html",
+                    {"request": request, "capsule": capsule},
+                )
+
+        raise HTTPException(404, "Capsule not found")
+
+    # API endpoints for browser extension
+    @router.get("/api/health")
+    async def health():
+        """Health check for extension."""
+        return {"status": "ok", "version": "0.1.0"}
+
+    @router.post("/api/capture")
+    async def capture(req: CaptureRequest):
+        """Capture content from browser extension."""
+        capsule_path = await processor.process_browser_capture(
+            content=req.content,
+            source_url=req.source_url,
+            image_data=req.image_data,
+        )
+
+        # Load the created capsule to return info
+        post = frontmatter.load(capsule_path)
+
+        return {
+            "success": True,
+            "title": post.metadata.get("title", "Untitled"),
+            "path": str(capsule_path),
+        }
+
+    return router

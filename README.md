@@ -1,24 +1,153 @@
 # Neural Sieve
 
-## The High-Signal External Memory for AI Influence
+> The High-Signal External Memory for AI Influence
 
-Neural Sieve is a **filter, not a bucket**. It captures only "mind-blowing" insights—the 1% that change your perspective. It stores knowledge locally as plain-text **Knowledge Capsules**, making your wisdom accessible to any AI through context injection via a structured, logical map.
+Neural Sieve is a **filter, not a bucket**. It captures only "mind-blowing" insights—the 1% that change your perspective. It stores knowledge locally as plain-text **Knowledge Capsules**, making your wisdom accessible to any AI through context injection.
 
-### Directory Structure
+## Quick Start
 
-- `README.md`: The Map (Flat index of all active capsules)
-- `.sieve/`: Configuration, tags, and local index files
-- `Capsules/`: The heart of the system (Markdown files)
-- `Legacy/`: Deprecated knowledge
-- `Assets/`: Original screenshots, diagrams, and PDFs
-- `Inbox/`: Single entry point for all raw captures
-- `docs/`: Project documentation (Architecture, etc.)
+### 1. Install
 
-### Quick Start
+```bash
+# Clone and enter directory
+cd neural-sieve
 
-- **Manage**: `sieve manage` (TBD)
-- **Capture**: (Global Visual Capture shortcut TBD)
-- **Vault Chat**: (Local RAG chat TBD)
+# Install with uv
+uv sync
+
+# Create .env with your OpenAI API key
+cp .env.example .env
+# Edit .env and add your OPENAI_API_KEY
+```
+
+### 2. Initialize Vault
+
+```bash
+uv run sieve init
+```
+
+### 3. Start the Watcher
+
+```bash
+uv run sieve watch
+```
+
+Drop files into `Inbox/` and they'll be automatically processed into capsules.
+
+### 4. (Optional) Start Dashboard
+
+```bash
+uv run sieve manage
+# Open http://127.0.0.1:8420
+```
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `sieve init` | Initialize vault in current directory |
+| `sieve watch` | Start file watcher (watches Inbox/ and screenshot folder) |
+| `sieve manage` | Start dashboard at localhost:8420 |
+| `sieve mcp` | Start MCP server for AI integration |
+| `sieve process <file>` | Manually process a single file |
+| `sieve index` | Regenerate README.md index |
+
+## Directory Structure
+
+```
+Neural-Sieve-Vault/
+├── README.md              # THE MAP: Auto-generated index of all capsules
+├── .sieve/                # Configuration and logs
+├── Capsules/              # Knowledge capsules organized by category
+│   ├── Technology/
+│   ├── Business/
+│   └── ...
+├── Legacy/                # Deprecated capsules (moved here to reduce noise)
+├── Assets/                # Original screenshots and files
+│   └── 2026-01/
+└── Inbox/                 # DROP ZONE: All raw captures land here
+```
+
+## Chrome Extension
+
+1. Open `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked" → select the `extension/` folder
+4. Make sure `sieve manage` is running
+
+**Usage:**
+- Select text → click extension → "Capture Selection"
+- Right-click selected text → "Save to Neural Sieve"
+- Click "Capture Full Page" for entire articles
+
+## Configuration
+
+### Environment Variables (.env)
+
+```bash
+# Required
+OPENAI_API_KEY=sk-...
+
+# Optional: Watch a screenshot folder (in addition to Inbox/)
+SIEVE_SCREENSHOT_FOLDER=/Users/yourname/Desktop
+
+# Optional: Custom port (default: 8420)
+SIEVE_PORT=8420
+```
+
+## MCP Integration
+
+Add to your Claude Desktop or other MCP client:
+
+```json
+{
+  "mcpServers": {
+    "neural-sieve": {
+      "command": "uv",
+      "args": ["run", "sieve", "mcp"],
+      "cwd": "/path/to/neural-sieve"
+    }
+  }
+}
+```
+
+**Available Tools:**
+- `search_capsules(query)` - Search knowledge by keyword
+- `get_pinned()` - Get all pinned "Eternal Truths"
+- `get_capsule(id)` - Read a specific capsule
+- `get_readme()` - Get the full index
+- `get_categories()` - List all categories
+
+## Knowledge Capsule Format
+
+Each capsule is a markdown file with YAML frontmatter:
+
+```markdown
+---
+id: "2026-01-14-T100000"
+title: "The Core Logic of Neural Sieve"
+source_url: "https://example.com/article"
+tags: [AI, Memory, Architecture]
+category: "Technology"
+status: "active"
+pinned: false
+captured_at: 2026-01-14
+capture_method: "browser"
+---
+
+# Executive Summary
+
+> A 2-sentence hook explaining why this matters.
+
+# Core Insight
+
+The single most important takeaway.
+
+# Full Content
+
+The complete, cleaned text.
+```
 
 ---
-*For more details, see [Architecture & Concept](docs/architecture.md)*
+
+*For architecture details, see [docs/architecture.md](docs/architecture.md)*

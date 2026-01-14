@@ -4,7 +4,87 @@
 
 # OS files
 .DS_Store
+Thumbs.db
+Desktop.ini
 
 # Temporary files
 Inbox/*
 !Inbox/.gitkeep
+
+# ========================
+# SENSITIVE FILES - CRITICAL
+# ========================
+
+# Environment files (may contain API keys, secrets)
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+*.env
+
+# API keys and secrets
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets.json
+secrets.yaml
+secrets.yml
+**/secrets/
+apikey*
+api_key*
+*apikey*
+*api_key*
+
+# Credentials
+credentials.json
+credentials.yaml
+credentials.yml
+**/credentials/
+*.credentials
+service-account*.json
+auth.json
+
+# Config files that may contain secrets
+config.local.json
+config.local.yaml
+config.production.json
+settings.local.*
+*.secret.*
+
+# Token files
+*.token
+*_token
+token.txt
+tokens.json
+
+# ========================
+# Development
+# ========================
+
+# Dependencies
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Test coverage
+coverage/
+.coverage

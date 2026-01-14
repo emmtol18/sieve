@@ -8,10 +8,10 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
-from openai import AsyncOpenAI, APIError, RateLimitError, APIConnectionError
+from openai import APIConnectionError, APIError, AsyncOpenAI, RateLimitError
 
-from ..config import Settings
 from ..capsule.schema import Capsule, CapsuleMetadata
+from ..config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -149,25 +149,14 @@ class OpenAIClient:
 
         return self._build_capsule(data, source_url, capture_method)
 
-    async def process_image(
+    async def _process_image_data(
         self,
-        image_path: Path,
+        image_data: str,
+        mime_type: str = "image/jpeg",
+        source_url: Optional[str] = None,
         capture_method: str = "screenshot",
     ) -> Capsule:
-        """Process an image file into a capsule using vision."""
-        image_data = base64.b64encode(image_path.read_bytes()).decode("utf-8")
-
-        # Detect mime type
-        suffix = image_path.suffix.lower()
-        mime_types = {
-            ".png": "image/png",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-            ".gif": "image/gif",
-            ".webp": "image/webp",
-        }
-        mime_type = mime_types.get(suffix, "image/png")
-
+        """Process base64 image data into a capsule using vision."""
         messages = [
             {"role": "system", "content": IMAGE_SYSTEM_PROMPT},
             {
@@ -187,7 +176,31 @@ class OpenAIClient:
         response = await self._call_with_retry(messages, max_tokens=4096)
         data = self._parse_response(response)
 
-        return self._build_capsule(data, capture_method=capture_method)
+        return self._build_capsule(data, source_url, capture_method)
+
+    async def process_image(
+        self,
+        image_path: Path,
+        capture_method: str = "screenshot",
+    ) -> Capsule:
+        """Process an image file into a capsule using vision."""
+        image_data = base64.b64encode(image_path.read_bytes()).decode("utf-8")
+
+        # Detect mime type from file extension
+        mime_types = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+        }
+        mime_type = mime_types.get(image_path.suffix.lower(), "image/png")
+
+        return await self._process_image_data(
+            image_data,
+            mime_type=mime_type,
+            capture_method=capture_method,
+        )
 
     async def process_image_base64(
         self,
@@ -196,23 +209,8 @@ class OpenAIClient:
         capture_method: str = "browser",
     ) -> Capsule:
         """Process base64 image data into a capsule."""
-        messages = [
-            {"role": "system", "content": IMAGE_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_data}",
-                            "detail": "high",
-                        },
-                    },
-                ],
-            },
-        ]
-
-        response = await self._call_with_retry(messages, max_tokens=4096)
-        data = self._parse_response(response)
-
-        return self._build_capsule(data, source_url, capture_method)
+        return await self._process_image_data(
+            image_data,
+            source_url=source_url,
+            capture_method=capture_method,
+        )

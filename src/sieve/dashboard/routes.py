@@ -1,18 +1,17 @@
 """Dashboard routes (API + HTMX)."""
 
 from collections import defaultdict
-from pathlib import Path
 from typing import Optional
 
 import frontmatter
-from fastapi import APIRouter, Request, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
+from ..capsule import CapsuleWriter, find_capsule_file, load_capsules
 from ..config import Settings
-from ..engine import Processor, Indexer
-from ..capsule import CapsuleWriter
+from ..engine import Indexer, Processor
 
 
 class CaptureRequest(BaseModel):
@@ -32,34 +31,14 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
     indexer = Indexer(settings)
     writer = CapsuleWriter(settings)
 
-    def load_capsules() -> list[dict]:
+    def get_capsules() -> list[dict]:
         """Load all capsules with their content."""
-        capsules = []
-        capsules_dir = settings.capsules_path
-
-        if not capsules_dir.exists():
-            return capsules
-
-        for md_file in capsules_dir.rglob("*.md"):
-            try:
-                post = frontmatter.load(md_file)
-                capsule = dict(post.metadata)
-                capsule["_path"] = str(md_file)
-                capsule["_rel_path"] = str(md_file.relative_to(settings.vault_root))
-                capsule["_content"] = post.content
-                capsule["_filename"] = md_file.name
-
-                if capsule.get("status") != "legacy":
-                    capsules.append(capsule)
-            except Exception:
-                pass
-
-        return sorted(capsules, key=lambda c: c.get("captured_at", ""), reverse=True)
+        return load_capsules(settings, include_content=True)
 
     @router.get("/", response_class=HTMLResponse)
     async def index(request: Request):
         """Main dashboard page."""
-        capsules = load_capsules()
+        capsules = get_capsules()
 
         # Group by category
         by_category = defaultdict(list)
@@ -92,7 +71,7 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
         q: Optional[str] = None,
     ):
         """HTMX: List/filter capsules."""
-        capsules = load_capsules()
+        capsules = get_capsules()
 
         # Filter by category
         if category:
@@ -121,7 +100,7 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
     @router.get("/capsule/{filename}", response_class=HTMLResponse)
     async def view_capsule(request: Request, filename: str):
         """HTMX: View capsule detail."""
-        capsules = load_capsules()
+        capsules = get_capsules()
         capsule = next((c for c in capsules if c.get("_filename") == filename), None)
 
         if not capsule:
@@ -135,37 +114,33 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
     @router.post("/capsule/{filename}/pin", response_class=HTMLResponse)
     async def toggle_pin(request: Request, filename: str):
         """HTMX: Toggle capsule pinned status."""
-        capsules_dir = settings.capsules_path
+        md_file = find_capsule_file(settings, filename)
+        if not md_file:
+            raise HTTPException(404, "Capsule not found")
 
-        for md_file in capsules_dir.rglob("*.md"):
-            if md_file.name == filename:
-                post = frontmatter.load(md_file)
-                post.metadata["pinned"] = not post.metadata.get("pinned", False)
+        post = frontmatter.load(md_file)
+        post.metadata["pinned"] = not post.metadata.get("pinned", False)
 
-                with open(md_file, "w") as f:
-                    f.write(frontmatter.dumps(post))
+        with open(md_file, "w") as f:
+            f.write(frontmatter.dumps(post))
 
-                await indexer.regenerate()
+        await indexer.regenerate()
 
-                return templates.TemplateResponse(
-                    "partials/pin_button.html",
-                    {"request": request, "pinned": post.metadata["pinned"], "filename": filename},
-                )
-
-        raise HTTPException(404, "Capsule not found")
+        return templates.TemplateResponse(
+            "partials/pin_button.html",
+            {"request": request, "pinned": post.metadata["pinned"], "filename": filename},
+        )
 
     @router.post("/capsule/{filename}/cull", response_class=HTMLResponse)
     async def cull_capsule(request: Request, filename: str):
         """HTMX: Move capsule to Legacy."""
-        capsules_dir = settings.capsules_path
+        md_file = find_capsule_file(settings, filename)
+        if not md_file:
+            raise HTTPException(404, "Capsule not found")
 
-        for md_file in capsules_dir.rglob("*.md"):
-            if md_file.name == filename:
-                writer.move_to_legacy(md_file)
-                await indexer.regenerate()
-                return HTMLResponse('<div class="text-gray-500">Moved to Legacy</div>')
-
-        raise HTTPException(404, "Capsule not found")
+        writer.move_to_legacy(md_file)
+        await indexer.regenerate()
+        return HTMLResponse('<div class="text-gray-500">Moved to Legacy</div>')
 
     @router.post("/capsule/{filename}/edit", response_class=HTMLResponse)
     async def edit_capsule(
@@ -175,29 +150,27 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
         tags: str = Form(""),
     ):
         """HTMX: Edit capsule metadata."""
-        capsules_dir = settings.capsules_path
+        md_file = find_capsule_file(settings, filename)
+        if not md_file:
+            raise HTTPException(404, "Capsule not found")
 
-        for md_file in capsules_dir.rglob("*.md"):
-            if md_file.name == filename:
-                post = frontmatter.load(md_file)
-                post.metadata["title"] = title
-                post.metadata["tags"] = [t.strip() for t in tags.split(",") if t.strip()]
+        post = frontmatter.load(md_file)
+        post.metadata["title"] = title
+        post.metadata["tags"] = [t.strip() for t in tags.split(",") if t.strip()]
 
-                with open(md_file, "w") as f:
-                    f.write(frontmatter.dumps(post))
+        with open(md_file, "w") as f:
+            f.write(frontmatter.dumps(post))
 
-                await indexer.regenerate()
+        await indexer.regenerate()
 
-                capsule = dict(post.metadata)
-                capsule["_filename"] = filename
-                capsule["_content"] = post.content
+        capsule = dict(post.metadata)
+        capsule["_filename"] = filename
+        capsule["_content"] = post.content
 
-                return templates.TemplateResponse(
-                    "partials/capsule_card.html",
-                    {"request": request, "capsule": capsule},
-                )
-
-        raise HTTPException(404, "Capsule not found")
+        return templates.TemplateResponse(
+            "partials/capsule_card.html",
+            {"request": request, "capsule": capsule},
+        )
 
     # API endpoints for browser extension
     @router.get("/api/health")

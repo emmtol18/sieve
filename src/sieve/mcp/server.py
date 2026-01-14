@@ -1,15 +1,34 @@
 """MCP server for Neural Sieve - AI integration via Model Context Protocol."""
 
+import asyncio
 from collections import defaultdict
-from pathlib import Path
-from typing import Optional
 
-import frontmatter
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.types import TextContent, Tool
 
+from ..capsule import load_capsules
 from ..config import get_settings
+
+
+def format_capsule(capsule: dict) -> str:
+    """Format a capsule for display."""
+    lines = [
+        f"## {capsule.get('title', 'Untitled')}",
+        f"**ID:** {capsule.get('id', 'N/A')}",
+        f"**Category:** {capsule.get('category', 'Uncategorized')}",
+        f"**Tags:** {', '.join(capsule.get('tags', []))}",
+        f"**Captured:** {capsule.get('captured_at', 'Unknown')}",
+        f"**Pinned:** {'Yes' if capsule.get('pinned') else 'No'}",
+    ]
+
+    if capsule.get("source_url"):
+        lines.append(f"**Source:** {capsule['source_url']}")
+
+    lines.append("")
+    lines.append(capsule.get("_content", ""))
+
+    return "\n".join(lines)
 
 
 def run_server():
@@ -17,27 +36,9 @@ def run_server():
     settings = get_settings()
     server = Server("neural-sieve")
 
-    def load_capsules() -> list[dict]:
-        """Load all active capsules."""
-        capsules = []
-        capsules_dir = settings.capsules_path
-
-        if not capsules_dir.exists():
-            return capsules
-
-        for md_file in capsules_dir.rglob("*.md"):
-            try:
-                post = frontmatter.load(md_file)
-                capsule = dict(post.metadata)
-                capsule["_path"] = str(md_file.relative_to(settings.vault_root))
-                capsule["_content"] = post.content
-
-                if capsule.get("status") != "legacy":
-                    capsules.append(capsule)
-            except Exception:
-                pass
-
-        return capsules
+    def get_capsules() -> list[dict]:
+        """Load all active capsules with content."""
+        return load_capsules(settings, include_content=True)
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -65,10 +66,7 @@ def run_server():
             Tool(
                 name="get_pinned",
                 description="Get all pinned capsules (Eternal Truths). These represent the highest-priority knowledge.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {},
-                },
+                inputSchema={"type": "object", "properties": {}},
             ),
             Tool(
                 name="get_capsule",
@@ -87,43 +85,18 @@ def run_server():
             Tool(
                 name="get_readme",
                 description="Get the full README.md index showing all capsules organized by category.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {},
-                },
+                inputSchema={"type": "object", "properties": {}},
             ),
             Tool(
                 name="get_categories",
                 description="Get list of all knowledge categories with capsule counts.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {},
-                },
+                inputSchema={"type": "object", "properties": {}},
             ),
         ]
 
-    @server.call_tool()
-    async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-        """Handle tool calls."""
-        if name == "search_capsules":
-            return await search_capsules(
-                arguments.get("query", ""),
-                arguments.get("limit", 10),
-            )
-        elif name == "get_pinned":
-            return await get_pinned()
-        elif name == "get_capsule":
-            return await get_capsule(arguments.get("id", ""))
-        elif name == "get_readme":
-            return await get_readme()
-        elif name == "get_categories":
-            return await get_categories()
-        else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
-
     async def search_capsules(query: str, limit: int = 10) -> list[TextContent]:
         """Search capsules by keyword."""
-        capsules = load_capsules()
+        capsules = get_capsules()
         query_lower = query.lower()
 
         matches = []
@@ -158,7 +131,7 @@ def run_server():
 
     async def get_pinned() -> list[TextContent]:
         """Get all pinned capsules."""
-        capsules = load_capsules()
+        capsules = get_capsules()
         pinned = [c for c in capsules if c.get("pinned")]
 
         if not pinned:
@@ -171,9 +144,9 @@ def run_server():
 
         return [TextContent(type="text", text=text)]
 
-    async def get_capsule(capsule_id: str) -> list[TextContent]:
+    async def get_capsule_by_id(capsule_id: str) -> list[TextContent]:
         """Get a specific capsule by ID."""
-        capsules = load_capsules()
+        capsules = get_capsules()
 
         for c in capsules:
             if c.get("id") == capsule_id:
@@ -193,7 +166,7 @@ def run_server():
 
     async def get_categories() -> list[TextContent]:
         """Get all categories with counts."""
-        capsules = load_capsules()
+        capsules = get_capsules()
         by_category = defaultdict(int)
 
         for c in capsules:
@@ -207,27 +180,25 @@ def run_server():
 
         return [TextContent(type="text", text=text)]
 
-    def format_capsule(c: dict) -> str:
-        """Format a capsule for display."""
-        lines = [
-            f"## {c.get('title', 'Untitled')}",
-            f"**ID:** {c.get('id', 'N/A')}",
-            f"**Category:** {c.get('category', 'Uncategorized')}",
-            f"**Tags:** {', '.join(c.get('tags', []))}",
-            f"**Captured:** {c.get('captured_at', 'Unknown')}",
-            f"**Pinned:** {'Yes' if c.get('pinned') else 'No'}",
-        ]
+    @server.call_tool()
+    async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+        """Handle tool calls using dictionary dispatch."""
+        tool_handlers = {
+            "search_capsules": lambda: search_capsules(
+                arguments.get("query", ""),
+                arguments.get("limit", 10),
+            ),
+            "get_pinned": get_pinned,
+            "get_capsule": lambda: get_capsule_by_id(arguments.get("id", "")),
+            "get_readme": get_readme,
+            "get_categories": get_categories,
+        }
 
-        if c.get("source_url"):
-            lines.append(f"**Source:** {c['source_url']}")
+        handler = tool_handlers.get(name)
+        if handler:
+            return await handler()
 
-        lines.append("")
-        lines.append(c.get("_content", ""))
-
-        return "\n".join(lines)
-
-    # Run the server
-    import asyncio
+        return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
     async def main():
         async with stdio_server() as (read_stream, write_stream):

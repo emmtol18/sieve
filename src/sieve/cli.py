@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from .config import get_settings, Settings
+from .config import get_settings
 
 
 def setup_logging(verbose: bool = False):

@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..config import Settings
+from ..utils import get_unique_path
 from .schema import Capsule
 
 
@@ -43,33 +44,13 @@ class CapsuleWriter:
         month_dir = self.settings.assets_path / datetime.now().strftime("%Y-%m")
         month_dir.mkdir(parents=True, exist_ok=True)
 
-        dest = month_dir / source.name
-
-        # Handle name collision
-        if dest.exists():
-            stem = source.stem
-            suffix = source.suffix
-            counter = 1
-            while dest.exists():
-                dest = month_dir / f"{stem}_{counter}{suffix}"
-                counter += 1
-
+        dest = get_unique_path(month_dir / source.name)
         shutil.copy2(source, dest)
         return dest
 
     def move_to_legacy(self, capsule_path: Path) -> Path:
         """Move a capsule to the Legacy folder."""
         self.settings.legacy_path.mkdir(parents=True, exist_ok=True)
-        dest = self.settings.legacy_path / capsule_path.name
-
-        # Handle collision
-        if dest.exists():
-            stem = capsule_path.stem
-            suffix = capsule_path.suffix
-            counter = 1
-            while dest.exists():
-                dest = self.settings.legacy_path / f"{stem}_{counter}{suffix}"
-                counter += 1
-
+        dest = get_unique_path(self.settings.legacy_path / capsule_path.name)
         shutil.move(capsule_path, dest)
         return dest

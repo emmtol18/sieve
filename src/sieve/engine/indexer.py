@@ -3,10 +3,8 @@
 import logging
 from collections import defaultdict
 from datetime import datetime
-from pathlib import Path
 
-import frontmatter
-
+from ..capsule import load_capsules
 from ..config import Settings
 
 logger = logging.getLogger(__name__)
@@ -20,7 +18,7 @@ class Indexer:
 
     async def regenerate(self):
         """Regenerate the README.md index."""
-        capsules = self._load_capsules()
+        capsules = load_capsules(self.settings)
 
         # Group by category and separate pinned
         pinned = []
@@ -31,46 +29,12 @@ class Indexer:
                 pinned.append(capsule)
             by_category[capsule.get("category", "Uncategorized")].append(capsule)
 
-        # Sort each category by date (newest first)
-        for category in by_category:
-            by_category[category].sort(
-                key=lambda c: c.get("captured_at", ""), reverse=True
-            )
-
-        # Sort pinned by date too
-        pinned.sort(key=lambda c: c.get("captured_at", ""), reverse=True)
-
         # Generate markdown
         content = self._generate_markdown(pinned, by_category)
 
         # Write README
         self.settings.readme_path.write_text(content, encoding="utf-8")
         logger.info("README.md regenerated")
-
-    def _load_capsules(self) -> list[dict]:
-        """Load all active capsules from Capsules/ directory."""
-        capsules = []
-        capsules_dir = self.settings.capsules_path
-
-        if not capsules_dir.exists():
-            return capsules
-
-        for md_file in capsules_dir.rglob("*.md"):
-            try:
-                post = frontmatter.load(md_file)
-                meta = dict(post.metadata)
-                meta["_path"] = str(md_file.relative_to(self.settings.vault_root))
-                meta["_filename"] = md_file.name
-
-                # Skip legacy/inactive
-                if meta.get("status") == "legacy":
-                    continue
-
-                capsules.append(meta)
-            except Exception as e:
-                logger.warning(f"Failed to load {md_file}: {e}")
-
-        return capsules
 
     def _generate_markdown(
         self, pinned: list[dict], by_category: dict[str, list[dict]]

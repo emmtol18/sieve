@@ -6,10 +6,11 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from ..config import Settings
 from ..capsule import CapsuleWriter
+from ..config import Settings
 from ..llm import OpenAIClient
-from .extractors import ImageExtractor, HTMLExtractor, TextExtractor, Extractor
+from ..utils import get_unique_path
+from .extractors import Extractor, HTMLExtractor, ImageExtractor, TextExtractor
 from .indexer import Indexer
 
 logger = logging.getLogger(__name__)
@@ -124,16 +125,7 @@ class Processor:
                 return
 
             self.settings.failed_path.mkdir(parents=True, exist_ok=True)
-            dest = self.settings.failed_path / path.name
-
-            if dest.exists():
-                stem = path.stem
-                suffix = path.suffix
-                counter = 1
-                while dest.exists():
-                    dest = self.settings.failed_path / f"{stem}_{counter}{suffix}"
-                    counter += 1
-
+            dest = get_unique_path(self.settings.failed_path / path.name)
             shutil.move(path, dest)
         except (FileNotFoundError, PermissionError) as e:
             logger.warning(f"Could not move {path.name} to failed folder: {e}")

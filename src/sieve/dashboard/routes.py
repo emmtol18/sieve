@@ -1,17 +1,21 @@
 """Dashboard routes (API + HTMX)."""
 
+import asyncio
+import logging
 from collections import defaultdict
 from typing import Optional
 
 import frontmatter
 from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from ..capsule import CapsuleWriter, find_capsule_file, load_capsules
 from ..config import Settings
 from ..engine import Indexer, Processor
+
+logger = logging.getLogger(__name__)
 
 
 class CaptureRequest(BaseModel):
@@ -30,6 +34,9 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
     processor = Processor(settings)
     indexer = Indexer(settings)
     writer = CapsuleWriter(settings)
+
+    # Keep references to background tasks to prevent garbage collection
+    background_tasks: set[asyncio.Task] = set()
 
     def get_capsules() -> list[dict]:
         """Load all capsules with their content."""
@@ -180,7 +187,7 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
 
     @router.post("/api/capture")
     async def capture(req: CaptureRequest):
-        """Capture content from browser extension."""
+        """Capture content from browser extension (synchronous)."""
         capsule_path = await processor.process_browser_capture(
             content=req.content,
             source_url=req.source_url,
@@ -196,4 +203,55 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
             "path": str(capsule_path),
         }
 
+    @router.post("/api/capture/async")
+    async def capture_async(req: CaptureRequest):
+        """Fire-and-forget capture from browser extension.
+
+        Returns 202 Accepted immediately while processing in background.
+        This enables instant popup close without waiting for LLM processing.
+        """
+        # Basic validation before spawning background task
+        if not req.content or len(req.content.strip()) < 10:
+            raise HTTPException(400, "Content too short")
+
+        # Spawn background task with proper reference management
+        # (prevents garbage collection before completion)
+        task = asyncio.create_task(
+            _process_capture_background(
+                processor=processor,
+                content=req.content,
+                source_url=req.source_url,
+                image_data=req.image_data,
+            )
+        )
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
+
+        # Return immediately
+        return JSONResponse(
+            status_code=202,
+            content={"status": "queued", "message": "Processing in background"},
+        )
+
     return router
+
+
+async def _process_capture_background(
+    processor: Processor,
+    content: str,
+    source_url: str | None,
+    image_data: str | None,
+):
+    """Background task for processing capture.
+
+    Runs independently after HTTP response is sent.
+    """
+    try:
+        capsule_path = await processor.process_browser_capture(
+            content=content,
+            source_url=source_url,
+            image_data=image_data,
+        )
+        logger.info(f"[BACKGROUND] Capture completed: {capsule_path.name}")
+    except Exception:
+        logger.exception("[BACKGROUND] Capture failed")

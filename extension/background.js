@@ -1,5 +1,33 @@
 const API_URL = 'http://127.0.0.1:8420';
 
+/**
+ * Fire-and-forget capture to async endpoint.
+ * Returns immediately after queueing - no waiting for LLM processing.
+ */
+async function captureAsync(content, sourceUrl) {
+  try {
+    const res = await fetch(`${API_URL}/api/capture/async`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content,
+        source_url: sourceUrl
+      })
+    });
+
+    if (!res.ok) {
+      console.error(`[Neural Sieve] Capture failed: ${res.status}`);
+      return false;
+    }
+
+    console.log('[Neural Sieve] Capture queued for background processing');
+    return true;
+  } catch (e) {
+    console.error('[Neural Sieve] Capture failed:', e.message);
+    return false;
+  }
+}
+
 // Create context menu on install
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -9,27 +37,21 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// Handle context menu clicks
+// Handle context menu clicks (fire-and-forget)
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== 'capture-selection' || !info.selectionText) return;
+  captureAsync(info.selectionText, tab.url);
+});
 
-  try {
-    const res = await fetch(`${API_URL}/api/capture`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: info.selectionText,
-        source_url: tab.url
-      })
-    });
-
-    if (!res.ok) throw new Error('Server error');
-
-    const data = await res.json();
-
-    // Show notification (optional - requires notifications permission)
-    console.log(`Captured: ${data.title}`);
-  } catch (e) {
-    console.error('Capture failed:', e);
+// Handle messages from popup (fire-and-forget capture)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'CAPTURE') {
+    captureAsync(message.content, message.source_url)
+      .then(success => sendResponse({ success }))
+      .catch(error => {
+        console.error('[Neural Sieve] Message handler error:', error);
+        sendResponse({ success: false });
+      });
+    return true; // Keep channel open for async response
   }
 });

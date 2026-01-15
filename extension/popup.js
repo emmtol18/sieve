@@ -62,78 +62,61 @@ async function getPageContent() {
   }
 }
 
-function resetCaptureButton(btn) {
-  btn.textContent = '';
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('class', 'icon');
-  svg.setAttribute('fill', 'none');
-  svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('stroke-linecap', 'round');
-  path.setAttribute('stroke-linejoin', 'round');
-  path.setAttribute('stroke-width', '2');
-  path.setAttribute('d', 'M12 6v6m0 0v6m0-6h6m-6 0H6');
-  svg.appendChild(path);
-  btn.appendChild(svg);
-  btn.appendChild(document.createTextNode(' Capture Selection'));
-}
-
+/**
+ * Fire-and-forget capture via background service worker.
+ * Sends message to background, shows instant feedback, closes popup immediately.
+ */
 async function capture(content) {
   const btn = document.getElementById('capture-btn');
+  const pageBtn = document.getElementById('page-btn');
   const msg = document.getElementById('message');
 
+  // Disable buttons immediately
   btn.disabled = true;
-  btn.textContent = 'Capturing...';
+  pageBtn.disabled = true;
+  btn.textContent = 'Queued...';
 
-  try {
-    const res = await fetch(`${API_URL}/api/capture`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content,
-        source_url: pageUrl
-      })
-    });
+  // Send to background service worker (fire-and-forget)
+  chrome.runtime.sendMessage({
+    type: 'CAPTURE',
+    content: content,
+    source_url: pageUrl
+  });
 
-    if (!res.ok) throw new Error('Server error');
+  // Show instant success and close quickly
+  msg.className = 'message success';
+  msg.textContent = 'Queued for capture';
 
-    const data = await res.json();
-    msg.className = 'message success';
-    msg.textContent = 'Captured: ' + data.title;
-
-    setTimeout(() => window.close(), 1200);
-  } catch (e) {
-    msg.className = 'message error';
-    msg.textContent = 'Error: ' + e.message;
-  } finally {
-    btn.disabled = false;
-    resetCaptureButton(btn);
-  }
+  // Close popup after brief feedback (300ms)
+  setTimeout(() => window.close(), 300);
 }
 
 async function init() {
-  await checkServer();
+  const serverUp = await checkServer();
 
   selectedText = await getSelection();
 
   const preview = document.getElementById('preview');
   const captureBtn = document.getElementById('capture-btn');
+  const pageBtn = document.getElementById('page-btn');
 
   if (selectedText) {
     preview.textContent = selectedText.substring(0, 200) + (selectedText.length > 200 ? '...' : '');
     preview.classList.remove('empty');
-    captureBtn.disabled = false;
+    captureBtn.disabled = !serverUp;
   } else {
     preview.textContent = 'Select text on the page, or capture the full page';
     preview.classList.add('empty');
   }
 
+  // Disable page capture if server is down
+  pageBtn.disabled = !serverUp;
+
   captureBtn.addEventListener('click', () => {
     if (selectedText) capture(selectedText);
   });
 
-  document.getElementById('page-btn').addEventListener('click', async () => {
+  pageBtn.addEventListener('click', async () => {
     const content = await getPageContent();
     if (content) {
       capture(content);

@@ -1,4 +1,4 @@
-"""OpenAI client with retry logic."""
+"""OpenAI client with retry logic using the Responses API."""
 
 import asyncio
 import base64
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIClient:
-    """OpenAI API client with exponential backoff retry."""
+    """OpenAI API client using the Responses API with exponential backoff retry."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -27,7 +27,8 @@ class OpenAIClient:
 
     async def _call_with_retry(
         self,
-        messages: list[dict],
+        input_content: str | list[dict],
+        instructions: str,
         max_tokens: int = 4096,
     ) -> str:
         """Make API call with exponential backoff retry."""
@@ -36,20 +37,20 @@ class OpenAIClient:
 
         for attempt in range(self.settings.max_retries):
             try:
-                response = await self.client.chat.completions.create(
+                response = await self.client.responses.create(
                     model=self.model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=0.3,
-                    response_format={"type": "json_object"},
+                    instructions=instructions,
+                    input=input_content,
+                    max_output_tokens=max_tokens,
+                    text={"format": {"type": "json_object"}},
                 )
-                return response.choices[0].message.content
+                return response.output_text
             except (RateLimitError, APIError, APIConnectionError) as e:
                 last_error = e
                 logger.warning(f"API error: {e}, retrying in {delay}s (attempt {attempt + 1})")
                 await asyncio.sleep(delay)
                 delay *= 2
-            except Exception as e:
+            except Exception:
                 # Don't retry on auth errors or unexpected exceptions
                 raise
 
@@ -98,13 +99,13 @@ class OpenAIClient:
     ) -> Capsule:
         """Process text content into a capsule."""
         user_content = f"Source URL: {source_url}\n\n{content}" if source_url else content
+        # Responses API requires 'json' in input when using json_object format
+        user_content = f"{user_content}\n\nRespond in JSON format."
 
-        messages = [
-            {"role": "system", "content": CAPSULE_SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ]
-
-        response = await self._call_with_retry(messages)
+        response = await self._call_with_retry(
+            input_content=user_content,
+            instructions=CAPSULE_SYSTEM_PROMPT,
+        )
         data = self._parse_response(response)
 
         return self._build_capsule(data, source_url, capture_method)
@@ -117,23 +118,28 @@ class OpenAIClient:
         capture_method: str = "screenshot",
     ) -> Capsule:
         """Process base64 image data into a capsule using vision."""
-        messages = [
-            {"role": "system", "content": IMAGE_SYSTEM_PROMPT},
+        # Responses API requires 'json' in input when using json_object format
+        input_content = [
             {
                 "role": "user",
                 "content": [
                     {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{mime_type};base64,{image_data}",
-                            "detail": "high",
-                        },
+                        "type": "input_image",
+                        "image_url": f"data:{mime_type};base64,{image_data}",
+                    },
+                    {
+                        "type": "input_text",
+                        "text": "Extract content from this image. Respond in JSON format.",
                     },
                 ],
             },
         ]
 
-        response = await self._call_with_retry(messages, max_tokens=4096)
+        response = await self._call_with_retry(
+            input_content=input_content,
+            instructions=IMAGE_SYSTEM_PROMPT,
+            max_tokens=4096,
+        )
         data = self._parse_response(response)
 
         return self._build_capsule(data, source_url, capture_method)

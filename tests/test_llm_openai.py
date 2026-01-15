@@ -21,9 +21,8 @@ class TestOpenAIClient:
     def mock_openai(self):
         """Create mock OpenAI client."""
         mock = MagicMock()
-        mock.chat = MagicMock()
-        mock.chat.completions = MagicMock()
-        mock.chat.completions.create = AsyncMock()
+        mock.responses = MagicMock()
+        mock.responses.create = AsyncMock()
         return mock
 
     @pytest.fixture
@@ -57,23 +56,24 @@ class TestOpenAIClient:
     async def test_call_with_retry_success(self, client, mock_openai, valid_response):
         """Test successful API call."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = valid_response
-        mock_openai.chat.completions.create.return_value = mock_response
+        mock_response.output_text = valid_response
+        mock_openai.responses.create.return_value = mock_response
 
-        result = await client._call_with_retry([{"role": "user", "content": "test"}])
+        result = await client._call_with_retry(
+            input_content="test content",
+            instructions="test instructions",
+        )
 
         assert result == valid_response
-        mock_openai.chat.completions.create.assert_called_once()
+        mock_openai.responses.create.assert_called_once()
 
     async def test_call_with_retry_retries_on_rate_limit(self, client, mock_openai, valid_response):
         """Test that rate limit errors trigger retry."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = valid_response
+        mock_response.output_text = valid_response
 
         # First call fails, second succeeds
-        mock_openai.chat.completions.create.side_effect = [
+        mock_openai.responses.create.side_effect = [
             RateLimitError(
                 message="Rate limit",
                 response=MagicMock(status_code=429),
@@ -83,14 +83,17 @@ class TestOpenAIClient:
         ]
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
-            result = await client._call_with_retry([{"role": "user", "content": "test"}])
+            result = await client._call_with_retry(
+                input_content="test",
+                instructions="instructions",
+            )
 
         assert result == valid_response
-        assert mock_openai.chat.completions.create.call_count == 2
+        assert mock_openai.responses.create.call_count == 2
 
     async def test_call_with_retry_exponential_backoff(self, client, mock_openai):
         """Test exponential backoff on retries."""
-        mock_openai.chat.completions.create.side_effect = RateLimitError(
+        mock_openai.responses.create.side_effect = RateLimitError(
             message="Rate limit",
             response=MagicMock(status_code=429),
             body={"error": {"message": "Rate limit"}},
@@ -104,7 +107,10 @@ class TestOpenAIClient:
         with patch("asyncio.sleep", mock_sleep):
             with pytest.raises(RateLimitError):
                 client.settings.max_retries = 3
-                await client._call_with_retry([{"role": "user", "content": "test"}])
+                await client._call_with_retry(
+                    input_content="test",
+                    instructions="instructions",
+                )
 
         # Check exponential backoff: 1, 2, 4
         assert len(sleep_calls) == 3
@@ -114,16 +120,19 @@ class TestOpenAIClient:
 
     async def test_call_with_retry_gives_up_after_max_retries(self, client, mock_openai):
         """Test that client gives up after max retries."""
-        mock_openai.chat.completions.create.side_effect = APIConnectionError(
+        mock_openai.responses.create.side_effect = APIConnectionError(
             request=MagicMock()
         )
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
             with pytest.raises(APIConnectionError):
                 client.settings.max_retries = 2
-                await client._call_with_retry([{"role": "user", "content": "test"}])
+                await client._call_with_retry(
+                    input_content="test",
+                    instructions="instructions",
+                )
 
-        assert mock_openai.chat.completions.create.call_count == 2
+        assert mock_openai.responses.create.call_count == 2
 
 
 class TestBuildCapsule:
@@ -251,7 +260,7 @@ class TestProcessText:
     def mock_openai(self):
         """Create mock OpenAI client."""
         mock = MagicMock()
-        mock.chat.completions.create = AsyncMock()
+        mock.responses.create = AsyncMock()
         return mock
 
     @pytest.fixture
@@ -265,43 +274,41 @@ class TestProcessText:
     async def test_process_text_calls_api(self, client, mock_openai, sample_llm_response):
         """Test that process_text calls the API correctly."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(sample_llm_response)
-        mock_openai.chat.completions.create.return_value = mock_response
+        mock_response.output_text = json.dumps(sample_llm_response)
+        mock_openai.responses.create.return_value = mock_response
 
         await client.process_text("Some content to process")
 
         # Verify API was called
-        mock_openai.chat.completions.create.assert_called_once()
-        call_kwargs = mock_openai.chat.completions.create.call_args.kwargs
+        mock_openai.responses.create.assert_called_once()
+        call_kwargs = mock_openai.responses.create.call_args.kwargs
 
         # Check model and format
         assert call_kwargs["model"] == client.model
-        assert call_kwargs["response_format"] == {"type": "json_object"}
+        assert call_kwargs["text"] == {"format": {"type": "json_object"}}
 
-        # Check system prompt
-        assert call_kwargs["messages"][0]["role"] == "system"
-        assert "Knowledge Capsule" in call_kwargs["messages"][0]["content"]
+        # Check instructions contain the system prompt
+        assert "Knowledge Capsule" in call_kwargs["instructions"]
+
+        # Check input contains JSON instruction (required by Responses API)
+        assert "JSON" in call_kwargs["input"]
 
     async def test_process_text_includes_source_url(self, client, mock_openai, sample_llm_response):
-        """Test that source URL is included in prompt."""
+        """Test that source URL is included in input."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(sample_llm_response)
-        mock_openai.chat.completions.create.return_value = mock_response
+        mock_response.output_text = json.dumps(sample_llm_response)
+        mock_openai.responses.create.return_value = mock_response
 
         await client.process_text("Content", source_url="https://example.com")
 
-        call_kwargs = mock_openai.chat.completions.create.call_args.kwargs
-        user_content = call_kwargs["messages"][1]["content"]
-        assert "https://example.com" in user_content
+        call_kwargs = mock_openai.responses.create.call_args.kwargs
+        assert "https://example.com" in call_kwargs["input"]
 
     async def test_process_text_returns_capsule(self, client, mock_openai, sample_llm_response):
         """Test that process_text returns a Capsule."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(sample_llm_response)
-        mock_openai.chat.completions.create.return_value = mock_response
+        mock_response.output_text = json.dumps(sample_llm_response)
+        mock_openai.responses.create.return_value = mock_response
 
         result = await client.process_text("Content")
 
@@ -316,7 +323,7 @@ class TestProcessImage:
     def mock_openai(self):
         """Create mock OpenAI client."""
         mock = MagicMock()
-        mock.chat.completions.create = AsyncMock()
+        mock.responses.create = AsyncMock()
         return mock
 
     @pytest.fixture
@@ -330,9 +337,8 @@ class TestProcessImage:
     async def test_process_image_reads_file(self, client, mock_openai, sample_llm_response, tmp_path):
         """Test that process_image reads image file."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(sample_llm_response)
-        mock_openai.chat.completions.create.return_value = mock_response
+        mock_response.output_text = json.dumps(sample_llm_response)
+        mock_openai.responses.create.return_value = mock_response
 
         # Create test image
         img_path = tmp_path / "test.png"
@@ -341,16 +347,15 @@ class TestProcessImage:
         await client.process_image(img_path)
 
         # Verify vision API call
-        call_kwargs = mock_openai.chat.completions.create.call_args.kwargs
-        user_message = call_kwargs["messages"][1]
-        assert user_message["content"][0]["type"] == "image_url"
+        call_kwargs = mock_openai.responses.create.call_args.kwargs
+        input_content = call_kwargs["input"]
+        assert input_content[0]["content"][0]["type"] == "input_image"
 
     async def test_process_image_detects_mime_type(self, client, mock_openai, sample_llm_response, tmp_path):
         """Test that MIME type is detected from extension."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(sample_llm_response)
-        mock_openai.chat.completions.create.return_value = mock_response
+        mock_response.output_text = json.dumps(sample_llm_response)
+        mock_openai.responses.create.return_value = mock_response
 
         # Test different extensions
         for ext, expected_mime in [(".png", "image/png"), (".jpg", "image/jpeg"), (".gif", "image/gif")]:
@@ -359,24 +364,23 @@ class TestProcessImage:
 
             await client.process_image(img_path)
 
-            call_kwargs = mock_openai.chat.completions.create.call_args.kwargs
-            image_url = call_kwargs["messages"][1]["content"][0]["image_url"]["url"]
+            call_kwargs = mock_openai.responses.create.call_args.kwargs
+            image_url = call_kwargs["input"][0]["content"][0]["image_url"]
             assert expected_mime in image_url
 
     async def test_process_image_base64_direct(self, client, mock_openai, sample_llm_response):
         """Test processing base64 image data directly."""
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = json.dumps(sample_llm_response)
-        mock_openai.chat.completions.create.return_value = mock_response
+        mock_response.output_text = json.dumps(sample_llm_response)
+        mock_openai.responses.create.return_value = mock_response
 
         await client.process_image_base64(
             "base64encodeddata==",
             source_url="https://example.com",
         )
 
-        call_kwargs = mock_openai.chat.completions.create.call_args.kwargs
-        image_url = call_kwargs["messages"][1]["content"][0]["image_url"]["url"]
+        call_kwargs = mock_openai.responses.create.call_args.kwargs
+        image_url = call_kwargs["input"][0]["content"][0]["image_url"]
         assert "base64encodeddata==" in image_url
 
 

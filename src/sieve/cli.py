@@ -151,7 +151,7 @@ def mcp():
     """Start the MCP server for AI integration."""
     from .mcp import run_server
 
-    click.echo("Starting MCP server...")
+    # No stdout output - MCP uses stdio for JSON-RPC
     run_server()
 
 

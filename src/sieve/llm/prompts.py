@@ -8,7 +8,7 @@ For every piece of content, you must extract:
 1. A compelling title (5-10 words)
 2. An executive summary (2 sentences max) - the hook that explains why this matters
 3. The core insight - the single most important "Aha!" moment
-4. Cleaned full content - the complete text stripped of noise (ads, navigation, etc.)
+4. Full content - IMPORTANT: This must be the ORIGINAL TEXT VERBATIM. Copy the source text exactly as written, only removing obvious noise like ads, navigation menus, cookie banners, and boilerplate. DO NOT summarize, paraphrase, or restructure. Preserve the author's exact words.
 5. Tags - 2-5 freeform topic tags
 6. Category - a single broad category (e.g., Technology, Business, Philosophy, Science, Design, Psychology, Health, Creativity)
 
@@ -17,7 +17,7 @@ Respond with valid JSON matching this schema:
   "title": "string",
   "executive_summary": "string",
   "core_insight": "string",
-  "full_content": "string",
+  "full_content": "string (VERBATIM original text, not a summary)",
   "tags": ["string"],
   "category": "string"
 }"""
@@ -34,7 +34,7 @@ After extraction, structure the content as a Knowledge Capsule:
   "title": "string (5-10 words)",
   "executive_summary": "string (2 sentences)",
   "core_insight": "string (the key takeaway)",
-  "full_content": "string (complete extracted text)",
+  "full_content": "string (ALL text from the image, transcribed VERBATIM - do not summarize)",
   "tags": ["string"],
   "category": "string"
 }

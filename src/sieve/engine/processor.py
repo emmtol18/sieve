@@ -1,10 +1,14 @@
 """Main processing pipeline."""
 
 import asyncio
+import ipaddress
 import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
+
+import httpx
 
 from ..capsule import CapsuleWriter
 from ..config import Settings
@@ -150,11 +154,50 @@ class Processor:
 
     async def process_browser_capture(
         self,
-        content: str,
+        content: str = "",
+        url: str | None = None,
         source_url: str | None = None,
         image_data: str | None = None,
     ) -> Path:
-        """Process content from browser extension."""
+        """Process content from browser extension.
+
+        Args:
+            content: Direct text content (for selection/full page capture)
+            url: URL to fetch and process (for URL capture)
+            source_url: Original page URL for attribution
+            image_data: Base64 encoded image
+        """
+        # If URL provided, fetch and extract content
+        if url:
+            logger.info(f"[PROCESSOR] Fetching URL: {url}")
+            try:
+                html, final_url = await self._fetch_url(url)
+            except httpx.TimeoutException:
+                logger.error(f"[PROCESSOR] URL fetch timeout: {url}")
+                raise ValueError(f"Request timeout while fetching URL")
+            except httpx.HTTPStatusError as e:
+                logger.error(f"[PROCESSOR] HTTP error {e.response.status_code}: {url}")
+                raise ValueError(f"Failed to fetch URL (HTTP {e.response.status_code})")
+            except httpx.RequestError as e:
+                logger.error(f"[PROCESSOR] Network error fetching {url}: {e}")
+                raise ValueError(f"Network error fetching URL")
+
+            # Extract text from HTML
+            extractor = HTMLExtractor()
+            extracted = extractor.extract_from_string(html)
+            content = extracted.text or ""
+
+            # Validate extracted content has substance
+            if len(content.strip()) < 50:
+                logger.error(f"[PROCESSOR] Insufficient content extracted from {url}")
+                raise ValueError(f"Could not extract meaningful content from URL")
+
+            # Use extracted source_url or final URL
+            if not source_url:
+                source_url = extracted.source_url or final_url
+
+            logger.info(f"[PROCESSOR] Extracted {len(content)} chars from URL")
+
         if image_data:
             capsule = await self.llm.process_image_base64(
                 image_data,
@@ -172,3 +215,61 @@ class Processor:
         await self.indexer.regenerate()
 
         return capsule_path
+
+    def _validate_url(self, url: str) -> None:
+        """Validate URL to prevent SSRF attacks.
+
+        Raises:
+            ValueError: If URL is invalid or targets internal resources
+        """
+        parsed = urlparse(url)
+
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
+
+        hostname = parsed.hostname
+        if not hostname:
+            raise ValueError("Invalid URL: missing hostname")
+
+        # Block localhost variations
+        blocked_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "169.254.169.254"}
+        if hostname.lower() in blocked_hosts:
+            raise ValueError(f"Access to internal resources is blocked")
+
+        # Block private IP ranges
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local:
+                raise ValueError(f"Access to private IP addresses is blocked")
+        except ValueError:
+            # Not an IP address, hostname is fine
+            pass
+
+    async def _fetch_url(self, url: str, timeout: int = 30) -> tuple[str, str]:
+        """Fetch HTML content from a URL.
+
+        Returns:
+            Tuple of (html_content, final_url_after_redirects)
+
+        Raises:
+            ValueError: If URL is invalid or targets internal resources
+            httpx.HTTPError: If request fails
+        """
+        # Validate URL before fetching
+        self._validate_url(url)
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+
+        async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+
+            final_url = str(response.url)
+            html_content = response.text
+
+            logger.info(f"[PROCESSOR] Fetched {len(html_content)} bytes from {final_url}")
+            return html_content, final_url

@@ -16,6 +16,10 @@ class HTMLExtractor(Extractor):
     def extract(self, path: Path) -> ExtractedContent:
         """Extract article content from HTML."""
         html = path.read_text(encoding="utf-8", errors="ignore")
+        return self.extract_from_string(html)
+
+    def extract_from_string(self, html: str) -> ExtractedContent:
+        """Extract article content from HTML string."""
         soup = BeautifulSoup(html, "lxml")
 
         # Remove noise elements

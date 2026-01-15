@@ -66,20 +66,23 @@ async function getPageContent() {
  * Fire-and-forget capture via background service worker.
  * Sends message to background, shows instant feedback, closes popup immediately.
  */
-async function capture(content) {
+async function capture(content, url = null) {
   const btn = document.getElementById('capture-btn');
   const pageBtn = document.getElementById('page-btn');
+  const urlBtn = document.getElementById('url-btn');
   const msg = document.getElementById('message');
 
-  // Disable buttons immediately
+  // Disable all buttons immediately
   btn.disabled = true;
   pageBtn.disabled = true;
+  urlBtn.disabled = true;
   btn.textContent = 'Queued...';
 
   // Send to background service worker (fire-and-forget)
   chrome.runtime.sendMessage({
     type: 'CAPTURE',
     content: content,
+    url: url,
     source_url: pageUrl
   });
 
@@ -91,6 +94,35 @@ async function capture(content) {
   setTimeout(() => window.close(), 300);
 }
 
+function isValidUrl(string) {
+  try {
+    const url = new URL(string);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch (_) {
+    return false;
+  }
+}
+
+async function captureUrl() {
+  const urlInput = document.getElementById('url-input');
+  const url = urlInput.value.trim();
+  const msg = document.getElementById('message');
+
+  if (!url) {
+    msg.className = 'message error';
+    msg.textContent = 'Please enter a URL';
+    return;
+  }
+
+  if (!isValidUrl(url)) {
+    msg.className = 'message error';
+    msg.textContent = 'Please enter a valid URL';
+    return;
+  }
+
+  capture('', url);
+}
+
 async function init() {
   const serverUp = await checkServer();
 
@@ -99,6 +131,8 @@ async function init() {
   const preview = document.getElementById('preview');
   const captureBtn = document.getElementById('capture-btn');
   const pageBtn = document.getElementById('page-btn');
+  const urlInput = document.getElementById('url-input');
+  const urlBtn = document.getElementById('url-btn');
 
   if (selectedText) {
     preview.textContent = selectedText.substring(0, 200) + (selectedText.length > 200 ? '...' : '');
@@ -109,8 +143,10 @@ async function init() {
     preview.classList.add('empty');
   }
 
-  // Disable page capture if server is down
+  // Enable/disable buttons based on server status
   pageBtn.disabled = !serverUp;
+  urlBtn.disabled = !serverUp;
+  urlInput.disabled = !serverUp;
 
   captureBtn.addEventListener('click', () => {
     if (selectedText) capture(selectedText);
@@ -125,6 +161,13 @@ async function init() {
       msg.className = 'message error';
       msg.textContent = 'Could not extract page content';
     }
+  });
+
+  urlBtn.addEventListener('click', captureUrl);
+
+  // Allow Enter key to submit URL
+  urlInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') captureUrl();
   });
 }
 

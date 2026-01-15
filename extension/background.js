@@ -4,15 +4,22 @@ const API_URL = 'http://127.0.0.1:8420';
  * Fire-and-forget capture to async endpoint.
  * Returns immediately after queueing - no waiting for LLM processing.
  */
-async function captureAsync(content, sourceUrl) {
+async function captureAsync(content, sourceUrl, url = null) {
   try {
+    const payload = {
+      content,
+      source_url: sourceUrl
+    };
+
+    // Include URL if provided (for URL capture)
+    if (url) {
+      payload.url = url;
+    }
+
     const res = await fetch(`${API_URL}/api/capture/async`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content,
-        source_url: sourceUrl
-      })
+      body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
@@ -46,7 +53,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // Handle messages from popup (fire-and-forget capture)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CAPTURE') {
-    captureAsync(message.content, message.source_url)
+    captureAsync(message.content, message.source_url, message.url)
       .then(success => sendResponse({ success }))
       .catch(error => {
         console.error('[Neural Sieve] Message handler error:', error);

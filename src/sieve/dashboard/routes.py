@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 class CaptureRequest(BaseModel):
     """Request from browser extension."""
 
-    content: str
+    content: str = ""
+    url: Optional[str] = None  # URL to fetch and capture
     source_url: Optional[str] = None
     title: Optional[str] = None
     tags: list[str] = []
@@ -190,6 +191,7 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
         """Capture content from browser extension (synchronous)."""
         capsule_path = await processor.process_browser_capture(
             content=req.content,
+            url=req.url,
             source_url=req.source_url,
             image_data=req.image_data,
         )
@@ -210,8 +212,16 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
         Returns 202 Accepted immediately while processing in background.
         This enables instant popup close without waiting for LLM processing.
         """
-        # Basic validation before spawning background task
-        if not req.content or len(req.content.strip()) < 10:
+        # Validate: need either content or URL
+        if not req.content and not req.url:
+            raise HTTPException(400, "Either content or url must be provided")
+
+        # Validate URL format if provided
+        if req.url and not (req.url.startswith("http://") or req.url.startswith("https://")):
+            raise HTTPException(400, "URL must start with http:// or https://")
+
+        # Basic content validation (skip if URL provided)
+        if req.content and len(req.content.strip()) < 10:
             raise HTTPException(400, "Content too short")
 
         # Spawn background task with proper reference management
@@ -220,6 +230,7 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
             _process_capture_background(
                 processor=processor,
                 content=req.content,
+                url=req.url,
                 source_url=req.source_url,
                 image_data=req.image_data,
             )
@@ -239,6 +250,7 @@ def create_router(settings: Settings, templates: Jinja2Templates) -> APIRouter:
 async def _process_capture_background(
     processor: Processor,
     content: str,
+    url: str | None,
     source_url: str | None,
     image_data: str | None,
 ):
@@ -249,6 +261,7 @@ async def _process_capture_background(
     try:
         capsule_path = await processor.process_browser_capture(
             content=content,
+            url=url,
             source_url=source_url,
             image_data=image_data,
         )

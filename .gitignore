@@ -79,8 +79,8 @@ __pycache__/
 venv/
 .venv/
 
-# Stale package cache (conflicts with src/sieve)
-sieve/
+# Stale package cache (at root only, not src/sieve)
+/sieve/
 
 # IDE
 .idea/

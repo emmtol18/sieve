@@ -69,6 +69,13 @@ class Processor:
                 content_preview = (extracted.text or "")[:100].replace("\n", " ")
                 logger.debug(f"[PROCESSOR] Extracted text ({len(extracted.text or '')} chars): {content_preview}...")
 
+            # Skip empty content
+            if not extracted.is_image and not (extracted.text or "").strip():
+                logger.warning(f"[PROCESSOR] Skipping empty file: {path.name}")
+                if path.exists():
+                    path.unlink()
+                return None
+
             # Process with LLM
             logger.info(f"[PROCESSOR] Calling LLM for: {path.name}")
             if extracted.is_image:

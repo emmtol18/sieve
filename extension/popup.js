@@ -131,7 +131,7 @@ async function loadCollection() {
     const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_COLLECTION' });
     return { selections: response?.selections || [], restricted: false };
   } catch (e) {
-    console.error('Failed to load collection:', e);
+    // Content script not loaded - not an error, just no collection available
     return { selections: [], restricted: true };
   }
 }

@@ -65,17 +65,43 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // Direct capture (fire-and-forget)
     captureAsync(info.selectionText, tab.url);
   } else if (info.menuItemId === 'add-to-collection') {
-    // Add to collection via content script
-    try {
-      await chrome.tabs.sendMessage(tab.id, {
-        type: 'ADD_SELECTION',
-        text: info.selectionText
-      });
-    } catch (e) {
-      console.error('[Neural Sieve] Failed to add to collection:', e);
-    }
+    // Add to collection via content script (inject if needed)
+    await addToCollection(tab.id, info.selectionText);
   }
 });
+
+/**
+ * Add text to collection, injecting content script if needed
+ */
+async function addToCollection(tabId, text) {
+  // Try to send message to existing content script
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'ADD_SELECTION', text });
+    return;
+  } catch (e) {
+    // Content script not loaded yet - this is expected, inject it
+  }
+
+  // Inject content script and CSS
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js']
+    });
+    await chrome.scripting.insertCSS({
+      target: { tabId },
+      files: ['content.css']
+    });
+
+    // Small delay for script to initialize
+    await new Promise(r => setTimeout(r, 100));
+
+    // Retry
+    await chrome.tabs.sendMessage(tabId, { type: 'ADD_SELECTION', text });
+  } catch (err) {
+    console.error('[Neural Sieve] Cannot add to collection on this page');
+  }
+}
 
 // Handle messages from popup and content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

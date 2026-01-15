@@ -10,7 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from openai import APIConnectionError, APIError, RateLimitError
 
-from sieve.llm.openai import CAPSULE_SYSTEM_PROMPT, IMAGE_SYSTEM_PROMPT, OpenAIClient
+from sieve.llm.openai import OpenAIClient
+from sieve.llm.prompts import CAPSULE_SYSTEM_PROMPT, IMAGE_SYSTEM_PROMPT
 
 
 class TestOpenAIClient:

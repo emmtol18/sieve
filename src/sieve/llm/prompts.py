@@ -10,7 +10,7 @@ For every piece of content, you must extract:
 3. The core insight - the single most important "Aha!" moment
 4. Full content - IMPORTANT: This must be the ORIGINAL TEXT VERBATIM. Copy the source text exactly as written, only removing obvious noise like ads, navigation menus, cookie banners, and boilerplate. DO NOT summarize, paraphrase, or restructure. Preserve the author's exact words.
 5. Tags - 2-5 freeform topic tags
-6. Category - a single broad category (e.g., Technology, Business, Philosophy, Science, Design, Psychology, Health, Creativity)
+6. Category - a specific domain category that precisely describes the content's field. Be specific, not broad. Examples: "AI & Machine Learning" not "Technology", "Venture Capital" not "Business", "UX Design" not "Design", "Behavioral Psychology" not "Psychology"
 
 Respond with valid JSON matching this schema:
 {
@@ -36,7 +36,7 @@ After extraction, structure the content as a Knowledge Capsule:
   "core_insight": "string (the key takeaway)",
   "full_content": "string (ALL text from the image, transcribed VERBATIM - do not summarize)",
   "tags": ["string"],
-  "category": "string"
+  "category": "string (specific domain, e.g., 'AI & Machine Learning' not 'Technology')"
 }
 
 Respond with valid JSON only."""

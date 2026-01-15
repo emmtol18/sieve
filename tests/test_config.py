@@ -47,7 +47,7 @@ class TestSettings:
         assert settings.legacy_path == vault / "Legacy"
         assert settings.sieve_path == vault / ".sieve"
         assert settings.failed_path == vault / "Inbox" / "failed"
-        assert settings.readme_path == vault / "README.md"
+        assert settings.index_path == vault / "Capsules" / "INDEX.md"
         assert settings.config_path == vault / ".sieve" / "config.yaml"
         assert settings.error_log_path == vault / ".sieve" / "error.log"
 

@@ -51,7 +51,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        assert settings.readme_path.exists()
+        assert settings.index_path.exists()
 
     async def test_regenerate_includes_title(self, indexer, settings):
         """Test that README includes Neural Sieve title."""
@@ -59,7 +59,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         assert "# Neural Sieve" in content
         assert "High-Signal External Memory" in content
 
@@ -71,7 +71,7 @@ Test content for {title}
             mock_dt.now.return_value = datetime(2024, 6, 15, 14, 30)
             await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         assert "2024-06-15 14:30" in content
 
     async def test_regenerate_groups_by_category(self, indexer, settings):
@@ -82,7 +82,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         assert "### Technology" in content
         assert "### Science" in content
 
@@ -94,7 +94,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         apple_pos = content.find("### Apple")
         mango_pos = content.find("### Mango")
         zebra_pos = content.find("### Zebra")
@@ -108,7 +108,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         assert "## Eternal Truths" in content
         assert "[pinned]" in content
         assert "Pinned Wisdom" in content
@@ -119,7 +119,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         assert "## Eternal Truths" not in content
 
     async def test_regenerate_includes_tags(self, indexer, settings):
@@ -128,7 +128,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         assert "`python`" in content
         assert "`testing`" in content
 
@@ -141,7 +141,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         assert "**Total capsules:** 4" in content
         assert "**Categories:** 3" in content
         assert "**Pinned:** 1" in content
@@ -158,7 +158,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         assert "...and 5 more" in content
 
     async def test_regenerate_excludes_legacy(self, indexer, settings):
@@ -168,7 +168,7 @@ Test content for {title}
 
         await indexer.regenerate()
 
-        content = settings.readme_path.read_text()
+        content = settings.index_path.read_text()
         assert "Active Article" in content
         assert "Legacy Article" not in content
 
@@ -183,7 +183,8 @@ Test content for {title}
 
         line = indexer._format_capsule_line(capsule)
 
-        assert line == "- [Test Title](Capsules/Tech/test.md) `tag1` `tag2`"
+        # Path is relative to Capsules/ since INDEX.md is inside Capsules/
+        assert line == "- [Test Title](Tech/test.md) `tag1` `tag2`"
 
     async def test_format_capsule_line_pinned(self, indexer, settings):
         """Test formatting of pinned capsule."""
@@ -198,6 +199,7 @@ Test content for {title}
 
         assert "[pinned]" in line
         assert "[Pinned Title]" in line
+        assert "(Wisdom/pinned.md)" in line
 
     async def test_format_capsule_line_no_tags(self, indexer, settings):
         """Test formatting without tags."""

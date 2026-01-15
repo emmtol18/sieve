@@ -83,8 +83,8 @@ def run_server():
                 },
             ),
             Tool(
-                name="get_readme",
-                description="Get the full README.md index showing all capsules organized by category.",
+                name="get_index",
+                description="Get the full knowledge index showing all capsules organized by category.",
                 inputSchema={"type": "object", "properties": {}},
             ),
             Tool(
@@ -154,14 +154,14 @@ def run_server():
 
         return [TextContent(type="text", text=f"Capsule with ID '{capsule_id}' not found.")]
 
-    async def get_readme() -> list[TextContent]:
-        """Get the README.md content."""
-        readme_path = settings.readme_path
+    async def get_index() -> list[TextContent]:
+        """Get the knowledge index content."""
+        index_path = settings.index_path
 
-        if not readme_path.exists():
-            return [TextContent(type="text", text="README.md not found. Run 'sieve index' to generate it.")]
+        if not index_path.exists():
+            return [TextContent(type="text", text="INDEX.md not found. Run 'sieve index' to generate it.")]
 
-        content = readme_path.read_text()
+        content = index_path.read_text()
         return [TextContent(type="text", text=content)]
 
     async def get_categories() -> list[TextContent]:
@@ -190,7 +190,7 @@ def run_server():
             ),
             "get_pinned": get_pinned,
             "get_capsule": lambda: get_capsule_by_id(arguments.get("id", "")),
-            "get_readme": get_readme,
+            "get_index": get_index,
             "get_categories": get_categories,
         }
 

@@ -57,8 +57,8 @@ class Settings(BaseSettings):
         return self.inbox_path / "failed"
 
     @property
-    def readme_path(self) -> Path:
-        return self.vault_root / "README.md"
+    def index_path(self) -> Path:
+        return self.capsules_path / "INDEX.md"
 
     @property
     def config_path(self) -> Path:

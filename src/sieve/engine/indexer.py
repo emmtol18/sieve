@@ -1,4 +1,4 @@
-"""README.md index regeneration."""
+"""Knowledge index regeneration."""
 
 import logging
 from collections import defaultdict
@@ -11,13 +11,13 @@ logger = logging.getLogger(__name__)
 
 
 class Indexer:
-    """Regenerates the README.md index from capsules."""
+    """Regenerates the knowledge index from capsules."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
 
     async def regenerate(self):
-        """Regenerate the README.md index."""
+        """Regenerate the knowledge index."""
         capsules = load_capsules(self.settings)
 
         # Group by category and separate pinned
@@ -32,9 +32,9 @@ class Indexer:
         # Generate markdown
         content = self._generate_markdown(pinned, by_category)
 
-        # Write README
-        self.settings.readme_path.write_text(content, encoding="utf-8")
-        logger.info("README.md regenerated")
+        # Write index
+        self.settings.index_path.write_text(content, encoding="utf-8")
+        logger.info("INDEX.md regenerated")
 
     def _generate_markdown(
         self, pinned: list[dict], by_category: dict[str, list[dict]]
@@ -93,6 +93,10 @@ class Indexer:
         path = capsule.get("_path", "")
         tags = capsule.get("tags", [])
         pin_marker = " [pinned]" if capsule.get("pinned") else ""
+
+        # Adjust path: INDEX.md is inside Capsules/, so remove "Capsules/" prefix
+        if path.startswith("Capsules/"):
+            path = path[9:]  # Remove "Capsules/" prefix
 
         tag_str = f" `{'` `'.join(tags)}`" if tags else ""
 

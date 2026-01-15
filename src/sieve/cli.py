@@ -161,13 +161,13 @@ def process(file_path):
 
 @cli.command()
 def index():
-    """Regenerate the README.md index."""
+    """Regenerate the knowledge index (Capsules/INDEX.md)."""
     from .engine import Indexer
 
     settings = get_settings()
     indexer = Indexer(settings)
 
-    click.echo("Regenerating README.md...")
+    click.echo("Regenerating Capsules/INDEX.md...")
 
     asyncio.run(indexer.regenerate())
     click.echo("Done!")

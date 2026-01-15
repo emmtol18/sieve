@@ -2,6 +2,12 @@
 .sieve/cache/
 .sieve/local_index.json
 
+# Knowledge vault data (local only)
+Capsules/
+Assets/
+Legacy/
+README.md
+
 # OS files
 .DS_Store
 Thumbs.db

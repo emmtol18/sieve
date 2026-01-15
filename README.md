@@ -50,15 +50,15 @@ uv run sieve manage
 | `sieve manage` | Start dashboard at localhost:8420 |
 | `sieve mcp` | Start MCP server for AI integration |
 | `sieve process <file>` | Manually process a single file |
-| `sieve index` | Regenerate README.md index |
+| `sieve index` | Regenerate knowledge index |
 
 ## Directory Structure
 
 ```
 Neural-Sieve-Vault/
-├── README.md              # THE MAP: Auto-generated index of all capsules
 ├── .sieve/                # Configuration and logs
 ├── Capsules/              # Knowledge capsules organized by category
+│   ├── INDEX.md           # THE MAP: Auto-generated index of all capsules
 │   ├── Technology/
 │   ├── Business/
 │   └── ...
@@ -115,7 +115,7 @@ Add to your Claude Desktop or other MCP client:
 - `search_capsules(query)` - Search knowledge by keyword
 - `get_pinned()` - Get all pinned "Eternal Truths"
 - `get_capsule(id)` - Read a specific capsule
-- `get_readme()` - Get the full index
+- `get_index()` - Get the full knowledge index
 - `get_categories()` - List all categories
 
 ## Knowledge Capsule Format

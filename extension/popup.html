@@ -281,6 +281,118 @@
     .url-input::placeholder {
       color: var(--text-muted);
     }
+
+    /* Collection section */
+    .collection-section {
+      display: none;
+      margin-bottom: 16px;
+    }
+
+    .collection-section.has-items {
+      display: block;
+    }
+
+    .collection-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .collection-title {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .collection-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      margin-left: 8px;
+      background: linear-gradient(135deg, var(--accent-gold-dim) 0%, var(--accent-gold) 100%);
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--bg-deep);
+    }
+
+    .collection-clear {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+
+    .collection-clear:hover {
+      color: var(--accent-danger);
+    }
+
+    .collection-items {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .collection-item {
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-subtle);
+      line-height: 1.4;
+    }
+
+    .collection-item:last-child {
+      border-bottom: none;
+    }
+
+    .collection-item-text {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .annotation-section {
+      margin-top: 12px;
+    }
+
+    .annotation-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: var(--mono);
+      font-size: 11px;
+      resize: none;
+      transition: all 0.2s ease;
+    }
+
+    .annotation-input:focus {
+      outline: none;
+      border-color: var(--accent-gold-dim);
+      background: var(--bg-hover);
+    }
+
+    .annotation-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .collection-capture-btn {
+      margin-top: 12px;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -293,6 +405,33 @@
   </div>
 
   <div class="content">
+    <!-- Collection section (shows when items are collected) -->
+    <div class="collection-section" id="collection-section">
+      <div class="collection-header">
+        <div>
+          <span class="collection-title">Collection</span>
+          <span class="collection-count" id="collection-count">0</span>
+        </div>
+        <button class="collection-clear" id="collection-clear">Clear</button>
+      </div>
+      <div class="collection-items" id="collection-items"></div>
+      <div class="annotation-section">
+        <textarea
+          class="annotation-input"
+          id="annotation-input"
+          placeholder="Add a note (optional)..."
+          rows="2"
+          maxlength="1000"
+        ></textarea>
+      </div>
+      <button class="btn btn-primary collection-capture-btn" id="collection-capture-btn">
+        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        Capture Collection
+      </button>
+    </div>
+
     <div class="preview empty" id="preview">
       Select text on page or capture the full page
     </div>

@@ -2,6 +2,7 @@ const API_URL = 'http://127.0.0.1:8420';
 
 let selectedText = '';
 let pageUrl = '';
+let collectionItems = [];
 
 async function checkServer() {
   const status = document.getElementById('status');
@@ -103,6 +104,122 @@ function isValidUrl(string) {
   }
 }
 
+/**
+ * Check if URL is restricted (content script can't run)
+ */
+function isRestrictedUrl(url) {
+  if (!url) return true;
+  return url.startsWith('chrome://') ||
+         url.startsWith('chrome-extension://') ||
+         url.startsWith('about:') ||
+         url.startsWith('edge://') ||
+         url.startsWith('brave://');
+}
+
+/**
+ * Load collection from content script
+ */
+async function loadCollection() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    // Can't access restricted pages
+    if (isRestrictedUrl(tab.url)) {
+      return { selections: [], restricted: true };
+    }
+
+    const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_COLLECTION' });
+    return { selections: response?.selections || [], restricted: false };
+  } catch (e) {
+    console.error('Failed to load collection:', e);
+    return { selections: [], restricted: true };
+  }
+}
+
+/**
+ * Update collection UI
+ */
+function updateCollectionUI() {
+  const section = document.getElementById('collection-section');
+  const countEl = document.getElementById('collection-count');
+  const itemsEl = document.getElementById('collection-items');
+
+  if (collectionItems.length === 0) {
+    section.classList.remove('has-items');
+    return;
+  }
+
+  section.classList.add('has-items');
+  countEl.textContent = collectionItems.length;
+
+  // Clear and rebuild items list using safe DOM methods
+  itemsEl.replaceChildren();
+
+  collectionItems.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'collection-item';
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'collection-item-text';
+    textSpan.textContent = item.text.substring(0, 150) + (item.text.length > 150 ? '...' : '');
+
+    div.appendChild(textSpan);
+    itemsEl.appendChild(div);
+  });
+}
+
+/**
+ * Clear collection via content script
+ */
+async function clearCollection() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    await chrome.tabs.sendMessage(tab.id, { type: 'CLEAR_COLLECTION' });
+    collectionItems = [];
+    updateCollectionUI();
+  } catch (e) {
+    console.error('Failed to clear collection:', e);
+  }
+}
+
+const MAX_ANNOTATION_LENGTH = 1000;
+
+/**
+ * Capture the collection with optional annotation
+ */
+async function captureCollection() {
+  if (collectionItems.length === 0) return;
+
+  const annotation = document.getElementById('annotation-input').value.trim().substring(0, MAX_ANNOTATION_LENGTH);
+
+  // Combine all selections into one content block
+  const content = collectionItems.map(item => item.text).join('\n\n---\n\n');
+
+  // Disable button
+  const btn = document.getElementById('collection-capture-btn');
+  btn.disabled = true;
+  btn.textContent = 'Queued...';
+
+  // Send to background
+  chrome.runtime.sendMessage({
+    type: 'CAPTURE',
+    content: content,
+    source_url: pageUrl,
+    annotation: annotation || null
+  });
+
+  // Clear collection after capture
+  await clearCollection();
+
+  // Show success
+  const msg = document.getElementById('message');
+  msg.className = 'message success';
+  msg.textContent = 'Collection captured';
+
+  // Close popup
+  setTimeout(() => window.close(), 300);
+}
+
 async function captureUrl() {
   const urlInput = document.getElementById('url-input');
   const url = urlInput.value.trim();
@@ -133,6 +250,21 @@ async function init() {
   const pageBtn = document.getElementById('page-btn');
   const urlInput = document.getElementById('url-input');
   const urlBtn = document.getElementById('url-btn');
+  const collectionClearBtn = document.getElementById('collection-clear');
+  const collectionCaptureBtn = document.getElementById('collection-capture-btn');
+  const annotationInput = document.getElementById('annotation-input');
+
+  // Load collection from content script
+  const { selections, restricted } = await loadCollection();
+  collectionItems = selections;
+
+  if (restricted) {
+    // Show message for restricted pages
+    const collectionSection = document.getElementById('collection-section');
+    collectionSection.classList.remove('has-items');
+  }
+
+  updateCollectionUI();
 
   if (selectedText) {
     preview.textContent = selectedText.substring(0, 200) + (selectedText.length > 200 ? '...' : '');
@@ -147,6 +279,7 @@ async function init() {
   pageBtn.disabled = !serverUp;
   urlBtn.disabled = !serverUp;
   urlInput.disabled = !serverUp;
+  collectionCaptureBtn.disabled = !serverUp || collectionItems.length === 0;
 
   captureBtn.addEventListener('click', () => {
     if (selectedText) capture(selectedText);
@@ -169,6 +302,10 @@ async function init() {
   urlInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') captureUrl();
   });
+
+  // Collection event listeners
+  collectionClearBtn.addEventListener('click', clearCollection);
+  collectionCaptureBtn.addEventListener('click', captureCollection);
 }
 
 init();

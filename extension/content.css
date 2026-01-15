@@ -1,0 +1,103 @@
+/* Neural Sieve Floating Badge */
+.neural-sieve-badge {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #1a1d24 0%, #12141a 100%);
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: #e8e4dc;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+.neural-sieve-badge.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.neural-sieve-badge:hover {
+  border-color: #c9a227;
+  box-shadow: 0 6px 24px rgba(201, 162, 39, 0.2);
+  transform: translateY(-2px);
+}
+
+.neural-sieve-badge-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #8b7019 0%, #c9a227 100%);
+  border-radius: 11px;
+  font-weight: 600;
+  font-size: 12px;
+  color: #0a0b0d;
+}
+
+.neural-sieve-badge-text {
+  color: #9b9589;
+}
+
+.neural-sieve-badge-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #5c5850;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.neural-sieve-badge-clear:hover {
+  background: rgba(176, 107, 107, 0.2);
+  color: #b06b6b;
+}
+
+.neural-sieve-badge-clear svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Toast notification for feedback */
+.neural-sieve-toast {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  z-index: 2147483647;
+  padding: 10px 16px;
+  background: #1a1d24;
+  border: 1px solid #7cb07c;
+  border-radius: 6px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  color: #7cb07c;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+.neural-sieve-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}

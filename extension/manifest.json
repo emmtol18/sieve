@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Neural Sieve",
   "description": "Capture high-signal knowledge to your Neural Sieve vault",
-  "version": "0.1.0",
-  "permissions": ["activeTab", "scripting", "contextMenus"],
+  "version": "0.2.0",
+  "permissions": ["activeTab", "scripting", "contextMenus", "storage"],
   "host_permissions": ["http://127.0.0.1:8420/*"],
   "icons": {
     "16": "icon16.png",
@@ -19,5 +19,13 @@
   },
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
 }

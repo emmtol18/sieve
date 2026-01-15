@@ -1,23 +1,13 @@
 """Neural Sieve CLI."""
 
 import asyncio
-import logging
 import sys
 from pathlib import Path
 
 import click
 
 from .config import get_settings
-
-
-def setup_logging(verbose: bool = False):
-    """Configure logging."""
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
+from .logging_config import setup_colored_logging
 
 
 @click.group()
@@ -25,7 +15,7 @@ def setup_logging(verbose: bool = False):
 @click.pass_context
 def cli(ctx, verbose):
     """Neural Sieve - The High-Signal External Memory for AI Influence."""
-    setup_logging(verbose)
+    setup_colored_logging(verbose)
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
 
@@ -86,8 +76,36 @@ OPENAI_API_KEY=sk-...
     click.echo("")
     click.echo("Vault initialized! Next steps:")
     click.echo("  1. Copy .env.example to .env and add your OpenAI API key")
-    click.echo("  2. Run 'sieve watch' to start the file watcher")
+    click.echo("  2. Run 'sieve start' to launch watcher and dashboard")
     click.echo("  3. Drop files into Inbox/ to process them")
+
+
+@cli.command()
+@click.pass_context
+def start(ctx):
+    """Start the file watcher and dashboard together.
+
+    This is the recommended way to run Neural Sieve. It launches both
+    the file watcher (monitors Inbox/) and the management dashboard
+    in a single process with graceful shutdown on Ctrl+C.
+    """
+    from .coordinator import ServiceCoordinator
+
+    verbose = ctx.obj.get("verbose", False)
+
+    try:
+        settings = get_settings()
+    except Exception as e:
+        click.echo(f"Error loading settings: {e}", err=True)
+        click.echo("Make sure .env file exists with OPENAI_API_KEY", err=True)
+        sys.exit(1)
+
+    coordinator = ServiceCoordinator(settings, verbose=verbose)
+
+    try:
+        asyncio.run(coordinator.run())
+    except KeyboardInterrupt:
+        pass  # Handled by signal handler
 
 
 @cli.command()

@@ -109,6 +109,9 @@ class FileWatcher:
 
     def stop(self):
         """Stop watching."""
-        self.observer.stop()
-        self.observer.join()
-        logger.info("File watcher stopped")
+        if self.observer.is_alive():
+            self.observer.stop()
+            self.observer.join(timeout=5.0)
+            if self.observer.is_alive():
+                logger.warning("[WATCHER] Observer thread did not stop cleanly")
+        logger.info("[WATCHER] File watcher stopped")

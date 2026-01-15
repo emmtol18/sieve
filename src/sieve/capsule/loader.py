@@ -33,9 +33,17 @@ def load_capsules(
             post = frontmatter.load(md_file)
             capsule = dict(post.metadata)
 
+            # Skip files without required capsule fields (e.g., INDEX.md)
+            if not capsule.get("title"):
+                continue
+
             # Skip legacy capsules unless requested
             if not include_legacy and capsule.get("status") == "legacy":
                 continue
+
+            # Ensure tags is always a list
+            if "tags" not in capsule or capsule["tags"] is None:
+                capsule["tags"] = []
 
             # Add path metadata
             capsule["_path"] = str(md_file.relative_to(settings.vault_root))

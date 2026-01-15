@@ -61,6 +61,34 @@ def load_capsules(
     return sorted(capsules, key=lambda c: c.get("captured_at", ""), reverse=True)
 
 
+def find_by_source_url(settings: Settings, source_url: str) -> tuple[Path, dict] | None:
+    """Find a capsule by its source_url.
+
+    Args:
+        settings: Application settings with vault paths
+        source_url: The source URL to search for (exact match)
+
+    Returns:
+        Tuple of (path, parsed_content) or None if not found
+    """
+    if not source_url:
+        return None
+
+    capsules_dir = settings.capsules_path
+    if not capsules_dir.exists():
+        return None
+
+    for md_file in capsules_dir.rglob("*.md"):
+        try:
+            post = frontmatter.load(md_file)
+            if post.metadata.get("source_url") == source_url:
+                return (md_file, {"metadata": dict(post.metadata), "content": post.content})
+        except Exception:
+            pass
+
+    return None
+
+
 def find_capsule_file(settings: Settings, filename: str) -> Path | None:
     """Find a capsule file by filename.
 

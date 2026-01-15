@@ -26,28 +26,23 @@ cp .env.example .env
 uv run sieve init
 ```
 
-### 3. Start the Watcher
+### 3. Start Neural Sieve
 
 ```bash
-uv run sieve watch
+uv run sieve start
+# Opens dashboard at http://127.0.0.1:8420
 ```
 
-Drop files into `Inbox/` and they'll be automatically processed into capsules.
-
-### 4. (Optional) Start Dashboard
-
-```bash
-uv run sieve manage
-# Open http://127.0.0.1:8420
-```
+This starts both the file watcher and dashboard together. Drop files into `Inbox/` and they'll be automatically processed into capsules.
 
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
 | `sieve init` | Initialize vault in current directory |
-| `sieve watch` | Start file watcher (watches Inbox/ and screenshot folder) |
-| `sieve manage` | Start dashboard at localhost:8420 |
+| `sieve start` | Start watcher + dashboard together (recommended) |
+| `sieve watch` | Start file watcher only |
+| `sieve manage` | Start dashboard only (localhost:8420) |
 | `sieve mcp` | Start MCP server for AI integration |
 | `sieve process <file>` | Manually process a single file |
 | `sieve index` | Regenerate knowledge index |

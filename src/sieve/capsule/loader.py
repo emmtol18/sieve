@@ -62,8 +62,28 @@ def find_capsule_file(settings: Settings, filename: str) -> Path | None:
 
     Returns:
         Path to the capsule file, or None if not found
+
+    Security:
+        - Rejects filenames containing path separators to prevent traversal
+        - Validates resolved path is within capsules directory
     """
-    for md_file in settings.capsules_path.rglob("*.md"):
+    # Security: reject filenames with path separators
+    if "/" in filename or "\\" in filename or ".." in filename:
+        return None
+
+    # Security: only allow .md files
+    if not filename.endswith(".md"):
+        return None
+
+    capsules_root = settings.capsules_path.resolve()
+
+    for md_file in capsules_root.rglob("*.md"):
         if md_file.name == filename:
-            return md_file
+            # Security: verify file is within capsules directory
+            try:
+                md_file.resolve().relative_to(capsules_root)
+                return md_file
+            except ValueError:
+                # Path is outside capsules directory
+                return None
     return None

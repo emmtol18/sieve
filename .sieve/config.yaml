@@ -1,0 +1,7 @@
+# Neural Sieve Configuration
+
+# Optional: Path to screenshot folder to watch (in addition to Inbox/)
+# screenshot_folder: ~/Desktop
+
+# Dashboard port
+port: 8420

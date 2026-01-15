@@ -23,23 +23,29 @@ class InboxHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileCreatedEvent):
         if event.is_directory:
+            logger.debug(f"[WATCHER] Ignoring directory event: {event.src_path}")
             return
 
         path = Path(event.src_path)
+        logger.debug(f"[WATCHER] File created event: {path.name}")
 
         # Skip hidden files, temp files, and gitkeep
         if path.name.startswith(".") or path.name == ".gitkeep":
+            logger.debug(f"[WATCHER] Skipping hidden/temp file: {path.name}")
             return
 
         # Skip if in failed folder
         if "failed" in path.parts:
+            logger.debug(f"[WATCHER] Skipping file in failed folder: {path.name}")
             return
 
         # Debounce: skip if already pending
         if str(path) in self._pending:
+            logger.debug(f"[WATCHER] Skipping already pending file: {path.name}")
             return
 
         self._pending.add(str(path))
+        logger.info(f"[WATCHER] Queued for processing: {path.name} (pending: {len(self._pending)})")
 
         # Schedule processing with delay (allow file to finish writing)
         self.loop.call_later(
@@ -51,11 +57,17 @@ class InboxHandler(FileSystemEventHandler):
 
     async def _process_and_cleanup(self, path: Path):
         """Process file and remove from pending set."""
+        logger.debug(f"[WATCHER] Starting processing: {path.name}")
         try:
             if path.exists():
                 await self.processor.process_file(path)
+            else:
+                logger.warning(f"[WATCHER] File no longer exists: {path.name}")
+        except Exception as e:
+            logger.error(f"[WATCHER] Processing failed for {path.name}: {e}")
         finally:
             self._pending.discard(str(path))
+            logger.debug(f"[WATCHER] Finished processing: {path.name} (pending: {len(self._pending)})")
 
 
 class FileWatcher:

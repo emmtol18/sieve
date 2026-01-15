@@ -43,19 +43,30 @@ class Processor:
 
         Returns the path to the created capsule, or None if failed.
         """
-        logger.info(f"Processing: {path.name}")
+        logger.info(f"[PROCESSOR] Starting: {path.name} (size: {path.stat().st_size} bytes)")
 
         try:
             # Find appropriate extractor
             extractor = self._get_extractor(path)
             if not extractor:
-                logger.warning(f"No extractor for: {path.suffix}")
+                logger.warning(f"[PROCESSOR] No extractor for: {path.suffix}")
                 return None
 
+            extractor_name = extractor.__class__.__name__
+            logger.debug(f"[PROCESSOR] Using extractor: {extractor_name}")
+
             # Extract content
+            logger.debug(f"[PROCESSOR] Extracting content from: {path.name}")
             extracted = extractor.extract(path)
 
+            if extracted.is_image:
+                logger.debug(f"[PROCESSOR] Extracted image: {extracted.image_path}")
+            else:
+                content_preview = (extracted.text or "")[:100].replace("\n", " ")
+                logger.debug(f"[PROCESSOR] Extracted text ({len(extracted.text or '')} chars): {content_preview}...")
+
             # Process with LLM
+            logger.info(f"[PROCESSOR] Calling LLM for: {path.name}")
             if extracted.is_image:
                 capsule = await self.llm.process_image(
                     extracted.image_path,
@@ -68,13 +79,17 @@ class Processor:
                     capture_method=capture_method,
                 )
 
+            logger.debug(f"[PROCESSOR] LLM returned capsule: {capsule.metadata.title}")
+
             # Write capsule and copy asset
             original_file = extracted.image_path if extracted.is_image else None
+            logger.debug(f"[PROCESSOR] Writing capsule to disk...")
             capsule_path = self.writer.write(capsule, original_file=original_file)
 
-            logger.info(f"Created capsule: {capsule_path.name}")
+            logger.info(f"[PROCESSOR] Created capsule: {capsule_path.name} (category: {capsule.metadata.category})")
 
             # Update index
+            logger.debug(f"[PROCESSOR] Regenerating index...")
             await self.indexer.regenerate()
 
             # Clear error count on success
@@ -84,12 +99,15 @@ class Processor:
             try:
                 if path.exists():
                     path.unlink()
+                    logger.debug(f"[PROCESSOR] Removed source file: {path.name}")
             except (FileNotFoundError, PermissionError) as e:
-                logger.warning(f"Could not remove source file {path.name}: {e}")
+                logger.warning(f"[PROCESSOR] Could not remove source file {path.name}: {e}")
 
+            logger.info(f"[PROCESSOR] Completed: {path.name} -> {capsule_path.name}")
             return capsule_path
 
         except Exception as e:
+            logger.error(f"[PROCESSOR] Error processing {path.name}: {type(e).__name__}: {e}")
             return await self._handle_error(path, e)
 
     async def _handle_error(self, path: Path, error: Exception) -> None:

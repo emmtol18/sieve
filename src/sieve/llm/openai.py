@@ -35,8 +35,18 @@ class OpenAIClient:
         last_error: Exception = RuntimeError("No API call attempted")
         delay = self.settings.retry_base_delay
 
+        # Log input info
+        if isinstance(input_content, str):
+            input_preview = input_content[:100].replace("\n", " ")
+            logger.debug(f"[LLM] Input text ({len(input_content)} chars): {input_preview}...")
+        else:
+            logger.debug(f"[LLM] Input: {len(input_content)} message(s) with image")
+
+        logger.debug(f"[LLM] Model: {self.model}, max_tokens: {max_tokens}")
+
         for attempt in range(self.settings.max_retries):
             try:
+                logger.debug(f"[LLM] API call attempt {attempt + 1}/{self.settings.max_retries}")
                 response = await self.client.responses.create(
                     model=self.model,
                     instructions=instructions,
@@ -44,16 +54,21 @@ class OpenAIClient:
                     max_output_tokens=max_tokens,
                     text={"format": {"type": "json_object"}},
                 )
+                response_preview = (response.output_text or "")[:100].replace("\n", " ")
+                logger.debug(f"[LLM] Response ({len(response.output_text or '')} chars): {response_preview}...")
+                logger.info(f"[LLM] API call successful on attempt {attempt + 1}")
                 return response.output_text
             except (RateLimitError, APIError, APIConnectionError) as e:
                 last_error = e
-                logger.warning(f"API error: {e}, retrying in {delay}s (attempt {attempt + 1})")
+                logger.warning(f"[LLM] API error: {e}, retrying in {delay}s (attempt {attempt + 1})")
                 await asyncio.sleep(delay)
                 delay *= 2
-            except Exception:
+            except Exception as e:
                 # Don't retry on auth errors or unexpected exceptions
+                logger.error(f"[LLM] Unrecoverable error: {type(e).__name__}: {e}")
                 raise
 
+        logger.error(f"[LLM] All {self.settings.max_retries} attempts failed")
         raise last_error
 
     def _build_capsule(
@@ -98,6 +113,7 @@ class OpenAIClient:
         capture_method: str = "manual",
     ) -> Capsule:
         """Process text content into a capsule."""
+        logger.info(f"[LLM] Processing text ({len(content)} chars), source: {source_url or 'none'}")
         user_content = f"Source URL: {source_url}\n\n{content}" if source_url else content
         # Responses API requires 'json' in input when using json_object format
         user_content = f"{user_content}\n\nRespond in JSON format."
@@ -108,7 +124,9 @@ class OpenAIClient:
         )
         data = self._parse_response(response)
 
-        return self._build_capsule(data, source_url, capture_method)
+        capsule = self._build_capsule(data, source_url, capture_method)
+        logger.info(f"[LLM] Created capsule: '{capsule.metadata.title}' [{capsule.metadata.category}]")
+        return capsule
 
     async def _process_image_data(
         self,
@@ -118,6 +136,7 @@ class OpenAIClient:
         capture_method: str = "screenshot",
     ) -> Capsule:
         """Process base64 image data into a capsule using vision."""
+        logger.info(f"[LLM] Processing image ({len(image_data)} base64 chars), mime: {mime_type}")
         # Responses API requires 'json' in input when using json_object format
         input_content = [
             {
@@ -142,7 +161,9 @@ class OpenAIClient:
         )
         data = self._parse_response(response)
 
-        return self._build_capsule(data, source_url, capture_method)
+        capsule = self._build_capsule(data, source_url, capture_method)
+        logger.info(f"[LLM] Created capsule from image: '{capsule.metadata.title}' [{capsule.metadata.category}]")
+        return capsule
 
     async def process_image(
         self,

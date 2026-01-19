@@ -106,7 +106,14 @@ Add to your Claude Desktop or other MCP client:
 }
 ```
 
-**Available Tools:**
+**Available Resources (Passive Context):**
+
+Resources are automatically available in the AI's context - no tool calls needed:
+
+- `capsules://pinned` - Your "Eternal Truths" (pinned capsules) - always available as authoritative context
+- `capsules://index` - Complete knowledge index showing all available capsules by category
+
+**Available Tools (Active Retrieval):**
 - `search_capsules(query)` - Search knowledge by keyword
 - `get_pinned()` - Get all pinned "Eternal Truths"
 - `get_capsule(id)` - Read a specific capsule

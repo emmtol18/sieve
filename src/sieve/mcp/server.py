@@ -3,9 +3,13 @@
 import asyncio
 from collections import defaultdict
 
+from collections.abc import Iterable
+
 from mcp.server import Server
+from mcp.server.lowlevel.helper_types import ReadResourceContents
 from mcp.server.stdio import stdio_server
-from mcp.types import TextContent, Tool
+from mcp.types import Resource, TextContent, Tool
+from pydantic import AnyUrl
 
 from ..capsule import load_capsules
 from ..config import get_settings
@@ -93,6 +97,77 @@ def run_server():
                 inputSchema={"type": "object", "properties": {}},
             ),
         ]
+
+    # ==================== MCP Resources ====================
+    # Resources provide passive context injection - knowledge available without tool calls
+
+    @server.list_resources()
+    async def list_resources() -> list[Resource]:
+        """List available resources for context injection."""
+        resources = [
+            Resource(
+                uri=AnyUrl("capsules://pinned"),
+                name="Pinned Knowledge (Eternal Truths)",
+                description="High-priority knowledge capsules marked as 'Eternal Truths'. These represent your most important, verified insights and should be considered authoritative context.",
+                mimeType="text/markdown",
+            ),
+            Resource(
+                uri=AnyUrl("capsules://index"),
+                name="Knowledge Index",
+                description="Complete index of all available knowledge capsules organized by category. Use this to understand what knowledge is available and find relevant capsules to explore.",
+                mimeType="text/markdown",
+            ),
+        ]
+        return resources
+
+    @server.read_resource()
+    async def read_resource(uri: AnyUrl) -> Iterable[ReadResourceContents]:
+        """Read a specific resource by URI."""
+        uri_str = str(uri)
+
+        if uri_str == "capsules://pinned":
+            try:
+                capsules = get_capsules()
+                pinned = [c for c in capsules if c.get("pinned")]
+
+                if not pinned:
+                    text = "# Eternal Truths\n\nNo pinned capsules yet. Pin important insights to make them always available in context."
+                else:
+                    text = f"# Eternal Truths ({len(pinned)} pinned capsules)\n\n"
+                    text += "These are your highest-priority knowledge capsules - insights you've marked as fundamental truths.\n\n"
+                    for c in pinned:
+                        text += format_capsule(c)
+                        text += "\n---\n\n"
+
+                return [ReadResourceContents(content=text, mime_type="text/markdown")]
+            except Exception as e:
+                return [ReadResourceContents(
+                    content=f"# Eternal Truths\n\nError loading capsules: {e}",
+                    mime_type="text/markdown",
+                )]
+
+        elif uri_str == "capsules://index":
+            index_path = settings.index_path
+            if not index_path.exists():
+                return [ReadResourceContents(
+                    content="# Knowledge Index\n\nNo index available. Run 'sieve index' to generate it.",
+                    mime_type="text/markdown",
+                )]
+
+            try:
+                content = index_path.read_text()
+                return [ReadResourceContents(content=content, mime_type="text/markdown")]
+            except Exception as e:
+                return [ReadResourceContents(
+                    content=f"# Knowledge Index\n\nError reading index: {e}",
+                    mime_type="text/markdown",
+                )]
+
+        else:
+            return [ReadResourceContents(
+                content=f"Unknown resource: {uri_str}",
+                mime_type="text/plain",
+            )]
 
     async def search_capsules(query: str, limit: int = 10) -> list[TextContent]:
         """Search capsules by keyword."""

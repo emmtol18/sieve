@@ -15,9 +15,10 @@ from .logging_config import setup_colored_logging
 @click.pass_context
 def cli(ctx, verbose):
     """Neural Sieve - The High-Signal External Memory for AI Influence."""
-    setup_colored_logging(verbose)
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
+    # Note: logging setup is deferred to individual commands
+    # MCP command must NOT setup stdout logging (it uses stdio for JSON-RPC)
 
 
 @cli.command()
@@ -92,6 +93,7 @@ def start(ctx):
     from .coordinator import ServiceCoordinator
 
     verbose = ctx.obj.get("verbose", False)
+    setup_colored_logging(verbose)
 
     try:
         settings = get_settings()
@@ -109,10 +111,12 @@ def start(ctx):
 
 
 @cli.command()
-def watch():
+@click.pass_context
+def watch(ctx):
     """Start the file watcher daemon."""
     from .engine import FileWatcher
 
+    setup_colored_logging(ctx.obj.get("verbose", False))
     click.echo("Starting Neural Sieve watcher...")
 
     try:
@@ -132,11 +136,13 @@ def watch():
 
 @cli.command()
 @click.option("--port", "-p", default=None, type=int, help="Port to run on")
-def manage(port):
+@click.pass_context
+def manage(ctx, port):
     """Start the management dashboard."""
     from .dashboard import create_app
     import uvicorn
 
+    setup_colored_logging(ctx.obj.get("verbose", False))
     settings = get_settings()
     app = create_app(settings)
 
@@ -157,10 +163,12 @@ def mcp():
 
 @cli.command()
 @click.argument("file_path", type=click.Path(exists=True))
-def process(file_path):
+@click.pass_context
+def process(ctx, file_path):
     """Manually process a single file."""
     from .engine import Processor
 
+    setup_colored_logging(ctx.obj.get("verbose", False))
     path = Path(file_path)
     settings = get_settings()
     processor = Processor(settings)
@@ -178,10 +186,12 @@ def process(file_path):
 
 
 @cli.command()
-def index():
+@click.pass_context
+def index(ctx):
     """Regenerate the knowledge index (Capsules/INDEX.md)."""
     from .engine import Indexer
 
+    setup_colored_logging(ctx.obj.get("verbose", False))
     settings = get_settings()
     indexer = Indexer(settings)
 

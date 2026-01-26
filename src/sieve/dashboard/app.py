@@ -14,13 +14,6 @@ from .routes import create_router
 STATIC_DIR = Path(__file__).parent / "static"
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
-# Allowed origins for CSRF protection
-ALLOWED_ORIGINS = {
-    "http://127.0.0.1:8420",
-    "http://localhost:8420",
-    None,  # Same-origin requests have no Origin header
-}
-
 
 class CSRFProtectionMiddleware(BaseHTTPMiddleware):
     """Middleware to protect against CSRF attacks.
@@ -28,6 +21,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
     Validates that state-changing requests (POST, PUT, DELETE, PATCH) come from
     allowed origins (localhost or browser extensions).
     """
+
+    def __init__(self, app, allowed_origins: set[str | None]):
+        super().__init__(app)
+        self.allowed_origins = allowed_origins
 
     async def dispatch(self, request: Request, call_next):
         # Only check state-changing methods
@@ -39,7 +36,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             # Allow browser extensions (chrome-extension://, moz-extension://)
             is_allowed = (
                 origin is None
-                or origin in ALLOWED_ORIGINS
+                or origin in self.allowed_origins
                 or origin.startswith("chrome-extension://")
                 or origin.startswith("moz-extension://")
             )
@@ -61,8 +58,11 @@ def create_app(settings: Settings) -> FastAPI:
         version="0.1.0",
     )
 
-    # Add CSRF protection middleware
-    app.add_middleware(CSRFProtectionMiddleware)
+    # Add CSRF protection middleware with dynamic origins from settings
+    app.add_middleware(
+        CSRFProtectionMiddleware,
+        allowed_origins=settings.get_allowed_origins(),
+    )
 
     # Ensure directories exist
     STATIC_DIR.mkdir(parents=True, exist_ok=True)

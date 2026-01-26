@@ -62,12 +62,16 @@ class Settings(BaseSettings):
         return self.capsules_path / "INDEX.md"
 
     @property
-    def config_path(self) -> Path:
-        return self.sieve_path / "config.yaml"
-
-    @property
     def error_log_path(self) -> Path:
         return self.sieve_path / "error.log"
+
+    def get_allowed_origins(self) -> set[str | None]:
+        """Get CSRF allowed origins based on configured port."""
+        return {
+            f"http://127.0.0.1:{self.port}",
+            f"http://localhost:{self.port}",
+            None,  # Same-origin requests have no Origin header
+        }
 
 
 def get_settings() -> Settings:

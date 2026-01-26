@@ -1,5 +1,24 @@
 # Project Guidance
 
+## Python Tooling
+
+**Use `uv` for all Python operations** (not pip, pyenv, or virtualenv directly).
+
+```bash
+# Create virtual environment
+uv venv
+
+# Install dependencies
+uv pip install -e ".[dev]"
+
+# Run commands in venv
+uv run pytest tests/
+uv run sieve start
+
+# Or activate manually
+source .venv/bin/activate
+```
+
 ## Workflow Instructions
 
 ### Git Worktrees (Required for Feature Work)
@@ -18,10 +37,13 @@
 
 2. **Run project setup** after creating:
    ```bash
-   npm install  # or appropriate setup command
+   uv venv && uv pip install -e ".[dev]"
    ```
 
-3. **Verify clean baseline** - run tests before starting work
+3. **Verify clean baseline** - run tests before starting work:
+   ```bash
+   uv run pytest tests/ -q
+   ```
 
 4. **When finished** - use the `finishing-a-development-branch` skill for proper cleanup
 

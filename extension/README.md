@@ -26,3 +26,13 @@
 
 - **Green dot**: Server is running
 - **Red dot**: Server is offline (run `sieve manage`)
+
+## Port Configuration
+
+The extension connects to `http://127.0.0.1:8420` by default. The server must run on port 8420 for the extension to work.
+
+If you need a different port:
+1. Edit `background.js` line 1: `const API_URL = 'http://127.0.0.1:<PORT>'`
+2. Edit `popup.js` line 1: same change
+3. Edit `manifest.json` line 7: `"host_permissions": ["http://127.0.0.1:<PORT>/*"]`
+4. Reload the extension in `chrome://extensions/`

@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     max_retries: int = 5
     retry_base_delay: float = 1.0
 
+    # Search relevance (0-10 scale)
+    relevance_threshold: float = 6.0  # Minimum score for automatic context injection
+
     @property
     def inbox_path(self) -> Path:
         return self.vault_root / "Inbox"

@@ -181,21 +181,22 @@ def run_server():
                 name="search_capsules",
                 description=(
                     "Search the user's personal knowledge base for relevant capsules. "
-                    "Capsules contain curated insights, techniques, prompts, workflows, and learnings. "
-                    "Returns all relevant capsules with relevance scores (0-10). "
-                    "Use individual keywords, not phrases. "
-                    "Search multiple times with different keywords for thorough coverage."
+                    "Capsules contain curated insights, techniques, prompts, workflows, and learnings.\n\n"
+                    "AUTOMATIC: At conversation start, search based on the user's first message. "
+                    "Extract 2-4 key concepts and search. Only capsules scoring 6+/10 are returned.\n\n"
+                    "If no relevant capsules are found, that's fine - continue without additional context.\n\n"
+                    "Use individual keywords, not phrases. Search multiple times for thorough coverage."
                 ),
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "Space-separated keywords to search (searches title, tags, and content). Use individual words, not phrases.",
+                            "description": "Space-separated keywords (2-4 key concepts from user's message)",
                         },
                         "limit": {
                             "type": "integer",
-                            "description": "Maximum number of results (default: 10)",
+                            "description": "Maximum results (default: 10)",
                             "default": 10,
                         },
                     },
@@ -321,8 +322,11 @@ def run_server():
         Two-phase search:
         1. Fast keyword filter to find candidates (word-level matching)
         2. LLM ranks candidates by semantic relevance to query
+
+        Only returns capsules scoring >= relevance_threshold (default 6/10).
         """
-        logger.info(f"[MCP] Searching for: '{query}' (limit: {limit})")
+        threshold = settings.relevance_threshold
+        logger.info(f"[MCP] Searching for: '{query}' (limit: {limit}, threshold: {threshold})")
         capsules = get_capsules()
 
         # Phase 1: Extract keywords and find candidates with any match
@@ -351,17 +355,16 @@ def run_server():
         logger.info(f"[MCP] Phase 2: LLM ranking {len(top_candidates)} candidates...")
         ranked = await _llm_rank_capsules(query, top_candidates)
 
-        # Filter out low relevance (score < 3) and take top results
-        results = [(score, c) for score, c in ranked if score >= 3][:limit]
+        # Filter by relevance threshold (default 6/10 for high signal)
+        results = [(score, c) for score, c in ranked if score >= threshold][:limit]
 
         if not results:
-            # Fall back to keyword-only results if LLM ranked everything low
-            results = [(score, c) for score, _, c in candidates[:limit]]
-            logger.info(f"[MCP] LLM found no relevant results, using keyword matches")
+            logger.info(f"[MCP] No capsules scored {threshold}+ for '{query}'")
+            return [TextContent(type="text", text=f"No highly relevant capsules found for '{query}' (threshold: {threshold}/10)")]
 
-        logger.info(f"[MCP] Search '{query}': returning {len(results)} results")
+        logger.info(f"[MCP] Search '{query}': returning {len(results)} results (scored {threshold}+)")
 
-        text = f"Found {len(results)} capsules matching '{query}':\n\n"
+        text = f"Found {len(results)} relevant capsules:\n\n"
         for relevance, c in results:
             text += f"**Relevance: {relevance}/10**\n"
             text += format_capsule(c)

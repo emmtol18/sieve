@@ -66,12 +66,61 @@ def run_server():
         logger.debug(f"[MCP] Loaded {len(capsules)} capsules from vault")
         return capsules
 
-    async def _expand_query(query: str) -> list[str]:
-        """Expand search query with semantic variations using LLM.
+    def _extract_keywords(query: str) -> list[str]:
+        """Extract individual keywords from query for word-level matching."""
+        import re
+        # Split on whitespace and punctuation, keep words 2+ chars
+        words = re.findall(r'\b\w{2,}\b', query.lower())
+        # Also keep the original query for phrase matching
+        return list(set([query.lower()] + words))
 
-        Returns list of search terms including original query.
-        Falls back to [query] on any error.
+    def _keyword_match_score(capsule: dict, keywords: list[str]) -> int:
+        """Score a capsule based on keyword matches (word-level).
+
+        Returns a score where higher = more matches.
         """
+        title = capsule.get("title", "").lower()
+        tags = " ".join(capsule.get("tags", [])).lower()
+        content = capsule.get("_content", "").lower()
+
+        score = 0
+        matched_keywords = []
+
+        for kw in keywords:
+            # Title matches (highest weight)
+            if kw in title:
+                score += 20
+                matched_keywords.append(f"title:{kw}")
+            # Tag matches (high weight)
+            if kw in tags:
+                score += 15
+                matched_keywords.append(f"tag:{kw}")
+            # Content matches (base weight)
+            if kw in content:
+                score += 5
+                matched_keywords.append(f"content:{kw}")
+
+        return score, matched_keywords
+
+    async def _llm_rank_capsules(query: str, candidates: list[dict]) -> list[tuple[float, dict]]:
+        """Use LLM to rank candidate capsules by relevance to user query.
+
+        Returns list of (relevance_score, capsule) tuples sorted by relevance.
+        """
+        if not candidates:
+            return []
+
+        # Build a summary of each candidate for the LLM to evaluate
+        summaries = []
+        for i, c in enumerate(candidates):
+            title = c.get("title", "Untitled")
+            tags = ", ".join(c.get("tags", []))
+            # Get first 200 chars of content as preview
+            content_preview = c.get("_content", "")[:300].replace("\n", " ")
+            summaries.append(f"{i+1}. **{title}** (tags: {tags})\n   Preview: {content_preview}...")
+
+        capsule_list = "\n\n".join(summaries)
+
         try:
             response = await openai_client.chat.completions.create(
                 model=settings.query_expansion_model,
@@ -79,25 +128,49 @@ def run_server():
                     {
                         "role": "system",
                         "content": (
-                            "Generate 3-5 semantic variations and related terms for a search query. "
-                            "Include synonyms, related concepts, and common alternative phrasings. "
-                            "Return only the terms, one per line, no explanations or numbering."
+                            "You are a search relevance ranker. Given a user's search query and a list of knowledge capsules, "
+                            "rate how relevant each capsule is to the query on a scale of 0-10.\n\n"
+                            "Return ONLY a JSON array of scores in order, like: [8, 2, 10, 5]\n"
+                            "Consider:\n"
+                            "- Direct topic match (highest relevance)\n"
+                            "- Related concepts or tools mentioned\n"
+                            "- Partial matches or tangential relevance\n"
+                            "Be generous - if there's any reasonable connection, score it above 0."
                         ),
                     },
-                    {"role": "user", "content": f"Query: {query}"},
+                    {
+                        "role": "user",
+                        "content": f"Query: {query}\n\nCapsules to rank:\n\n{capsule_list}"
+                    },
                 ],
                 max_tokens=100,
-                temperature=0.3,
+                temperature=0.1,
             )
 
-            expanded = response.choices[0].message.content.strip().split("\n")
-            terms = [query] + [t.strip() for t in expanded if t.strip()]
-            logger.debug(f"[Search] Expanded '{query}' to: {terms[:6]}")
-            return terms[:6]  # Cap at 6 total terms
+            # Parse the JSON array of scores
+            import json
+            scores_text = response.choices[0].message.content.strip()
+            # Handle potential markdown code blocks
+            if "```" in scores_text:
+                scores_text = scores_text.split("```")[1].replace("json", "").strip()
+            scores = json.loads(scores_text)
+
+            logger.debug(f"[Search] LLM relevance scores: {scores}")
+
+            # Pair scores with capsules
+            ranked = []
+            for i, c in enumerate(candidates):
+                score = scores[i] if i < len(scores) else 0
+                ranked.append((score, c))
+
+            # Sort by score descending
+            ranked.sort(key=lambda x: x[0], reverse=True)
+            return ranked
 
         except Exception as e:
-            logger.warning(f"[Search] Query expansion failed for '{query}': {e}, using keyword search")
-            return [query]
+            logger.warning(f"[Search] LLM ranking failed: {e}, using keyword scores")
+            # Fall back to returning candidates as-is
+            return [(5, c) for c in candidates]
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -228,44 +301,54 @@ def run_server():
             )]
 
     async def search_capsules(query: str, limit: int = 10) -> list[TextContent]:
-        """Search capsules with semantic query expansion."""
-        logger.debug(f"[MCP] Searching for: '{query}' (limit: {limit})")
+        """Search capsules using keyword matching + LLM relevance ranking.
+
+        Two-phase search:
+        1. Fast keyword filter to find candidates (word-level matching)
+        2. LLM ranks candidates by semantic relevance to query
+        """
+        logger.info(f"[MCP] Searching for: '{query}' (limit: {limit})")
         capsules = get_capsules()
 
-        # Expand query semantically (falls back to keyword-only on error)
-        search_terms = await _expand_query(query)
-        logger.debug(f"[MCP] Search terms after expansion: {search_terms}")
+        # Phase 1: Extract keywords and find candidates with any match
+        keywords = _extract_keywords(query)
+        logger.debug(f"[MCP] Keywords extracted: {keywords}")
 
-        matches = []
+        candidates = []
         for c in capsules:
-            score = 0
-            title = c.get("title", "").lower()
-            tags = [t.lower() for t in c.get("tags", [])]
-            content = c.get("_content", "").lower()
-
-            # Search with all expanded terms
-            for term in search_terms:
-                term_lower = term.lower()
-                if term_lower in title:
-                    score += 10
-                if any(term_lower in t for t in tags):
-                    score += 5
-                if term_lower in content:
-                    score += 1
-
+            score, matched = _keyword_match_score(c, keywords)
             if score > 0:
-                matches.append((score, c))
+                candidates.append((score, matched, c))
+                logger.debug(f"[MCP] Candidate: {c.get('title')} (score={score}, matched={matched})")
 
-        matches.sort(key=lambda x: x[0], reverse=True)
-        results = [c for _, c in matches[:limit]]
+        logger.info(f"[MCP] Phase 1: {len(candidates)} keyword matches from {len(capsules)} capsules")
 
-        logger.info(f"[MCP] Search '{query}': {len(results)} results from {len(capsules)} capsules")
-
-        if not results:
+        if not candidates:
             return [TextContent(type="text", text=f"No capsules found matching '{query}'")]
 
+        # Sort by keyword score first
+        candidates.sort(key=lambda x: x[0], reverse=True)
+
+        # Phase 2: Use LLM to rank top candidates by semantic relevance
+        # Only send top candidates to LLM to save tokens
+        top_candidates = [c for _, _, c in candidates[:min(15, len(candidates))]]
+
+        logger.info(f"[MCP] Phase 2: LLM ranking {len(top_candidates)} candidates...")
+        ranked = await _llm_rank_capsules(query, top_candidates)
+
+        # Filter out low relevance (score < 3) and take top results
+        results = [(score, c) for score, c in ranked if score >= 3][:limit]
+
+        if not results:
+            # Fall back to keyword-only results if LLM ranked everything low
+            results = [(score, c) for score, _, c in candidates[:limit]]
+            logger.info(f"[MCP] LLM found no relevant results, using keyword matches")
+
+        logger.info(f"[MCP] Search '{query}': returning {len(results)} results")
+
         text = f"Found {len(results)} capsules matching '{query}':\n\n"
-        for c in results:
+        for relevance, c in results:
+            text += f"**Relevance: {relevance}/10**\n"
             text += format_capsule(c)
             text += "\n---\n\n"
 

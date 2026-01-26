@@ -1,0 +1,6 @@
+/*
+ * Typography definitions using system fonts for offline support.
+ * No external dependencies - works fully offline.
+ */
+
+/* No @import - uses system fonts defined in index.html CSS variables */

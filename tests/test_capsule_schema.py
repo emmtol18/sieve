@@ -76,18 +76,20 @@ class TestCapsule:
         assert "multiple paragraphs" in capsule.full_content
 
     def test_filename_generation(self, sample_capsule):
-        """Test that filename is generated correctly."""
+        """Test that filename is generated correctly with ID suffix."""
         filename = sample_capsule.filename
 
         assert filename.startswith("20240115_")
         assert filename.endswith(".md")
         assert "test" in filename.lower()
         assert "capsule" in filename.lower()
+        # ID is "2024-01-15-T100000-123456", short_id is "123456"
+        assert "_123456.md" in filename
 
     def test_filename_handles_special_characters(self):
         """Test filename generation with special characters in title."""
         meta = CapsuleMetadata(
-            id="test",
+            id="2024-01-15-T100000-abcdef",
             title="Test: A 'Special' Title! With @#$ Characters",
             captured_at=date(2024, 1, 15),
         )
@@ -102,7 +104,8 @@ class TestCapsule:
 
         # After removing special chars, we get: "Test A Special Title With  Characters"
         # First 6 words: test, a, special, title, with, characters
-        assert filename == "20240115_test_a_special_title_with_characters.md"
+        # Short ID from "2024-01-15-T100000-abcdef" → "abcdef"
+        assert filename == "20240115_test_a_special_title_with_characters_abcdef.md"
         # No special chars in filename
         assert ":" not in filename
         assert "!" not in filename
@@ -111,7 +114,7 @@ class TestCapsule:
     def test_filename_limits_words(self):
         """Test that filename is limited to first 6 words."""
         meta = CapsuleMetadata(
-            id="test",
+            id="2024-01-15-T100000-xyz123",
             title="One Two Three Four Five Six Seven Eight Nine Ten",
             captured_at=date(2024, 1, 15),
         )
@@ -124,7 +127,44 @@ class TestCapsule:
 
         filename = capsule.filename
 
-        assert filename == "20240115_one_two_three_four_five_six.md"
+        assert filename == "20240115_one_two_three_four_five_six_xyz123.md"
+
+    def test_filename_uniqueness_guaranteed(self):
+        """Test that different capsules with same title/date get unique filenames."""
+        # Two capsules with identical titles on same day but different IDs
+        meta1 = CapsuleMetadata(
+            id="2024-01-15-T100000-111111",
+            title="Identical Title",
+            captured_at=date(2024, 1, 15),
+        )
+        meta2 = CapsuleMetadata(
+            id="2024-01-15-T100000-222222",
+            title="Identical Title",
+            captured_at=date(2024, 1, 15),
+        )
+
+        capsule1 = Capsule(
+            metadata=meta1,
+            executive_summary="Summary 1",
+            core_insight="Insight 1",
+            full_content="Content 1",
+        )
+        capsule2 = Capsule(
+            metadata=meta2,
+            executive_summary="Summary 2",
+            core_insight="Insight 2",
+            full_content="Content 2",
+        )
+
+        filename1 = capsule1.filename
+        filename2 = capsule2.filename
+
+        # Both start with same date_slug but have different IDs
+        assert filename1.startswith("20240115_identical_title_")
+        assert filename2.startswith("20240115_identical_title_")
+        assert filename1 != filename2
+        assert filename1.endswith("111111.md")
+        assert filename2.endswith("222222.md")
 
     def test_to_markdown(self, sample_capsule):
         """Test conversion to markdown with frontmatter."""

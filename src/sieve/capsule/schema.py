@@ -47,12 +47,21 @@ class Capsule(BaseModel):
 
     @property
     def filename(self) -> str:
-        """Generate filename from metadata."""
+        """Generate filename from metadata with unique ID suffix.
+
+        Format: {YYYYMMDD}_{slug}_{short_id}.md
+        - Date prefix for chronological sorting
+        - Slug (first 6 words) for human readability
+        - Short ID (last 6 chars of capsule ID) for uniqueness
+        """
         slug = self.metadata.title.lower()
         slug = "".join(c if c.isalnum() or c == " " else "" for c in slug)
         slug = "_".join(slug.split()[:6])
         date_prefix = self.metadata.captured_at.strftime("%Y%m%d")
-        return f"{date_prefix}_{slug}.md"
+        # Extract last 6 characters from ID for uniqueness
+        # ID format: 2024-01-15-T100530-482917 → 482917
+        short_id = self.metadata.id.replace("-", "").replace("T", "")[-6:]
+        return f"{date_prefix}_{slug}_{short_id}.md"
 
     def to_markdown(self) -> str:
         """Render capsule as markdown with YAML frontmatter."""

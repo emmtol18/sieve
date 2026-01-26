@@ -48,8 +48,26 @@ class TestSettings:
         assert settings.sieve_path == vault / ".sieve"
         assert settings.failed_path == vault / "Inbox" / "failed"
         assert settings.index_path == vault / "Capsules" / "INDEX.md"
-        assert settings.config_path == vault / ".sieve" / "config.yaml"
         assert settings.error_log_path == vault / ".sieve" / "error.log"
+
+    def test_get_allowed_origins(self, settings):
+        """Test allowed origins are generated correctly from port."""
+        # Default port 8420
+        origins = settings.get_allowed_origins()
+
+        assert "http://127.0.0.1:8420" in origins
+        assert "http://localhost:8420" in origins
+        assert None in origins
+
+    def test_get_allowed_origins_custom_port(self, monkeypatch):
+        """Test allowed origins with custom port."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        settings = Settings(openai_api_key="test-key", port=9000)
+        origins = settings.get_allowed_origins()
+
+        assert "http://127.0.0.1:9000" in origins
+        assert "http://localhost:9000" in origins
+        assert "http://127.0.0.1:8420" not in origins
 
     def test_env_prefix(self, monkeypatch, tmp_path):
         """Test that SIEVE_ prefix works for environment variables."""

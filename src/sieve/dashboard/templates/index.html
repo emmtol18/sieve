@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neural Sieve</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- HTMX served locally for offline support -->
+    <script src="/static/js/htmx.min.js"></script>
     <style>
         :root {
             /* Warm, readable light palette */
@@ -41,9 +39,9 @@
             --accent-blue: #4a7c9b;
             --accent-blue-light: #e8f2f8;
 
-            /* Typography */
-            --display: 'Fraunces', Georgia, serif;
-            --mono: 'IBM Plex Mono', 'SF Mono', monospace;
+            /* Typography - System fonts for offline support */
+            --display: Georgia, 'Times New Roman', serif;
+            --mono: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
 
             /* Shadows */
             --shadow-xs: 0 1px 2px rgba(44, 40, 36, 0.04);

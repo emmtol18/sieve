@@ -49,21 +49,6 @@ def init(force):
         if not gitkeep.exists():
             gitkeep.touch()
 
-    # Create config file
-    config_path = vault_root / ".sieve" / "config.yaml"
-    if not config_path.exists() or force:
-        config_path.write_text(
-            """# Neural Sieve Configuration
-
-# Optional: Path to screenshot folder to watch (in addition to Inbox/)
-# screenshot_folder: ~/Desktop
-
-# Dashboard port
-port: 8420
-"""
-        )
-        click.echo(f"  Created: .sieve/config.yaml")
-
     # Create .env.example if not exists
     env_example = vault_root / ".env.example"
     if not env_example.exists():
@@ -163,10 +148,14 @@ def watch(ctx):
 
 
 @cli.command()
-@click.option("--port", "-p", default=None, type=int, help="Port to run on")
+@click.option("--port", "-p", default=None, type=int, help="Port to run on (default: 8420)")
 @click.pass_context
 def manage(ctx, port):
-    """Start the management dashboard."""
+    """Start the management dashboard.
+
+    Note: The Chrome extension connects to port 8420 by default.
+    If you change the port, update extension/background.js and extension/popup.js.
+    """
     from .dashboard import create_app
     import uvicorn
 
@@ -175,6 +164,14 @@ def manage(ctx, port):
     app = create_app(settings)
 
     run_port = port or settings.port
+
+    if run_port != 8420:
+        click.echo(
+            f"Warning: Running on port {run_port}. "
+            "The Chrome extension expects port 8420.",
+            err=True
+        )
+
     click.echo(f"Starting dashboard at http://{settings.host}:{run_port}")
 
     uvicorn.run(app, host=settings.host, port=run_port, log_level="info")

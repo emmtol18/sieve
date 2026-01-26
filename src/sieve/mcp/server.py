@@ -183,16 +183,10 @@ def run_server():
                     "Search the user's personal knowledge base for relevant capsules. "
                     "Capsules contain curated insights, techniques, prompts, workflows, and learnings.\n\n"
                     "SEARCH STRATEGY:\n"
-                    "- Use individual keywords, not phrases (e.g., 'banana prompt image' not 'banana pro prompts')\n"
+                    "- Use individual keywords, not phrases\n"
                     "- Search multiple times with different keyword combinations for thorough coverage\n"
-                    "- First search for domain terms (e.g., 'prompt engineering'), then for specific tools/techniques\n"
-                    "- If initial search yields few results, broaden with related concepts\n\n"
-                    "EXAMPLE SEARCHES for 'help me write a prompt for Banana Pro image generation':\n"
-                    "1. search_capsules('banana prompt image') - specific tool\n"
-                    "2. search_capsules('prompt engineering techniques') - general domain\n"
-                    "3. search_capsules('image generation workflow') - related workflow\n\n"
-                    "The search uses word-level matching with LLM relevance ranking. "
-                    "Results include relevance scores (0-10) to help identify the most useful capsules."
+                    "- First search for specific terms, then broaden to related concepts if needed\n"
+                    "- Results include relevance scores (0-10) to help identify the most useful capsules"
                 ),
                 inputSchema={
                     "type": "object",

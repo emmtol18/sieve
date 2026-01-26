@@ -179,13 +179,27 @@ def run_server():
         return [
             Tool(
                 name="search_capsules",
-                description="Search knowledge capsules with semantic expansion. Automatically expands queries with related terms (e.g., 'auth' finds 'authentication', 'login', etc.).",
+                description=(
+                    "Search the user's personal knowledge base for relevant capsules. "
+                    "Capsules contain curated insights, techniques, prompts, workflows, and learnings.\n\n"
+                    "SEARCH STRATEGY:\n"
+                    "- Use individual keywords, not phrases (e.g., 'banana prompt image' not 'banana pro prompts')\n"
+                    "- Search multiple times with different keyword combinations for thorough coverage\n"
+                    "- First search for domain terms (e.g., 'prompt engineering'), then for specific tools/techniques\n"
+                    "- If initial search yields few results, broaden with related concepts\n\n"
+                    "EXAMPLE SEARCHES for 'help me write a prompt for Banana Pro image generation':\n"
+                    "1. search_capsules('banana prompt image') - specific tool\n"
+                    "2. search_capsules('prompt engineering techniques') - general domain\n"
+                    "3. search_capsules('image generation workflow') - related workflow\n\n"
+                    "The search uses word-level matching with LLM relevance ranking. "
+                    "Results include relevance scores (0-10) to help identify the most useful capsules."
+                ),
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "Search query (searches title, tags, and content)",
+                            "description": "Space-separated keywords to search (searches title, tags, and content). Use individual words, not phrases.",
                         },
                         "limit": {
                             "type": "integer",
@@ -217,12 +231,21 @@ def run_server():
             ),
             Tool(
                 name="get_index",
-                description="Get the full knowledge index showing all capsules organized by category.",
+                description=(
+                    "Get the full knowledge index showing all capsules organized by category. "
+                    "Use this FIRST when you need to understand what knowledge is available, "
+                    "or when searches don't find what you're looking for. "
+                    "The index shows capsule titles which can help you identify relevant topics to search for."
+                ),
                 inputSchema={"type": "object", "properties": {}},
             ),
             Tool(
                 name="get_categories",
-                description="Get list of all knowledge categories with capsule counts.",
+                description=(
+                    "Get list of all knowledge categories with capsule counts. "
+                    "Use this to quickly see what domains of knowledge are available "
+                    "(e.g., Technology, Productivity, Learning) before diving into searches."
+                ),
                 inputSchema={"type": "object", "properties": {}},
             ),
         ]

@@ -21,6 +21,9 @@ Inbox/*
 # SENSITIVE FILES - CRITICAL
 # ========================
 
+# Local MCP config (machine-specific)
+.mcp.json
+
 # Environment files (may contain API keys, secrets)
 .env
 .env.*

@@ -54,7 +54,7 @@ def init(force):
     if not env_example.exists():
         env_example.write_text(
             """# OpenAI API Key (required)
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=your_openai_api_key_here
 
 # Optional: Custom screenshot folder
 # SIEVE_SCREENSHOT_FOLDER=/Users/yourname/Desktop

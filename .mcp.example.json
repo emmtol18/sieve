@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "neural-sieve": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/neural-sieve", "sieve", "mcp"]
+    }
+  }
+}
+

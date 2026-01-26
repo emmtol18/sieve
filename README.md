@@ -81,7 +81,7 @@ Neural-Sieve-Vault/
 
 ```bash
 # Required
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=your_openai_api_key_here
 
 # Optional: Watch a screenshot folder (in addition to Inbox/)
 SIEVE_SCREENSHOT_FOLDER=/Users/yourname/Desktop

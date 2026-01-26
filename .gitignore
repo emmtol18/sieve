@@ -90,6 +90,9 @@ venv/
 *.swo
 *~
 
+# Git worktrees
+.worktrees/
+
 # Build outputs
 dist/
 build/

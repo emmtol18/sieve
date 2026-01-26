@@ -181,12 +181,12 @@ def run_server():
                 name="search_capsules",
                 description=(
                     "Search the user's personal knowledge base for relevant capsules. "
+                    "Returns multiple capsules ranked by relevance (0-10 score). "
                     "Capsules contain curated insights, techniques, prompts, workflows, and learnings.\n\n"
                     "SEARCH STRATEGY:\n"
                     "- Use individual keywords, not phrases\n"
                     "- Search multiple times with different keyword combinations for thorough coverage\n"
-                    "- First search for specific terms, then broaden to related concepts if needed\n"
-                    "- Results include relevance scores (0-10) to help identify the most useful capsules"
+                    "- Synthesize information from ALL relevant capsules returned, not just the top one"
                 ),
                 inputSchema={
                     "type": "object",

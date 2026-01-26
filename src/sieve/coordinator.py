@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import signal
+import sys
 from typing import Optional
 
 import uvicorn
@@ -10,6 +11,7 @@ import uvicorn
 from .config import Settings
 from .dashboard import create_app
 from .engine import FileWatcher
+from .process import ProcessLock
 
 logger = logging.getLogger(__name__)
 
@@ -17,17 +19,29 @@ logger = logging.getLogger(__name__)
 class ServiceCoordinator:
     """Coordinates FileWatcher and Dashboard services in a single process."""
 
-    def __init__(self, settings: Settings, verbose: bool = False):
+    def __init__(self, settings: Settings, verbose: bool = False, daemon: bool = False):
         self.settings = settings
         self.verbose = verbose
+        self.daemon = daemon
         self.watcher: Optional[FileWatcher] = None
         self.server: Optional[uvicorn.Server] = None
         self._shutdown_event = asyncio.Event()
         self._watcher_task: Optional[asyncio.Task] = None
         self._server_task: Optional[asyncio.Task] = None
+        self._process_lock: Optional[ProcessLock] = None
 
     async def run(self) -> None:
         """Run both services concurrently until shutdown signal."""
+        # Acquire process lock to prevent duplicate instances
+        self._process_lock = ProcessLock("coordinator", self.settings.pid_dir)
+        if not self._process_lock.acquire():
+            existing_pid = self._process_lock.get_pid()
+            logger.error(
+                f"[STARTUP] Another instance is already running (PID {existing_pid}). "
+                "Use 'sieve stop' to stop it first, or 'sieve status' to check."
+            )
+            sys.exit(1)
+
         logger.info("[STARTUP] Starting Neural Sieve...")
 
         # Setup signal handlers for graceful shutdown
@@ -39,7 +53,10 @@ class ServiceCoordinator:
             # Initialize and start services
             await self._start_services()
 
-            logger.info("[STARTUP] All services running. Press Ctrl+C to stop.")
+            if self.daemon:
+                logger.info("[STARTUP] Running as daemon. Use 'sieve stop' to stop.")
+            else:
+                logger.info("[STARTUP] All services running. Press Ctrl+C to stop.")
 
             # Wait for shutdown signal
             await self._shutdown_event.wait()
@@ -49,6 +66,8 @@ class ServiceCoordinator:
             raise
         finally:
             await self._stop_services()
+            if self._process_lock:
+                self._process_lock.release()
 
     async def _start_services(self) -> None:
         """Initialize and start both services."""

@@ -69,6 +69,20 @@ class Settings(BaseSettings):
     def error_log_path(self) -> Path:
         return self.sieve_path / "error.log"
 
+    @property
+    def pid_dir(self) -> Path:
+        """Directory for process PID files."""
+        pid_dir = self.sieve_path / "run"
+        pid_dir.mkdir(parents=True, exist_ok=True)
+        return pid_dir
+
+    @property
+    def log_dir(self) -> Path:
+        """Directory for log files."""
+        log_dir = self.sieve_path / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        return log_dir
+
 
 def get_settings() -> Settings:
     """Get application settings."""

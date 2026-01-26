@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = Field(alias="OPENAI_API_KEY")
     openai_model: str = "gpt-5-mini"
+    query_expansion_model: str = "gpt-5-nano"
 
     # Paths (relative to vault root)
     vault_root: Path = Field(default_factory=Path.cwd)

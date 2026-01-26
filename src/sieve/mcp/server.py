@@ -1,14 +1,18 @@
 """MCP server for Neural Sieve - AI integration via Model Context Protocol."""
 
 import asyncio
+import logging
 from collections import defaultdict
 
 from collections.abc import Iterable
+
+logger = logging.getLogger(__name__)
 
 from mcp.server import Server
 from mcp.server.lowlevel.helper_types import ReadResourceContents
 from mcp.server.stdio import stdio_server
 from mcp.types import Resource, TextContent, Tool
+from openai import AsyncOpenAI
 from pydantic import AnyUrl
 
 from ..capsule import load_capsules
@@ -40,9 +44,45 @@ def run_server():
     settings = get_settings()
     server = Server("neural-sieve")
 
+    # Create OpenAI client once for query expansion (reused across requests)
+    openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+
     def get_capsules() -> list[dict]:
         """Load all active capsules with content."""
         return load_capsules(settings, include_content=True)
+
+    async def _expand_query(query: str) -> list[str]:
+        """Expand search query with semantic variations using LLM.
+
+        Returns list of search terms including original query.
+        Falls back to [query] on any error.
+        """
+        try:
+            response = await openai_client.chat.completions.create(
+                model=settings.query_expansion_model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Generate 3-5 semantic variations and related terms for a search query. "
+                            "Include synonyms, related concepts, and common alternative phrasings. "
+                            "Return only the terms, one per line, no explanations or numbering."
+                        ),
+                    },
+                    {"role": "user", "content": f"Query: {query}"},
+                ],
+                max_tokens=100,
+                temperature=0.3,
+            )
+
+            expanded = response.choices[0].message.content.strip().split("\n")
+            terms = [query] + [t.strip() for t in expanded if t.strip()]
+            logger.debug(f"[Search] Expanded '{query}' to: {terms[:6]}")
+            return terms[:6]  # Cap at 6 total terms
+
+        except Exception as e:
+            logger.warning(f"[Search] Query expansion failed for '{query}': {e}, using keyword search")
+            return [query]
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -50,7 +90,7 @@ def run_server():
         return [
             Tool(
                 name="search_capsules",
-                description="Search knowledge capsules by keyword. Returns matching capsules with their content.",
+                description="Search knowledge capsules with semantic expansion. Automatically expands queries with related terms (e.g., 'auth' finds 'authentication', 'login', etc.).",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -170,9 +210,11 @@ def run_server():
             )]
 
     async def search_capsules(query: str, limit: int = 10) -> list[TextContent]:
-        """Search capsules by keyword."""
+        """Search capsules with semantic query expansion."""
         capsules = get_capsules()
-        query_lower = query.lower()
+
+        # Expand query semantically (falls back to keyword-only on error)
+        search_terms = await _expand_query(query)
 
         matches = []
         for c in capsules:
@@ -181,12 +223,15 @@ def run_server():
             tags = [t.lower() for t in c.get("tags", [])]
             content = c.get("_content", "").lower()
 
-            if query_lower in title:
-                score += 10
-            if any(query_lower in t for t in tags):
-                score += 5
-            if query_lower in content:
-                score += 1
+            # Search with all expanded terms
+            for term in search_terms:
+                term_lower = term.lower()
+                if term_lower in title:
+                    score += 10
+                if any(term_lower in t for t in tags):
+                    score += 5
+                if term_lower in content:
+                    score += 1
 
             if score > 0:
                 matches.append((score, c))

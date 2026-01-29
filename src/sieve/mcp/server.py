@@ -144,7 +144,6 @@ def run_server():
                     },
                 ],
                 max_completion_tokens=100,
-                temperature=0.1,
             )
 
             # Parse the JSON array of scores

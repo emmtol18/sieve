@@ -19,6 +19,11 @@ uv run sieve start
 source .venv/bin/activate
 ```
 
+## OpenAI API
+
+- Use `max_completion_tokens` (not `max_tokens`) - required by gpt-5-nano/gpt-5-mini
+- Do not use `temperature` parameter - not supported by these models
+
 ## Workflow Instructions
 
 ### Git Worktrees (Required for Feature Work)

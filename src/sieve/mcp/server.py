@@ -143,7 +143,7 @@ def run_server():
                         "content": f"Query: {query}\n\nCapsules to rank:\n\n{capsule_list}"
                     },
                 ],
-                max_tokens=100,
+                max_completion_tokens=100,
                 temperature=0.1,
             )
 

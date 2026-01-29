@@ -168,8 +168,9 @@ def run_server():
             return ranked
 
         except Exception as e:
-            logger.warning(f"[Search] LLM ranking failed: {e}, falling back to keyword scores")
-            return []  # Empty signals caller to use keyword fallback
+            logger.warning(f"[Search] LLM ranking failed: {e}, using keyword scores")
+            # Fall back to returning candidates as-is
+            return [(5, c) for c in candidates]
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -348,27 +349,18 @@ def run_server():
         candidates.sort(key=lambda x: x[0], reverse=True)
 
         # Phase 2: Use LLM to rank top candidates by semantic relevance
+        # Only send top candidates to LLM to save tokens
         top_candidates = [c for _, _, c in candidates[:min(15, len(candidates))]]
 
         logger.info(f"[MCP] Phase 2: LLM ranking {len(top_candidates)} candidates...")
         ranked = await _llm_rank_capsules(query, top_candidates)
 
-        if ranked:
-            # LLM ranking succeeded - filter by threshold
-            results = [(score, c) for score, c in ranked if score >= threshold][:limit]
-        else:
-            # LLM failed - normalize keyword scores to 0-10 scale
-            max_kw_score = candidates[0][0]  # Already sorted descending
-            logger.info(f"[MCP] Using keyword fallback (max keyword score: {max_kw_score})")
-            results = []
-            for kw_score, _, c in candidates[:limit]:
-                normalized = round(kw_score / max_kw_score * 10, 1)
-                if normalized >= threshold:
-                    results.append((normalized, c))
+        # Filter by relevance threshold (default 6/10 for high signal)
+        results = [(score, c) for score, c in ranked if score >= threshold][:limit]
 
         if not results:
             logger.info(f"[MCP] No capsules scored {threshold}+ for '{query}'")
-            return [TextContent(type="text", text=f"No highly relevant capsules found for '{query}'")]
+            return [TextContent(type="text", text=f"No highly relevant capsules found for '{query}' (threshold: {threshold}/10)")]
 
         logger.info(f"[MCP] Search '{query}': returning {len(results)} results (scored {threshold}+)")
 

@@ -198,15 +198,15 @@ class TestLLMRankingIntegration:
 
     @pytest.mark.integration
     async def test_max_completion_tokens_sufficient(self, real_settings):
-        """Verify 2048 tokens is enough for ranking 15 capsules."""
+        """Verify 4096 tokens is enough for ranking 50 capsules with compact format."""
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key=real_settings.openai_api_key)
 
-        # Build 15 capsule summaries (matching real server behavior)
+        # Build 50 capsule summaries using compact format (matching real server behavior)
         capsules = "\n".join(
-            f"{i+1}. **Capsule {i+1}** (tags: tag{i})\n   Preview: Some content..."
-            for i in range(15)
+            f"{i+1}. Capsule {i+1} [Category{i % 5}] (tags: tag{i})"
+            for i in range(50)
         )
 
         response = await client.chat.completions.create(
@@ -214,14 +214,14 @@ class TestLLMRankingIntegration:
             messages=[
                 {
                     "role": "system",
-                    "content": "Return ONLY a JSON array of 15 scores 0-10.",
+                    "content": "Return ONLY a JSON array of 50 scores 0-10.",
                 },
                 {
                     "role": "user",
                     "content": f"Rate relevance to 'test query':\n\n{capsules}",
                 },
             ],
-            max_completion_tokens=2048,
+            max_completion_tokens=4096,
         )
 
         content = response.choices[0].message.content
@@ -229,4 +229,163 @@ class TestLLMRankingIntegration:
         assert response.choices[0].finish_reason == "stop"
 
         scores = json.loads(content)
-        assert len(scores) == 15
+        assert len(scores) == 50
+
+
+class TestBuildCapsuleSummaries:
+    """Tests for compact capsule summary format."""
+
+    def _build_capsule_summaries(self, capsules: list[dict]) -> str:
+        """Reproduce the summary building logic from server.py."""
+        lines = []
+        for i, c in enumerate(capsules):
+            title = c.get("title", "Untitled")
+            category = c.get("category", "Uncategorized")
+            tags = ", ".join(c.get("tags", []))
+            lines.append(f"{i+1}. {title} [{category}] (tags: {tags})")
+        return "\n".join(lines)
+
+    def test_format_single_capsule(self):
+        capsules = [{"title": "Test Capsule", "category": "Tech", "tags": ["ai", "ml"]}]
+        result = self._build_capsule_summaries(capsules)
+        assert result == "1. Test Capsule [Tech] (tags: ai, ml)"
+
+    def test_numbering_starts_at_one(self):
+        capsules = [
+            {"title": "First", "category": "A", "tags": []},
+            {"title": "Second", "category": "B", "tags": ["x"]},
+        ]
+        result = self._build_capsule_summaries(capsules)
+        lines = result.split("\n")
+        assert lines[0].startswith("1. ")
+        assert lines[1].startswith("2. ")
+
+    def test_missing_fields_use_defaults(self):
+        capsules = [{}]
+        result = self._build_capsule_summaries(capsules)
+        assert result == "1. Untitled [Uncategorized] (tags: )"
+
+    def test_multiple_tags_comma_separated(self):
+        capsules = [{"title": "T", "category": "C", "tags": ["a", "b", "c"]}]
+        result = self._build_capsule_summaries(capsules)
+        assert "(tags: a, b, c)" in result
+
+
+class TestCategoryPreFilter:
+    """Tests for category pre-filtering logic."""
+
+    CAPSULES = [
+        {"title": "A", "category": "Technology", "tags": []},
+        {"title": "B", "category": "Productivity", "tags": []},
+        {"title": "C", "category": "Technology", "tags": []},
+        {"title": "D", "category": "Learning", "tags": []},
+    ]
+
+    def _filter_by_category(self, capsules: list[dict], category: str | None) -> list[dict]:
+        """Reproduce the category filter logic from server.py."""
+        if not category:
+            return capsules
+        filtered = [c for c in capsules if category.lower() in c.get("category", "").lower()]
+        return filtered if filtered else capsules
+
+    def test_exact_match(self):
+        result = self._filter_by_category(self.CAPSULES, "Technology")
+        assert len(result) == 2
+        assert all(c["category"] == "Technology" for c in result)
+
+    def test_case_insensitive(self):
+        result = self._filter_by_category(self.CAPSULES, "technology")
+        assert len(result) == 2
+
+    def test_substring_match(self):
+        result = self._filter_by_category(self.CAPSULES, "tech")
+        assert len(result) == 2
+
+    def test_no_match_returns_all(self):
+        result = self._filter_by_category(self.CAPSULES, "nonexistent")
+        assert len(result) == 4
+
+    def test_none_returns_all(self):
+        result = self._filter_by_category(self.CAPSULES, None)
+        assert len(result) == 4
+
+
+class TestKeywordFallbackNormalization:
+    """Tests for keyword fallback score normalization."""
+
+    def _keyword_match_score(self, capsule: dict, keywords: list[str]):
+        """Reproduce the keyword matching logic from server.py."""
+        import re
+
+        title = capsule.get("title", "").lower()
+        tags = " ".join(capsule.get("tags", [])).lower()
+        content = capsule.get("_content", "").lower()
+
+        score = 0
+        matched_keywords = []
+
+        for kw in keywords:
+            if kw in title:
+                score += 20
+                matched_keywords.append(f"title:{kw}")
+            if kw in tags:
+                score += 15
+                matched_keywords.append(f"tag:{kw}")
+            if kw in content:
+                score += 5
+                matched_keywords.append(f"content:{kw}")
+
+        return score, matched_keywords
+
+    def _keyword_fallback(self, query: str, capsules: list[dict]) -> list[tuple[float, dict]]:
+        """Reproduce the keyword fallback logic from server.py."""
+        import re
+
+        words = re.findall(r"\b\w{2,}\b", query.lower())
+        keywords = list(set([query.lower()] + words))
+
+        scored = []
+        for c in capsules:
+            raw_score, matched = self._keyword_match_score(c, keywords)
+            normalized = min(raw_score / 4.0, 10.0)
+            if normalized > 0:
+                scored.append((normalized, c))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return scored
+
+    def test_title_match_normalizes_to_5(self):
+        """Title-only match (raw 20) should normalize to 5.0."""
+        capsules = [{"title": "Banana Guide", "tags": [], "_content": ""}]
+        result = self._keyword_fallback("banana", capsules)
+        assert len(result) == 1
+        assert result[0][0] == 5.0
+
+    def test_title_plus_tag_normalizes_to_8_75(self):
+        """Title + tag match (raw 35) should normalize to 8.75."""
+        capsules = [{"title": "Banana Guide", "tags": ["banana"], "_content": ""}]
+        result = self._keyword_fallback("banana", capsules)
+        assert len(result) == 1
+        assert result[0][0] == 8.75
+
+    def test_caps_at_10(self):
+        """Very high raw scores should cap at 10.0."""
+        capsules = [{"title": "Banana Guide", "tags": ["banana"], "_content": "banana banana"}]
+        result = self._keyword_fallback("banana", capsules)
+        assert len(result) == 1
+        assert result[0][0] == 10.0
+
+    def test_no_match_excluded(self):
+        """Capsules with no keyword match should not appear in results."""
+        capsules = [{"title": "React Guide", "tags": ["react"], "_content": "react hooks"}]
+        result = self._keyword_fallback("banana", capsules)
+        assert len(result) == 0
+
+    def test_sorted_descending(self):
+        """Results should be sorted by score descending."""
+        capsules = [
+            {"title": "Unrelated", "tags": [], "_content": "banana"},  # content only: raw 5 -> 1.25
+            {"title": "Banana Guide", "tags": ["banana"], "_content": "banana"},  # raw 40 -> 10.0
+        ]
+        result = self._keyword_fallback("banana", capsules)
+        assert len(result) == 2
+        assert result[0][0] > result[1][0]

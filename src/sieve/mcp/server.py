@@ -143,12 +143,19 @@ def run_server():
                         "content": f"Query: {query}\n\nCapsules to rank:\n\n{capsule_list}"
                     },
                 ],
-                max_completion_tokens=100,
+                max_completion_tokens=2048,  # gpt-5-nano uses ~700 reasoning tokens
             )
 
             # Parse the JSON array of scores
             import json
-            scores_text = response.choices[0].message.content.strip()
+            raw_content = response.choices[0].message.content
+            logger.debug(f"[Search] Raw LLM response: {raw_content!r}")
+
+            if not raw_content:
+                logger.warning("[Search] LLM returned empty content")
+                return [(5, c) for c in candidates]
+
+            scores_text = raw_content.strip()
             # Handle potential markdown code blocks
             if "```" in scores_text:
                 scores_text = scores_text.split("```")[1].replace("json", "").strip()

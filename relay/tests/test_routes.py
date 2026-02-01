@@ -51,6 +51,13 @@ class TestHealthEndpoint:
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
 
+    async def test_security_headers(self, client):
+        resp = await client.get("/health")
+        assert resp.headers["X-Content-Type-Options"] == "nosniff"
+        assert resp.headers["X-Frame-Options"] == "DENY"
+        assert resp.headers["Referrer-Policy"] == "no-referrer"
+        assert resp.headers["Cache-Control"] == "no-store"
+
 
 class TestCaptureEndpoint:
     async def test_capture_url(self, client, keys):
@@ -112,6 +119,8 @@ class TestCaptureEndpoint:
             json={"url": "https://example.com"},
         )
         assert resp.status_code == 401
+        # Should not leak details about why auth failed
+        assert resp.json()["detail"] == "Unauthorized"
 
     async def test_capture_bad_auth(self, client):
         resp = await client.post(
@@ -120,6 +129,7 @@ class TestCaptureEndpoint:
             headers={"Authorization": "Bearer invalid_key"},
         )
         assert resp.status_code == 401
+        assert resp.json()["detail"] == "Unauthorized"
 
     async def test_capture_rate_limited(self, client, app):
         """Key with rate_limit=2 should be blocked after 2 calls."""
@@ -169,6 +179,20 @@ class TestPendingEndpoint:
     async def test_get_pending_no_auth(self, client):
         resp = await client.get("/captures/pending")
         assert resp.status_code == 401
+
+    async def test_get_pending_negative_limit(self, client, keys):
+        _, admin = keys
+        resp = await client.get(
+            "/captures/pending?limit=-1", headers=_auth(admin)
+        )
+        assert resp.status_code == 422
+
+    async def test_get_pending_zero_limit(self, client, keys):
+        _, admin = keys
+        resp = await client.get(
+            "/captures/pending?limit=0", headers=_auth(admin)
+        )
+        assert resp.status_code == 422
 
 
 class TestAckEndpoint:

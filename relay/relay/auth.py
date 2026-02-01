@@ -14,6 +14,10 @@ _ph = PasswordHasher()
 
 KEY_PREFIX_LEN = 19  # "sieve_live_" (11) + 8 hex chars
 
+# Pre-computed dummy hash so prefix-miss takes the same time as prefix-hit.
+# Generated from an impossible key value — never matches any real input.
+_DUMMY_HASH = _ph.hash("sieve_dummy_never_matches_any_real_key")
+
 
 def generate_raw_key() -> str:
     """Generate a new API key string."""
@@ -63,36 +67,46 @@ async def generate_key(
     return raw_key
 
 
+class AuthError(Exception):
+    """Raised on any authentication failure."""
+
+    def __init__(self, message: str, *, rate_limited: bool = False):
+        super().__init__(message)
+        self.rate_limited = rate_limited
+
+
 async def validate_key(db_conn, bearer_token: str) -> dict:
     """Validate a Bearer token and return the key record.
 
     Raises:
-        ValueError: If key is invalid, inactive, or rate limited.
+        AuthError: If key is invalid, inactive, or rate limited.
     """
     # Strip "Bearer " prefix if present
     raw_key = bearer_token.removeprefix("Bearer ").strip()
 
     if not raw_key.startswith("sieve_live_"):
-        raise ValueError("Invalid API key format")
+        # Still do a dummy verify to keep timing constant
+        verify_key("dummy", _DUMMY_HASH)
+        raise AuthError("Invalid API key")
 
     prefix = get_key_prefix(raw_key)
     key_record = await db_ops.find_key_by_prefix(db_conn, prefix)
 
     if not key_record:
-        raise ValueError("Invalid API key")
+        # Constant-time: run argon2 verify even when prefix is unknown
+        verify_key(raw_key, _DUMMY_HASH)
+        raise AuthError("Invalid API key")
 
     if not verify_key(raw_key, key_record["key_hash"]):
-        raise ValueError("Invalid API key")
+        raise AuthError("Invalid API key")
 
-    # Check rate limit
-    allowed = await db_ops.check_rate_limit(
+    # Atomic rate-limit check: insert-and-count in one transaction
+    allowed = await db_ops.check_and_log_rate_limit(
         db_conn, key_record["id"], key_record["rate_limit"]
     )
     if not allowed:
-        raise ValueError("Rate limit exceeded")
+        raise AuthError("Rate limit exceeded", rate_limited=True)
 
-    # Log the request and update last_used
-    await db_ops.log_rate_limit(db_conn, key_record["id"])
     await db_ops.update_key_last_used(db_conn, key_record["id"])
 
     return key_record

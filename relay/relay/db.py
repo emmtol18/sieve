@@ -117,31 +117,41 @@ async def count_pending(db: aiosqlite.Connection) -> int:
     return row[0]
 
 
-async def log_rate_limit(db: aiosqlite.Connection, api_key_id: int) -> None:
-    """Record an API call for rate limiting."""
+async def check_and_log_rate_limit(
+    db: aiosqlite.Connection, api_key_id: int, limit: int
+) -> bool:
+    """Atomically check rate limit and log the request if allowed.
+
+    Returns True if the request is within the limit, False otherwise.
+    Uses a single transaction to prevent race conditions where concurrent
+    requests could all pass the check before any are logged.
+    """
+    now = time.time()
+    one_hour_ago = now - 3600
+
+    # Clean up old entries for this key in the same transaction
     await db.execute(
-        "INSERT INTO rate_limit_log (api_key_id, timestamp) VALUES (?, ?)",
-        (api_key_id, time.time()),
+        "DELETE FROM rate_limit_log WHERE api_key_id = ? AND timestamp < ?",
+        (api_key_id, one_hour_ago),
     )
-    await db.commit()
 
-
-async def check_rate_limit(db: aiosqlite.Connection, api_key_id: int, limit: int) -> bool:
-    """Check if key is within rate limit (calls per hour). Returns True if allowed."""
-    one_hour_ago = time.time() - 3600
     cursor = await db.execute(
         "SELECT COUNT(*) FROM rate_limit_log WHERE api_key_id = ? AND timestamp > ?",
         (api_key_id, one_hour_ago),
     )
     row = await cursor.fetchone()
-    return row[0] < limit
+    count = row[0]
 
+    if count >= limit:
+        await db.commit()
+        return False
 
-async def cleanup_rate_limit_log(db: aiosqlite.Connection) -> None:
-    """Remove rate limit entries older than 1 hour."""
-    one_hour_ago = time.time() - 3600
-    await db.execute("DELETE FROM rate_limit_log WHERE timestamp < ?", (one_hour_ago,))
+    await db.execute(
+        "INSERT INTO rate_limit_log (api_key_id, timestamp) VALUES (?, ?)",
+        (api_key_id, now),
+    )
     await db.commit()
+    return True
 
 
 async def store_api_key(

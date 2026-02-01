@@ -2,11 +2,11 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from . import db as db_ops
-from .auth import validate_key
+from .auth import AuthError, validate_key
 from .models import CaptureIn, CaptureOut, PendingCapture
 
 logger = logging.getLogger(__name__)
@@ -24,14 +24,16 @@ def create_router() -> APIRouter:
         """Validate Authorization header and return key record."""
         auth_header = request.headers.get("Authorization", "")
         if not auth_header:
-            raise HTTPException(401, "Missing Authorization header")
+            raise HTTPException(401, "Unauthorized")
 
         db = await _get_db(request)
         try:
             return await validate_key(db, auth_header)
-        except ValueError as e:
-            status = 429 if "Rate limit" in str(e) else 401
-            raise HTTPException(status, str(e))
+        except AuthError as e:
+            # Use 429 for rate limits, generic 401 for all other auth failures
+            if e.rate_limited:
+                raise HTTPException(429, "Rate limit exceeded")
+            raise HTTPException(401, "Unauthorized")
 
     async def _require_admin(request: Request) -> dict:
         """Authenticate and require admin key."""
@@ -79,12 +81,15 @@ def create_router() -> APIRouter:
         )
 
     @router.get("/captures/pending")
-    async def get_pending(request: Request, limit: int = 100):
+    async def get_pending(
+        request: Request,
+        limit: int = Query(default=100, ge=1, le=500),
+    ):
         """Get pending captures (admin only)."""
         await _require_admin(request)
         db = await _get_db(request)
 
-        rows = await db_ops.get_pending(db, limit=min(limit, 500))
+        rows = await db_ops.get_pending(db, limit=limit)
         captures = [PendingCapture(**row) for row in rows]
 
         return {"captures": captures, "count": len(captures)}

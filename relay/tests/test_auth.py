@@ -3,6 +3,7 @@
 import pytest
 
 from relay.auth import (
+    AuthError,
     generate_key,
     generate_raw_key,
     get_key_prefix,
@@ -62,11 +63,11 @@ class TestKeyStorage:
 
 class TestKeyValidation:
     async def test_invalid_format(self, db):
-        with pytest.raises(ValueError, match="Invalid API key format"):
+        with pytest.raises(AuthError, match="Invalid API key"):
             await validate_key(db, "not_a_valid_key")
 
     async def test_unknown_prefix(self, db):
-        with pytest.raises(ValueError, match="Invalid API key"):
+        with pytest.raises(AuthError, match="Invalid API key"):
             await validate_key(db, "sieve_live_00000000000000000000000000000000")
 
     async def test_wrong_key_body(self, db):
@@ -74,7 +75,7 @@ class TestKeyValidation:
         raw_key = await generate_key(db, name="test")
         # Replace the last char to make it invalid
         bad_key = raw_key[:-1] + ("0" if raw_key[-1] != "0" else "1")
-        with pytest.raises(ValueError, match="Invalid API key"):
+        with pytest.raises(AuthError, match="Invalid API key"):
             await validate_key(db, bad_key)
 
 
@@ -87,8 +88,21 @@ class TestRateLimiting:
             await validate_key(db, raw_key)
 
         # 4th should fail
-        with pytest.raises(ValueError, match="Rate limit"):
+        with pytest.raises(AuthError, match="Rate limit"):
             await validate_key(db, raw_key)
+
+    async def test_rate_limited_error_has_flag(self, db):
+        raw_key = await generate_key(db, name="limited2", rate_limit=1)
+        await validate_key(db, raw_key)
+
+        with pytest.raises(AuthError) as exc_info:
+            await validate_key(db, raw_key)
+        assert exc_info.value.rate_limited is True
+
+    async def test_auth_error_not_rate_limited_by_default(self, db):
+        with pytest.raises(AuthError) as exc_info:
+            await validate_key(db, "sieve_live_00000000000000000000000000000000")
+        assert exc_info.value.rate_limited is False
 
     async def test_different_keys_independent_limits(self, db):
         key1 = await generate_key(db, name="key1", rate_limit=2)

@@ -28,6 +28,7 @@ class ServiceCoordinator:
         self._shutdown_event = asyncio.Event()
         self._watcher_task: Optional[asyncio.Task] = None
         self._server_task: Optional[asyncio.Task] = None
+        self._relay_task: Optional[asyncio.Task] = None
         self._process_lock: Optional[ProcessLock] = None
 
     async def run(self) -> None:
@@ -85,13 +86,20 @@ class ServiceCoordinator:
         )
         self.server = uvicorn.Server(config)
 
-        # Start both as asyncio tasks
+        # Start core services as asyncio tasks
         self._watcher_task = asyncio.create_task(
             self._run_watcher(), name="watcher"
         )
         self._server_task = asyncio.create_task(
             self._run_server(), name="dashboard"
         )
+
+        # Start relay pull loop if configured
+        if self.settings.relay_url and self.settings.relay_admin_key:
+            self._relay_task = asyncio.create_task(
+                self._run_relay_pull(), name="relay-pull"
+            )
+            logger.info(f"[RELAY-CLIENT] Pull loop started (interval: {self.settings.relay_pull_interval}s)")
 
         # Give services a moment to start
         await asyncio.sleep(0.5)
@@ -114,6 +122,36 @@ class ServiceCoordinator:
             await self.server.serve()
         except asyncio.CancelledError:
             logger.debug("[DASHBOARD] Task cancelled")
+            raise
+
+    async def _run_relay_pull(self) -> None:
+        """Periodically pull captures from the remote relay."""
+        from .engine import Processor
+        from .relay_client import RelayClient
+
+        client = RelayClient(self.settings)
+        processor = Processor(self.settings)
+
+        try:
+            while not self._shutdown_event.is_set():
+                try:
+                    count = await client.pull_and_process(processor)
+                    if count:
+                        logger.info(f"[RELAY-CLIENT] Pulled and processed {count} capture(s)")
+                except Exception:
+                    logger.exception("[RELAY-CLIENT] Error during pull cycle")
+
+                # Wait for interval or shutdown
+                try:
+                    await asyncio.wait_for(
+                        self._shutdown_event.wait(),
+                        timeout=self.settings.relay_pull_interval,
+                    )
+                    break  # Shutdown event set
+                except asyncio.TimeoutError:
+                    pass  # Interval elapsed, loop again
+        except asyncio.CancelledError:
+            logger.debug("[RELAY-CLIENT] Task cancelled")
             raise
 
     def _handle_signal(self) -> None:
@@ -143,7 +181,7 @@ class ServiceCoordinator:
                 logger.error(f"[WATCHER] Error during stop: {e}")
 
         # Cancel tasks if still running
-        for task in [self._watcher_task, self._server_task]:
+        for task in [self._watcher_task, self._server_task, self._relay_task]:
             if task and not task.done():
                 task.cancel()
                 try:

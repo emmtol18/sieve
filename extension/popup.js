@@ -1,13 +1,33 @@
-const API_URL = 'http://127.0.0.1:8420';
-
 let selectedText = '';
 let pageUrl = '';
 let collectionItems = [];
 
+async function getConfig() {
+  return new Promise(resolve => {
+    chrome.runtime.sendMessage({ type: 'GET_CONFIG' }, resolve);
+  });
+}
+
+function isRemoteMode(config) {
+  return !!(config.apiKey && !config.apiUrl.includes('127.0.0.1') && !config.apiUrl.includes('localhost'));
+}
+
 async function checkServer() {
   const status = document.getElementById('status');
+  const config = await getConfig();
+  const remote = isRemoteMode(config);
+  const baseUrl = config.apiUrl.replace(/\/+$/, '');
+  const healthUrl = remote ? `${baseUrl}/health` : `${baseUrl}/api/health`;
+
+  // Show mode label
+  const modeLabel = document.getElementById('mode-label');
+  if (modeLabel) {
+    modeLabel.textContent = remote ? 'Remote' : 'Local';
+    modeLabel.className = `mode-label ${remote ? 'mode-remote' : 'mode-local'}`;
+  }
+
   try {
-    const res = await fetch(`${API_URL}/api/health`);
+    const res = await fetch(healthUrl);
     if (res.ok) {
       status.classList.remove('offline');
       return true;
@@ -65,7 +85,6 @@ async function getPageContent() {
 
 /**
  * Fire-and-forget capture via background service worker.
- * Sends message to background, shows instant feedback, closes popup immediately.
  */
 async function capture(content, url = null) {
   const btn = document.getElementById('capture-btn');
@@ -73,13 +92,11 @@ async function capture(content, url = null) {
   const urlBtn = document.getElementById('url-btn');
   const msg = document.getElementById('message');
 
-  // Disable all buttons immediately
   btn.disabled = true;
   pageBtn.disabled = true;
   urlBtn.disabled = true;
   btn.textContent = 'Queued...';
 
-  // Send to background service worker (fire-and-forget)
   chrome.runtime.sendMessage({
     type: 'CAPTURE',
     content: content,
@@ -87,11 +104,9 @@ async function capture(content, url = null) {
     source_url: pageUrl
   });
 
-  // Show instant success and close quickly
   msg.className = 'message success';
   msg.textContent = 'Queued for capture';
 
-  // Close popup after brief feedback (300ms)
   setTimeout(() => window.close(), 300);
 }
 
@@ -104,9 +119,6 @@ function isValidUrl(string) {
   }
 }
 
-/**
- * Check if URL is restricted (content script can't run)
- */
 function isRestrictedUrl(url) {
   if (!url) return true;
   return url.startsWith('chrome://') ||
@@ -116,14 +128,10 @@ function isRestrictedUrl(url) {
          url.startsWith('brave://');
 }
 
-/**
- * Load collection from content script
- */
 async function loadCollection() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    // Can't access restricted pages
     if (isRestrictedUrl(tab.url)) {
       return { selections: [], restricted: true };
     }
@@ -131,14 +139,10 @@ async function loadCollection() {
     const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_COLLECTION' });
     return { selections: response?.selections || [], restricted: false };
   } catch (e) {
-    // Content script not loaded - not an error, just no collection available
     return { selections: [], restricted: true };
   }
 }
 
-/**
- * Update collection UI
- */
 function updateCollectionUI() {
   const section = document.getElementById('collection-section');
   const countEl = document.getElementById('collection-count');
@@ -152,7 +156,6 @@ function updateCollectionUI() {
   section.classList.add('has-items');
   countEl.textContent = collectionItems.length;
 
-  // Clear and rebuild items list using safe DOM methods
   itemsEl.replaceChildren();
 
   collectionItems.forEach(item => {
@@ -168,9 +171,6 @@ function updateCollectionUI() {
   });
 }
 
-/**
- * Clear collection via content script
- */
 async function clearCollection() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -184,23 +184,16 @@ async function clearCollection() {
 
 const MAX_ANNOTATION_LENGTH = 1000;
 
-/**
- * Capture the collection with optional annotation
- */
 async function captureCollection() {
   if (collectionItems.length === 0) return;
 
   const annotation = document.getElementById('annotation-input').value.trim().substring(0, MAX_ANNOTATION_LENGTH);
-
-  // Combine all selections into one content block
   const content = collectionItems.map(item => item.text).join('\n\n---\n\n');
 
-  // Disable button
   const btn = document.getElementById('collection-capture-btn');
   btn.disabled = true;
   btn.textContent = 'Queued...';
 
-  // Send to background
   chrome.runtime.sendMessage({
     type: 'CAPTURE',
     content: content,
@@ -208,15 +201,12 @@ async function captureCollection() {
     annotation: annotation || null
   });
 
-  // Clear collection after capture
   await clearCollection();
 
-  // Show success
   const msg = document.getElementById('message');
   msg.className = 'message success';
   msg.textContent = 'Collection captured';
 
-  // Close popup
   setTimeout(() => window.close(), 300);
 }
 
@@ -254,12 +244,10 @@ async function init() {
   const collectionCaptureBtn = document.getElementById('collection-capture-btn');
   const annotationInput = document.getElementById('annotation-input');
 
-  // Load collection from content script
   const { selections, restricted } = await loadCollection();
   collectionItems = selections;
 
   if (restricted) {
-    // Show message for restricted pages
     const collectionSection = document.getElementById('collection-section');
     collectionSection.classList.remove('has-items');
   }
@@ -275,7 +263,6 @@ async function init() {
     preview.classList.add('empty');
   }
 
-  // Enable/disable buttons based on server status
   pageBtn.disabled = !serverUp;
   urlBtn.disabled = !serverUp;
   urlInput.disabled = !serverUp;
@@ -298,12 +285,10 @@ async function init() {
 
   urlBtn.addEventListener('click', captureUrl);
 
-  // Allow Enter key to submit URL
   urlInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') captureUrl();
   });
 
-  // Collection event listeners
   collectionClearBtn.addEventListener('click', clearCollection);
   collectionCaptureBtn.addEventListener('click', captureCollection);
 }

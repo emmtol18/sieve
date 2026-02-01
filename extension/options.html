@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Neural Sieve Settings</title>
+  <style>
+    body {
+      max-width: 480px;
+      margin: 40px auto;
+      padding: 0 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      color: #2c2824;
+    }
+    h1 { font-size: 20px; margin-bottom: 24px; }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .help {
+      font-size: 12px;
+      color: #7a7267;
+      margin-bottom: 12px;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d4cdc2;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+      margin-bottom: 4px;
+      font-family: 'SF Mono', 'Menlo', monospace;
+    }
+    input:focus { outline: none; border-color: #c75d38; }
+    .actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      padding: 8px 16px;
+      border: 1px solid #d4cdc2;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      background: #fff;
+    }
+    button:hover { background: #f5f2ed; }
+    button.primary {
+      background: #c75d38;
+      color: #fff;
+      border-color: #c75d38;
+    }
+    button.primary:hover { background: #b35030; }
+    .status {
+      margin-top: 12px;
+      font-size: 13px;
+      min-height: 20px;
+    }
+    .status.success { color: #3d7a5a; }
+    .status.error { color: #c62828; }
+  </style>
+</head>
+<body>
+  <h1>Neural Sieve Settings</h1>
+
+  <label for="apiUrl">API URL</label>
+  <div class="help">
+    Local: <code>http://127.0.0.1:8420</code> &mdash;
+    Remote: your Cloudflare Tunnel URL (e.g. <code>https://sieve.example.com</code>)
+  </div>
+  <input type="text" id="apiUrl" placeholder="http://127.0.0.1:8420">
+
+  <label for="apiKey" style="margin-top: 16px;">API Key</label>
+  <div class="help">
+    Only needed for remote relay mode. Leave blank for local.
+  </div>
+  <input type="password" id="apiKey" placeholder="sieve_live_...">
+
+  <div class="actions">
+    <button class="primary" id="save">Save</button>
+    <button id="test">Test Connection</button>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>

@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     # Search relevance (0-10 scale)
     relevance_threshold: float = 6.0  # Minimum score for automatic context injection
 
+    # Remote relay (optional)
+    relay_url: Optional[str] = None  # e.g. https://xxx.trycloudflare.com
+    relay_admin_key: Optional[str] = None
+    relay_pull_interval: int = 60  # seconds
+
     @property
     def inbox_path(self) -> Path:
         return self.vault_root / "Inbox"

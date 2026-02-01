@@ -322,6 +322,53 @@ def stop(force):
         sys.exit(1)
 
 
+@cli.command()
+@click.option("--once", is_flag=True, help="Pull once and exit (no loop)")
+@click.pass_context
+def pull(ctx, once):
+    """Pull pending captures from a remote relay server.
+
+    Requires SIEVE_RELAY_URL and SIEVE_RELAY_ADMIN_KEY in .env.
+    Without --once, loops every SIEVE_RELAY_PULL_INTERVAL seconds.
+    """
+    from .engine import Processor
+    from .relay_client import RelayClient
+
+    setup_colored_logging(ctx.obj.get("verbose", False))
+
+    try:
+        settings = get_settings()
+    except Exception as e:
+        click.echo(f"Error loading settings: {e}", err=True)
+        sys.exit(1)
+
+    if not settings.relay_url or not settings.relay_admin_key:
+        click.echo(
+            "Error: SIEVE_RELAY_URL and SIEVE_RELAY_ADMIN_KEY must be set in .env",
+            err=True,
+        )
+        sys.exit(1)
+
+    client = RelayClient(settings)
+    processor = Processor(settings)
+
+    async def run():
+        while True:
+            count = await client.pull_and_process(processor)
+            if count:
+                click.echo(f"Processed {count} capture(s)")
+
+            if once:
+                break
+
+            await asyncio.sleep(settings.relay_pull_interval)
+
+    try:
+        asyncio.run(run())
+    except KeyboardInterrupt:
+        click.echo("\nStopping relay pull...")
+
+
 @cli.command("install-agent")
 def install_agent():
     """Install macOS Launch Agent for auto-start on login.

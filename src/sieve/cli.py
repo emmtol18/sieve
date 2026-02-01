@@ -58,6 +58,12 @@ OPENAI_API_KEY=your_openai_api_key_here
 
 # Optional: Custom screenshot folder
 # SIEVE_SCREENSHOT_FOLDER=/Users/yourname/Desktop
+
+# Optional: Remote relay server (for capturing from phone/remote browser)
+# Deploy the relay server (see relay/DEPLOYMENT.md), then set these:
+# SIEVE_RELAY_URL=https://sieve.yourdomain.com
+# SIEVE_RELAY_ADMIN_KEY=sieve_live_your_admin_key_here
+# SIEVE_RELAY_PULL_INTERVAL=60
 """
         )
         click.echo(f"  Created: .env.example")

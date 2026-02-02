@@ -90,6 +90,24 @@
       font-style: italic;
     }
 
+    .mode-label {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+    }
+
+    .mode-local {
+      background: var(--accent-forest-light);
+      color: var(--accent-forest);
+    }
+
+    .mode-remote {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+
     .status-wrapper {
       display: flex;
       align-items: center;
@@ -563,7 +581,7 @@
   <div class="header">
     <h1 class="logo">Neural<span class="logo-accent">Sieve</span></h1>
     <div class="status-wrapper">
-      <span class="status-label">Status</span>
+      <span class="mode-label" id="mode-label">Local</span>
       <div class="status" id="status"></div>
     </div>
   </div>

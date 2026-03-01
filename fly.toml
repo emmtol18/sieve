@@ -1,0 +1,15 @@
+app = "neural-sieve"
+primary_region = "iad"
+
+[build]
+
+[http_service]
+  internal_port = 8420
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[env]
+  SIEVE_HOST = "0.0.0.0"
+  SIEVE_PORT = "8420"

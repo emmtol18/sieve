@@ -7,9 +7,16 @@
 - `uv run sieve mcp` — start MCP server
 - `uv run sieve compile` — compile skills
 
+## Package Manager
+**uv is the ONLY package manager for this project.** Never use pip, pipenv, or poetry.
+- `uv sync` — install deps
+- `uv run <command>` — run anything
+- `uv add <package>` — add a dependency
+
 ## Conventions
 - Python 3.12+, async/await throughout
 - SQLAlchemy async ORM, Alembic migrations
 - Pydantic v2 for all schemas
-- uv as package manager (mandatory)
+- uv as package manager (mandatory, see above)
 - Tests with pytest-asyncio
+- Dark theme for all frontend (HTMX + Jinja2)

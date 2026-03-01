@@ -49,3 +49,13 @@ def compile(pack, personal, all_capsules, output):
     for p in paths:
         click.echo(f"Generated: {p}")
     click.echo(f"\n{len(paths)} skill(s) compiled.")
+
+
+@cli.command()
+def mcp():
+    """Start MCP server for Claude Code integration."""
+    import asyncio
+
+    from sieve.mcp.server import run_server
+
+    asyncio.run(run_server())

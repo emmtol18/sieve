@@ -1,7 +1,9 @@
 import uuid
-
 from unittest.mock import AsyncMock
-from fastapi import Request
+
+import pytest
+from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from sieve.api.auth.deps import (
     create_access_token,
@@ -10,6 +12,7 @@ from sieve.api.auth.deps import (
     verify_password,
     verify_token,
 )
+from sieve.api.auth.routes import set_auth_cookie
 
 
 def test_password_hashing():
@@ -26,9 +29,6 @@ def test_jwt_roundtrip():
 
 
 def test_jwt_invalid_token():
-    import pytest
-    from fastapi import HTTPException
-
     with pytest.raises(HTTPException) as exc:
         verify_token("invalid-token")
     assert exc.value.status_code == 401
@@ -68,9 +68,6 @@ def test_get_token_missing_returns_none():
 
 def test_set_auth_cookie_creates_response_with_cookie():
     """set_auth_cookie sets httponly sieve_token cookie."""
-    from fastapi.responses import JSONResponse
-    from sieve.api.auth.routes import set_auth_cookie
-
     response = JSONResponse(content={"ok": True})
     set_auth_cookie(response, "test-jwt-token", max_age_days=7)
 

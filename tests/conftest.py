@@ -66,8 +66,6 @@ def _patch_pg_types_for_sqlite():
                         return _json.loads(value)
                     except _json.JSONDecodeError:
                         return value.split(",") if value else []
-                if isinstance(value, list):
-                    return value
                 return value
 
             return process

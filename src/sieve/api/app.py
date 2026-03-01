@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from sieve.api.auth.routes import router as auth_router
@@ -18,6 +20,19 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException):
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                content=f'<div class="alert alert-error">{exc.detail}</div>',
+                status_code=exc.status_code,
+            )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+
     app.include_router(auth_router)
     app.include_router(capsules_router)
     app.include_router(capture_router)

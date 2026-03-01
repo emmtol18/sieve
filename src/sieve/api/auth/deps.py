@@ -60,14 +60,19 @@ def create_access_token(user_id: str) -> str:
 
 
 def verify_token(token: str) -> str:
+    """Decode a JWT and return the user_id (``sub`` claim).
+
+    Raises ``HTTPException(401)`` on any decoding failure or missing subject.
+    """
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        return user_id
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+    user_id: str | None = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return user_id
 
 
 def get_token_from_request(request: Request) -> str | None:

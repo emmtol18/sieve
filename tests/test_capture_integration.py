@@ -130,3 +130,4 @@ async def test_capture_persists_to_db(client, test_user, auth_cookies, mock_llm,
     assert capsule is not None
     assert capsule.title == "Test Capsule"
     assert capsule.category == "Technology"
+    assert capsule.tags == ["test", "mock"]

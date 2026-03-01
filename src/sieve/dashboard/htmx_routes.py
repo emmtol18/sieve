@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import or_
 
 from sieve.api.auth.deps import create_access_token, get_current_user, hash_password, verify_password
 from sieve.api.auth.routes import COOKIE_NAME, set_auth_cookie
@@ -18,26 +17,62 @@ router = APIRouter(prefix="/htmx", tags=["htmx"])
 templates = Jinja2Templates(directory="src/sieve/dashboard/templates")
 
 
+# ---------------------------------------------------------------------------
+# Shared dependencies
+# ---------------------------------------------------------------------------
+
+
+async def get_user_sieve(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Sieve:
+    """Resolve the authenticated user's sieve, or 404."""
+    result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
+    sieve = result.scalar_one_or_none()
+    if not sieve:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sieve not found")
+    return sieve
+
+
+async def _get_capsule_or_404(capsule_id: str, sieve: Sieve, db: AsyncSession) -> Capsule:
+    """Load a capsule belonging to the given sieve, or raise 404."""
+    result = await db.execute(
+        select(Capsule).where(Capsule.id == capsule_id, Capsule.sieve_id == sieve.id)
+    )
+    capsule = result.scalar_one_or_none()
+    if not capsule:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Capsule not found")
+    return capsule
+
+
+def _render_partial(name: str, **ctx) -> HTMLResponse:
+    """Render a Jinja2 partial template and return an HTMLResponse."""
+    html = templates.get_template(name).render(**ctx)
+    return HTMLResponse(content=html)
+
+
+# ---------------------------------------------------------------------------
+# Auth routes (HTMX form submissions)
+# ---------------------------------------------------------------------------
+
+
 @router.post("/auth/login", response_class=HTMLResponse)
 async def htmx_login(request: Request, db: AsyncSession = Depends(get_db)):
     form = await request.form()
     email = form.get("email", "")
     password = form.get("password", "")
 
+    if not email or not password:
+        return _render_partial("partials/auth_message.html", error="Email and password are required")
+
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(password, user.password_hash):
-        html = templates.get_template("partials/auth_message.html").render(
-            error="Invalid email or password"
-        )
-        return HTMLResponse(content=html)
+        return _render_partial("partials/auth_message.html", error="Invalid email or password")
 
     token = create_access_token(str(user.id))
-    html = templates.get_template("partials/auth_message.html").render(
-        success="Login successful! Redirecting..."
-    )
-    response = HTMLResponse(content=html)
+    response = _render_partial("partials/auth_message.html", success="Login successful! Redirecting...")
     set_auth_cookie(response, token, max_age_days=settings.jwt_expiry_days)
     response.headers["HX-Redirect"] = "/sieve"
     return response
@@ -50,12 +85,12 @@ async def htmx_signup(request: Request, db: AsyncSession = Depends(get_db)):
     password = form.get("password", "")
     display_name = form.get("display_name", "")
 
+    if not email or not password or not display_name:
+        return _render_partial("partials/auth_message.html", error="All fields are required")
+
     result = await db.execute(select(User).where(User.email == email))
     if result.scalar_one_or_none():
-        html = templates.get_template("partials/auth_message.html").render(
-            error="Email already registered"
-        )
-        return HTMLResponse(content=html)
+        return _render_partial("partials/auth_message.html", error="Email already registered")
 
     user = User(
         email=email,
@@ -69,10 +104,9 @@ async def htmx_signup(request: Request, db: AsyncSession = Depends(get_db)):
     await db.refresh(user)
 
     token = create_access_token(str(user.id))
-    html = templates.get_template("partials/auth_message.html").render(
-        success="Account created! Redirecting..."
+    response = _render_partial(
+        "partials/auth_message.html", success="Account created! Redirecting..."
     )
-    response = HTMLResponse(content=html)
     set_auth_cookie(response, token, max_age_days=settings.jwt_expiry_days)
     response.headers["HX-Redirect"] = "/sieve"
     return response
@@ -87,17 +121,8 @@ async def htmx_logout():
 
 
 # ---------------------------------------------------------------------------
-# Capsule helpers & routes
+# Capsule routes
 # ---------------------------------------------------------------------------
-
-
-async def _get_user_sieve(user: User, db: AsyncSession) -> Sieve:
-    """Get the current user's sieve."""
-    result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
-    sieve = result.scalar_one_or_none()
-    if not sieve:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sieve not found")
-    return sieve
 
 
 @router.get("/capsules/", response_class=HTMLResponse)
@@ -106,11 +131,9 @@ async def htmx_list_capsules(
     search: str | None = Query(None),
     category: str | None = Query(None),
     domain: str | None = Query(None),
-    user: User = Depends(get_current_user),
+    sieve: Sieve = Depends(get_user_sieve),
     db: AsyncSession = Depends(get_db),
 ):
-    sieve = await _get_user_sieve(user, db)
-
     query = select(Capsule).where(Capsule.sieve_id == sieve.id)
 
     if search:
@@ -133,15 +156,13 @@ async def htmx_list_capsules(
     capsules = result.scalars().all()
 
     capsule_dicts = [capsule_to_response(c).model_dump() for c in capsules]
-
-    html = templates.get_template("partials/capsule_grid.html").render(capsules=capsule_dicts)
-    return HTMLResponse(content=html)
+    return _render_partial("partials/capsule_grid.html", capsules=capsule_dicts)
 
 
 @router.post("/capture/", response_class=HTMLResponse)
 async def htmx_capture(
     request: Request,
-    user: User = Depends(get_current_user),
+    sieve: Sieve = Depends(get_user_sieve),
     db: AsyncSession = Depends(get_db),
 ):
     form = await request.form()
@@ -150,14 +171,13 @@ async def htmx_capture(
 
     capture_req = CaptureRequest(content=content, url=url)
 
-    sieve = await _get_user_sieve(user, db)
-
     pipeline = CapturePipeline()
     try:
         capsule_data = await pipeline.process(capture_req)
     except ValueError as e:
-        html = templates.get_template("partials/capture_result.html").render(error=str(e))
-        return HTMLResponse(content=html)
+        return _render_partial("partials/capture_result.html", error=str(e))
+    except Exception:
+        return _render_partial("partials/capture_result.html", error="An unexpected error occurred while processing your content. Please try again.")
 
     capsule = Capsule(
         sieve_id=sieve.id,
@@ -182,27 +202,17 @@ async def htmx_capture(
     await db.refresh(capsule)
 
     resp = capsule_to_response(capsule)
-    html = templates.get_template("partials/capture_result.html").render(capsule=resp.model_dump())
-    return HTMLResponse(content=html)
+    return _render_partial("partials/capture_result.html", capsule=resp.model_dump())
 
 
 @router.put("/capsules/{capsule_id}", response_class=HTMLResponse)
 async def htmx_update_capsule(
     request: Request,
     capsule_id: str,
-    user: User = Depends(get_current_user),
+    sieve: Sieve = Depends(get_user_sieve),
     db: AsyncSession = Depends(get_db),
 ):
-    sieve = await _get_user_sieve(user, db)
-
-    result = await db.execute(
-        select(Capsule).where(Capsule.id == capsule_id, Capsule.sieve_id == sieve.id)
-    )
-    capsule = result.scalar_one_or_none()
-    if not capsule:
-        return HTMLResponse(
-            content='<div class="alert alert-error">Capsule not found</div>', status_code=404
-        )
+    capsule = await _get_capsule_or_404(capsule_id, sieve, db)
 
     form = await request.form()
     for field in ["title", "executive_summary", "core_insight", "pinned"]:
@@ -224,19 +234,10 @@ async def htmx_update_capsule(
 @router.delete("/capsules/{capsule_id}", response_class=HTMLResponse)
 async def htmx_delete_capsule(
     capsule_id: str,
-    user: User = Depends(get_current_user),
+    sieve: Sieve = Depends(get_user_sieve),
     db: AsyncSession = Depends(get_db),
 ):
-    sieve = await _get_user_sieve(user, db)
-
-    result = await db.execute(
-        select(Capsule).where(Capsule.id == capsule_id, Capsule.sieve_id == sieve.id)
-    )
-    capsule = result.scalar_one_or_none()
-    if not capsule:
-        return HTMLResponse(
-            content='<div class="alert alert-error">Capsule not found</div>', status_code=404
-        )
+    capsule = await _get_capsule_or_404(capsule_id, sieve, db)
 
     await db.delete(capsule)
     await db.commit()

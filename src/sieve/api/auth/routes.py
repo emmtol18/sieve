@@ -15,12 +15,13 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 COOKIE_NAME = "sieve_token"
 
 
-def set_auth_cookie(response: Response, token: str, max_age_days: int = 7) -> None:
+def set_auth_cookie(response: Response, token: str, max_age_days: int = 7, secure: bool = False) -> None:
     """Set the sieve_token HTTP-only cookie on a response."""
     response.set_cookie(
         key=COOKIE_NAME,
         value=token,
         httponly=True,
+        secure=secure,
         samesite="lax",
         path="/",
         max_age=max_age_days * 86400,

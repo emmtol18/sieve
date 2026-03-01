@@ -86,10 +86,10 @@ def test_login_template_has_tabs():
 
 
 def test_protected_routes_have_auth_check():
-    """Protected dashboard routes call _is_authenticated."""
+    """Protected dashboard routes use the _protected auth guard."""
     import inspect
     from sieve.dashboard.routes import sieve_page, capture_page, discover_page, compile_page, capsule_detail
 
     for fn in [sieve_page, capture_page, discover_page, compile_page, capsule_detail]:
         source = inspect.getsource(fn)
-        assert "_is_authenticated" in source, f"{fn.__name__} missing auth check"
+        assert "_protected" in source, f"{fn.__name__} missing auth check"

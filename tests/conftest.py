@@ -2,7 +2,7 @@ import uuid as _uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import String, Text, event
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from sieve.api.auth.deps import create_access_token, hash_password

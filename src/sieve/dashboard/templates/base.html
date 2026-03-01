@@ -20,6 +20,7 @@
             <a href="/capture" hx-boost="true">Capture</a>
             <a href="/discover" hx-boost="true">Discover</a>
             <a href="/compile" hx-boost="true">Compile</a>
+            <button class="btn btn-secondary btn-sm nav-logout" hx-post="/htmx/auth/logout" hx-swap="none">Logout</button>
         </div>
     </nav>
     <main class="container">{% block content %}{% endblock %}</main>

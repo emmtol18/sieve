@@ -1,3 +1,5 @@
+import uuid as _uuid
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import String, Text, event
@@ -13,12 +15,12 @@ def settings():
     return Settings(database_url="sqlite+aiosqlite:///test.db")
 
 
-@pytest.fixture
-async def db_engine():
-    engine = create_async_engine("sqlite+aiosqlite://", echo=False)
+def _patch_pg_types_for_sqlite():
+    """Patch PostgreSQL UUID and ARRAY types to work with SQLite.
 
-    # Register SQLite-compatible type renderers for PostgreSQL-specific types.
-    # UUID -> CHAR(32), ARRAY(String) -> TEXT (stored as comma-separated).
+    - UUID: compiles to CHAR(32) and accepts both uuid.UUID and str bind values.
+    - ARRAY: compiles to TEXT (values stored as-is by SQLAlchemy).
+    """
     from sqlalchemy.dialects.postgresql import ARRAY, UUID
     from sqlalchemy.ext.compiler import compiles
 
@@ -29,6 +31,95 @@ async def db_engine():
     @compiles(ARRAY, "sqlite")
     def compile_array_sqlite(type_, compiler, **kw):
         return "TEXT"
+
+    # Override ARRAY bind/result processors so SQLite can store Python lists
+    # as comma-separated strings and reconstruct them on read.
+    import json as _json
+
+    _orig_array_bind = ARRAY.bind_processor
+
+    def _array_bind_processor(self, dialect):
+        if dialect.name == "sqlite":
+
+            def process(value):
+                if value is None:
+                    return None
+                if isinstance(value, list):
+                    return _json.dumps(value)
+                return value
+
+            return process
+        return _orig_array_bind(self, dialect)
+
+    ARRAY.bind_processor = _array_bind_processor
+
+    _orig_array_result = ARRAY.result_processor
+
+    def _array_result_processor(self, dialect, coltype=None):
+        if dialect.name == "sqlite":
+
+            def process(value):
+                if value is None:
+                    return None
+                if isinstance(value, str):
+                    try:
+                        return _json.loads(value)
+                    except _json.JSONDecodeError:
+                        return value.split(",") if value else []
+                if isinstance(value, list):
+                    return value
+                return value
+
+            return process
+        return _orig_array_result(self, dialect, coltype)
+
+    ARRAY.result_processor = _array_result_processor
+
+    # Override UUID bind/result processors so SQLite can handle both
+    # uuid.UUID objects and plain strings (e.g. from JWT tokens).
+    _orig_bind_processor = UUID.bind_processor
+
+    def _uuid_bind_processor(self, dialect):
+        if dialect.name == "sqlite":
+
+            def process(value):
+                if value is not None:
+                    if isinstance(value, _uuid.UUID):
+                        return value.hex
+                    # Already a string — strip dashes for CHAR(32) storage
+                    return str(value).replace("-", "")
+                return value
+
+            return process
+        return _orig_bind_processor(self, dialect)
+
+    UUID.bind_processor = _uuid_bind_processor
+
+    _orig_result_processor = UUID.result_processor
+
+    def _uuid_result_processor(self, dialect, coltype=None):
+        if dialect.name == "sqlite":
+
+            def process(value):
+                if value is not None:
+                    if isinstance(value, _uuid.UUID):
+                        return value
+                    return _uuid.UUID(str(value))
+                return value
+
+            return process
+        return _orig_result_processor(self, dialect, coltype)
+
+    UUID.result_processor = _uuid_result_processor
+
+
+# Apply patches once at import time so they're active for all tests.
+_patch_pg_types_for_sqlite()
+
+
+@pytest.fixture
+async def db_engine():
+    engine = create_async_engine("sqlite+aiosqlite://", echo=False)
 
     # Enable foreign keys in SQLite
     @event.listens_for(engine.sync_engine, "connect")

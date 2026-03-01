@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{% if capsule %}{{ capsule.title }}{% else %}Capsule{% endif %} — Neural Sieve{% endblock %}
+{% block content %}
+{% if capsule %}
+<article class="capsule-detail">
+    <header class="capsule-header">
+        <div class="capsule-header-top">
+            <a href="/sieve" class="back-link" hx-boost="true">&larr; Back to Sieve</a>
+            <div class="capsule-actions">
+                <button
+                    class="btn btn-icon {% if capsule.pinned %}btn-pinned{% endif %}"
+                    hx-put="/api/capsules/{{ capsule.id }}"
+                    hx-vals='{"pinned": {{ "false" if capsule.pinned else "true" }}}'
+                    hx-swap="none"
+                    title="{% if capsule.pinned %}Unpin{% else %}Pin{% endif %}"
+                >&#9733;</button>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('edit-section').classList.toggle('hidden')">Edit</button>
+                <button
+                    class="btn btn-danger btn-sm"
+                    hx-delete="/api/capsules/{{ capsule.id }}"
+                    hx-confirm="Delete this capsule? This cannot be undone."
+                    hx-target="body"
+                    hx-swap="innerHTML"
+                >Delete</button>
+            </div>
+        </div>
+        <div class="capsule-meta-bar">
+            {% if capsule.category %}<span class="badge">{{ capsule.category }}</span>{% endif %}
+            {% if capsule.domain %}<span class="meta-item">{{ capsule.domain }}</span>{% endif %}
+            {% if capsule.difficulty %}<span class="meta-item">{{ capsule.difficulty }}</span>{% endif %}
+            {% if capsule.content_type %}<span class="meta-item">{{ capsule.content_type }}</span>{% endif %}
+            {% if capsule.author %}<span class="meta-item">by {{ capsule.author }}</span>{% endif %}
+            {% if capsule.pinned %}<span class="meta-item pin-indicator">Pinned &#9733;</span>{% endif %}
+        </div>
+        <h1 class="capsule-title">{{ capsule.title }}</h1>
+    </header>
+
+    <section class="capsule-section">
+        <h2 class="section-heading">Executive Summary</h2>
+        <p>{{ capsule.executive_summary }}</p>
+    </section>
+
+    <section class="capsule-section">
+        <h2 class="section-heading">Core Insight</h2>
+        <p>{{ capsule.core_insight }}</p>
+    </section>
+
+    <section class="capsule-section">
+        <h2 class="section-heading">Full Content</h2>
+        <div class="capsule-content">{{ capsule.full_content }}</div>
+    </section>
+
+    {% if capsule.tags %}
+    <section class="capsule-section">
+        <h2 class="section-heading">Tags</h2>
+        <div class="tag-list">
+            {% for tag in capsule.tags %}
+            <span class="tag-chip">{{ tag }}</span>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if capsule.keywords %}
+    <section class="capsule-section">
+        <h2 class="section-heading">Keywords</h2>
+        <div class="tag-list">
+            {% for kw in capsule.keywords %}
+            <span class="tag-chip tag-chip--secondary">{{ kw }}</span>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if capsule.source_url %}
+    <section class="capsule-section">
+        <h2 class="section-heading">Source</h2>
+        <a href="{{ capsule.source_url }}" class="source-link" target="_blank" rel="noopener">{{ capsule.source_url }}</a>
+    </section>
+    {% endif %}
+
+    <footer class="capsule-footer">
+        <span>Captured: {{ capsule.created_at[:10] if capsule.created_at else "Unknown" }}</span>
+        <span>Method: {{ capsule.capture_method }}</span>
+        <span>Status: {{ capsule.status }}</span>
+    </footer>
+</article>
+
+<section id="edit-section" class="edit-section hidden">
+    <h2 class="section-heading">Edit Capsule</h2>
+    <form
+        hx-put="/api/capsules/{{ capsule.id }}"
+        hx-target="body"
+        hx-swap="innerHTML"
+    >
+        <div class="form-group">
+            <label class="form-label" for="edit-title">Title</label>
+            <input type="text" id="edit-title" name="title" value="{{ capsule.title }}" class="input">
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="edit-summary">Executive Summary</label>
+            <textarea id="edit-summary" name="executive_summary" rows="3" class="input textarea">{{ capsule.executive_summary }}</textarea>
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="edit-insight">Core Insight</label>
+            <textarea id="edit-insight" name="core_insight" rows="3" class="input textarea">{{ capsule.core_insight }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('edit-section').classList.add('hidden')">Cancel</button>
+        </div>
+    </form>
+</section>
+
+{% else %}
+<div class="empty-state">
+    <a href="/sieve" class="back-link" hx-boost="true">&larr; Back to Sieve</a>
+    <div class="empty-icon">&#9670;</div>
+    <h3>Capsule not found</h3>
+    <p>The capsule with ID <code>{{ capsule_id }}</code> could not be loaded. It may have been deleted or you may not have access.</p>
+</div>
+{% endif %}
+{% endblock %}

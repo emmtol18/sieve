@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Discover — Neural Sieve{% endblock %}
+{% block content %}
+<section class="page-header">
+    <h1>Discover</h1>
+    <p class="page-subtitle">Browse leader packs curated by experts</p>
+</section>
+
+<div class="card-grid">
+    {% if packs %}
+        {% for pack in packs %}
+        <div class="card pack-card">
+            <h3 class="card-title">{{ pack.name }}</h3>
+            <p class="card-summary">{{ pack.description }}</p>
+            <div class="tag-list">
+                {% for topic in pack.topics[:5] %}
+                <span class="tag-chip">{{ topic }}</span>
+                {% endfor %}
+            </div>
+            <div class="pack-stats">
+                <span class="pack-rating">
+                    {% for i in range(5) %}
+                        {% if i < (pack.rating_avg | int) %}
+                        <span class="star star--filled">&#9733;</span>
+                        {% else %}
+                        <span class="star">&#9734;</span>
+                        {% endif %}
+                    {% endfor %}
+                    <span class="rating-text">{{ "%.1f" | format(pack.rating_avg) }}</span>
+                </span>
+                <span class="pack-count">{{ pack.capsule_count }} capsules</span>
+            </div>
+            <button
+                class="btn btn-primary btn-block"
+                hx-post="/api/packs/{{ pack.id }}/subscribe"
+                hx-swap="outerHTML"
+            >Subscribe</button>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">&#9733;</div>
+            <h3>No packs available</h3>
+            <p>Leader packs will appear here once published. Check back soon.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

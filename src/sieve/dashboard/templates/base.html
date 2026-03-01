@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Neural Sieve{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+</head>
+<body>
+    <nav class="nav">
+        <a href="/" class="nav-brand">Neural Sieve</a>
+        <button class="nav-toggle" aria-label="Toggle navigation" onclick="this.closest('.nav').classList.toggle('nav--open')">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="nav-links">
+            <a href="/sieve" hx-boost="true">My Sieve</a>
+            <a href="/capture" hx-boost="true">Capture</a>
+            <a href="/discover" hx-boost="true">Discover</a>
+            <a href="/compile" hx-boost="true">Compile</a>
+        </div>
+    </nav>
+    <main class="container">{% block content %}{% endblock %}</main>
+    <div id="status-bar" class="status-bar" style="display:none"></div>
+</body>
+</html>

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}My Sieve — Neural Sieve{% endblock %}
+{% block content %}
+<section class="page-header">
+    <h1>My Sieve</h1>
+    <p class="page-subtitle">Your curated knowledge capsules</p>
+</section>
+
+<div class="toolbar">
+    <div class="search-box">
+        <input
+            type="search"
+            name="search"
+            placeholder="Search capsules..."
+            class="input search-input"
+            hx-get="/api/capsules/"
+            hx-trigger="input changed delay:300ms, search"
+            hx-target="#capsule-grid"
+            hx-include="[name='category'],[name='domain']"
+        >
+    </div>
+    <div class="filter-group">
+        <select name="category" class="input select-input" hx-get="/api/capsules/" hx-trigger="change" hx-target="#capsule-grid" hx-include="[name='search'],[name='domain']">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+        </select>
+        <select name="domain" class="input select-input" hx-get="/api/capsules/" hx-trigger="change" hx-target="#capsule-grid" hx-include="[name='search'],[name='category']">
+            <option value="">All Domains</option>
+            {% for d in domains %}
+            <option value="{{ d }}">{{ d }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<div id="capsule-grid" class="card-grid">
+    {% if capsules %}
+        {% for capsule in capsules %}
+        <a href="/capsule/{{ capsule.id }}" class="card capsule-card" hx-boost="true">
+            <div class="card-header">
+                {% if capsule.category %}
+                <span class="badge">{{ capsule.category }}</span>
+                {% endif %}
+                {% if capsule.pinned %}
+                <span class="pin-indicator" title="Pinned">&#9733;</span>
+                {% endif %}
+            </div>
+            <h3 class="card-title">{{ capsule.title }}</h3>
+            <p class="card-summary">{{ capsule.executive_summary }}</p>
+            <div class="tag-list">
+                {% for tag in capsule.tags[:4] %}
+                <span class="tag-chip">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            <div class="card-meta">
+                {% if capsule.domain %}<span>{{ capsule.domain }}</span>{% endif %}
+                {% if capsule.difficulty %}<span class="meta-sep">{{ capsule.difficulty }}</span>{% endif %}
+                {% if capsule.created_at %}<span class="meta-sep">{{ capsule.created_at[:10] }}</span>{% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">&#9670;</div>
+            <h3>No capsules yet</h3>
+            <p>Start by <a href="/capture">capturing some knowledge</a> or <a href="/discover">subscribing to a leader pack</a>.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

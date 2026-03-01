@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Compile Skills — Neural Sieve{% endblock %}
+{% block content %}
+<section class="page-header">
+    <h1>Compile Skills</h1>
+    <p class="page-subtitle">Transform your capsules into actionable skill documents</p>
+</section>
+
+<div class="compile-options">
+    <div class="card compile-card">
+        <div class="compile-icon">&#9670;</div>
+        <h3 class="card-title">Personal Capsules</h3>
+        <p class="card-summary">Compile skills from your own captured knowledge and insights.</p>
+        <button
+            class="btn btn-primary btn-block"
+            hx-post="/api/compile/"
+            hx-vals='{"scope": "personal"}'
+            hx-target="#compile-preview"
+            hx-swap="innerHTML"
+            hx-indicator="#compile-spinner"
+        >Compile Personal</button>
+    </div>
+
+    <div class="card compile-card">
+        <div class="compile-icon">&#9733;</div>
+        <h3 class="card-title">Subscribed Packs</h3>
+        <p class="card-summary">Compile skills from your subscribed leader packs.</p>
+        <button
+            class="btn btn-primary btn-block"
+            hx-post="/api/compile/"
+            hx-vals='{"scope": "packs"}'
+            hx-target="#compile-preview"
+            hx-swap="innerHTML"
+            hx-indicator="#compile-spinner"
+        >Compile Packs</button>
+    </div>
+
+    <div class="card compile-card">
+        <div class="compile-icon">&#10022;</div>
+        <h3 class="card-title">Everything</h3>
+        <p class="card-summary">Compile skills from all available capsules in your sieve.</p>
+        <button
+            class="btn btn-primary btn-block"
+            hx-post="/api/compile/"
+            hx-vals='{"scope": "all"}'
+            hx-target="#compile-preview"
+            hx-swap="innerHTML"
+            hx-indicator="#compile-spinner"
+        >Compile All</button>
+    </div>
+</div>
+
+<div class="compile-preview-section">
+    <span id="compile-spinner" class="spinner spinner--lg htmx-indicator"></span>
+    <div id="compile-preview"></div>
+</div>
+{% endblock %}

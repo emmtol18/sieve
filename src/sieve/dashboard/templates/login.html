@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Sign In — Neural Sieve{% endblock %}
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h1 class="auth-title">Neural Sieve</h1>
+        <p class="auth-subtitle">Sign in to your knowledge base</p>
+
+        <div class="auth-tabs">
+            <button class="auth-tab auth-tab--active" onclick="switchTab('login')">Sign In</button>
+            <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+        </div>
+
+        <form
+            id="login-form"
+            class="auth-form"
+            hx-post="/api/auth/login"
+            hx-target="#auth-message"
+            hx-swap="innerHTML"
+        >
+            <div class="form-group">
+                <label for="login-email" class="form-label">Email</label>
+                <input type="email" id="login-email" name="email" required class="input" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="login-password" class="form-label">Password</label>
+                <input type="password" id="login-password" name="password" required class="input" placeholder="Your password" autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+        </form>
+
+        <form
+            id="signup-form"
+            class="auth-form hidden"
+            hx-post="/api/auth/register"
+            hx-target="#auth-message"
+            hx-swap="innerHTML"
+        >
+            <div class="form-group">
+                <label for="signup-name" class="form-label">Display Name</label>
+                <input type="text" id="signup-name" name="display_name" required class="input" placeholder="Your name" autocomplete="name">
+            </div>
+            <div class="form-group">
+                <label for="signup-email" class="form-label">Email</label>
+                <input type="email" id="signup-email" name="email" required class="input" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="signup-password" class="form-label">Password</label>
+                <input type="password" id="signup-password" name="password" required class="input" placeholder="Choose a password" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+        </form>
+
+        <div id="auth-message" class="auth-message"></div>
+    </div>
+</div>
+
+<script>
+function switchTab(tab) {
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const tabs = document.querySelectorAll('.auth-tab');
+
+    tabs.forEach(t => t.classList.remove('auth-tab--active'));
+
+    if (tab === 'login') {
+        loginForm.classList.remove('hidden');
+        signupForm.classList.add('hidden');
+        tabs[0].classList.add('auth-tab--active');
+    } else {
+        loginForm.classList.add('hidden');
+        signupForm.classList.remove('hidden');
+        tabs[1].classList.add('auth-tab--active');
+    }
+}
+</script>
+{% endblock %}

@@ -1,6 +1,5 @@
 """MCP server for Neural Sieve — exposes capsule tools for Claude Code."""
 
-import json
 import os
 from collections import defaultdict
 

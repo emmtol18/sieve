@@ -22,3 +22,30 @@ def serve(port):
     from sieve.config import settings
 
     uvicorn.run("sieve.api.app:app", host=settings.host, port=port, reload=True)
+
+
+@cli.command()
+@click.option("--pack", help="Compile a specific leader pack")
+@click.option("--personal", is_flag=True, help="Compile personal capsules only")
+@click.option("--all", "all_capsules", is_flag=True, help="Compile everything")
+@click.option("--output", default=".claude/skills", help="Output directory")
+def compile(pack, personal, all_capsules, output):
+    """Compile capsules into Claude Code skill files."""
+    import asyncio
+    from pathlib import Path
+
+    from sieve.compiler.compiler import SkillCompiler
+    from sieve.config import settings
+
+    compiler = SkillCompiler(api_url=settings.sieve_api_url, api_key=settings.sieve_api_key)
+    paths = asyncio.run(
+        compiler.compile_to_skills(
+            output_dir=Path(output),
+            pack=pack,
+            personal=personal,
+            all_capsules=all_capsules,
+        )
+    )
+    for p in paths:
+        click.echo(f"Generated: {p}")
+    click.echo(f"\n{len(paths)} skill(s) compiled.")

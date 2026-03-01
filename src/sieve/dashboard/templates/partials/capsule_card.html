@@ -1,0 +1,22 @@
+<a href="/capsule/{{ capsule.id }}" class="card capsule-card" hx-boost="true">
+    <div class="card-header">
+        {% if capsule.category %}
+        <span class="badge">{{ capsule.category }}</span>
+        {% endif %}
+        {% if capsule.pinned %}
+        <span class="pin-indicator" title="Pinned">&#9733;</span>
+        {% endif %}
+    </div>
+    <h3 class="card-title">{{ capsule.title }}</h3>
+    <p class="card-summary">{{ capsule.executive_summary }}</p>
+    <div class="tag-list">
+        {% for tag in capsule.tags[:4] %}
+        <span class="tag-chip">{{ tag }}</span>
+        {% endfor %}
+    </div>
+    <div class="card-meta">
+        {% if capsule.domain %}<span>{{ capsule.domain }}</span>{% endif %}
+        {% if capsule.difficulty %}<span class="meta-sep">{{ capsule.difficulty }}</span>{% endif %}
+        {% if capsule.created_at %}<span class="meta-sep">{{ capsule.created_at[:10] }}</span>{% endif %}
+    </div>
+</a>

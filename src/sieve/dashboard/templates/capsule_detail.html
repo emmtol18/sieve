@@ -9,7 +9,7 @@
             <div class="capsule-actions">
                 <button
                     class="btn btn-icon {% if capsule.pinned %}btn-pinned{% endif %}"
-                    hx-put="/api/capsules/{{ capsule.id }}"
+                    hx-put="/htmx/capsules/{{ capsule.id }}"
                     hx-vals='{"pinned": {{ "false" if capsule.pinned else "true" }}}'
                     hx-swap="none"
                     title="{% if capsule.pinned %}Unpin{% else %}Pin{% endif %}"
@@ -17,7 +17,7 @@
                 <button class="btn btn-secondary btn-sm" onclick="document.getElementById('edit-section').classList.toggle('hidden')">Edit</button>
                 <button
                     class="btn btn-danger btn-sm"
-                    hx-delete="/api/capsules/{{ capsule.id }}"
+                    hx-delete="/htmx/capsules/{{ capsule.id }}"
                     hx-confirm="Delete this capsule? This cannot be undone."
                     hx-target="body"
                     hx-swap="innerHTML"
@@ -89,7 +89,7 @@
 <section id="edit-section" class="edit-section hidden">
     <h2 class="section-heading">Edit Capsule</h2>
     <form
-        hx-put="/api/capsules/{{ capsule.id }}"
+        hx-put="/htmx/capsules/{{ capsule.id }}"
         hx-target="body"
         hx-swap="innerHTML"
     >

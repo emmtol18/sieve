@@ -1,0 +1,8 @@
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% elif capsule %}
+<div class="alert alert-success">
+    <strong>Captured!</strong> &ldquo;{{ capsule.title }}&rdquo; has been added to your sieve.
+    <a href="/capsule/{{ capsule.id }}">View capsule &rarr;</a>
+</div>
+{% endif %}

@@ -13,20 +13,20 @@
             name="search"
             placeholder="Search capsules..."
             class="input search-input"
-            hx-get="/api/capsules/"
+            hx-get="/htmx/capsules/"
             hx-trigger="input changed delay:300ms, search"
             hx-target="#capsule-grid"
             hx-include="[name='category'],[name='domain']"
         >
     </div>
     <div class="filter-group">
-        <select name="category" class="input select-input" hx-get="/api/capsules/" hx-trigger="change" hx-target="#capsule-grid" hx-include="[name='search'],[name='domain']">
+        <select name="category" class="input select-input" hx-get="/htmx/capsules/" hx-trigger="change" hx-target="#capsule-grid" hx-include="[name='search'],[name='domain']">
             <option value="">All Categories</option>
             {% for cat in categories %}
             <option value="{{ cat }}">{{ cat }}</option>
             {% endfor %}
         </select>
-        <select name="domain" class="input select-input" hx-get="/api/capsules/" hx-trigger="change" hx-target="#capsule-grid" hx-include="[name='search'],[name='category']">
+        <select name="domain" class="input select-input" hx-get="/htmx/capsules/" hx-trigger="change" hx-target="#capsule-grid" hx-include="[name='search'],[name='category']">
             <option value="">All Domains</option>
             {% for d in domains %}
             <option value="{{ d }}">{{ d }}</option>

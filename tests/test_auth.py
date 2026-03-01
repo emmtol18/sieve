@@ -1,7 +1,11 @@
 import uuid
 
+from unittest.mock import AsyncMock
+from fastapi import Request
+
 from sieve.api.auth.deps import (
     create_access_token,
+    get_token_from_request,
     hash_password,
     verify_password,
     verify_token,
@@ -28,3 +32,35 @@ def test_jwt_invalid_token():
     with pytest.raises(HTTPException) as exc:
         verify_token("invalid-token")
     assert exc.value.status_code == 401
+
+
+def test_get_token_from_cookie():
+    """Token extracted from sieve_token cookie."""
+    request = AsyncMock(spec=Request)
+    request.cookies = {"sieve_token": "my-jwt-token"}
+    request.headers = {}
+    assert get_token_from_request(request) == "my-jwt-token"
+
+
+def test_get_token_from_bearer_header():
+    """Falls back to Authorization Bearer header."""
+    request = AsyncMock(spec=Request)
+    request.cookies = {}
+    request.headers = {"authorization": "Bearer my-jwt-token"}
+    assert get_token_from_request(request) == "my-jwt-token"
+
+
+def test_get_token_cookie_takes_precedence():
+    """Cookie wins over header when both present."""
+    request = AsyncMock(spec=Request)
+    request.cookies = {"sieve_token": "cookie-token"}
+    request.headers = {"authorization": "Bearer header-token"}
+    assert get_token_from_request(request) == "cookie-token"
+
+
+def test_get_token_missing_returns_none():
+    """Returns None when neither cookie nor header present."""
+    request = AsyncMock(spec=Request)
+    request.cookies = {}
+    request.headers = {}
+    assert get_token_from_request(request) is None

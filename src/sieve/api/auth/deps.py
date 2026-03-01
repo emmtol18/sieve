@@ -1,8 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import bcrypt as _bcrypt_mod
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, Request
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,7 +43,6 @@ _bcrypt_mod.checkpw = _patched_checkpw  # type: ignore[assignment]
 from passlib.context import CryptContext  # noqa: E402
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-bearer_scheme = HTTPBearer()
 
 
 def hash_password(password: str) -> str:
@@ -72,11 +70,25 @@ def verify_token(token: str) -> str:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+def get_token_from_request(request: Request) -> str | None:
+    """Extract JWT token from cookie first, then Authorization header."""
+    token = request.cookies.get("sieve_token")
+    if token:
+        return token
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    return None
+
+
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    user_id = verify_token(credentials.credentials)
+    token = get_token_from_request(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = verify_token(token)
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

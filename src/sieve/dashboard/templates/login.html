@@ -14,7 +14,7 @@
         <form
             id="login-form"
             class="auth-form"
-            hx-post="/api/auth/login"
+            hx-post="/htmx/auth/login"
             hx-target="#auth-message"
             hx-swap="innerHTML"
         >
@@ -32,7 +32,7 @@
         <form
             id="signup-form"
             class="auth-form hidden"
-            hx-post="/api/auth/register"
+            hx-post="/htmx/auth/signup"
             hx-target="#auth-message"
             hx-swap="innerHTML"
         >

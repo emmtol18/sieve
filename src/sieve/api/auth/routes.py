@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sieve.config import settings
 from sieve.db.database import get_db
 from sieve.db.models import Sieve, User
 
@@ -10,10 +12,23 @@ from .schemas import LoginRequest, SignupRequest, TokenResponse, UserResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+COOKIE_NAME = "sieve_token"
 
-@router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+
+def set_auth_cookie(response: Response, token: str, max_age_days: int = 7) -> None:
+    """Set the sieve_token HTTP-only cookie on a response."""
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        path="/",
+        max_age=max_age_days * 86400,
+    )
+
+
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
-    # Check if email already exists
     result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none():
         raise HTTPException(
@@ -21,7 +36,6 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
             detail="Email already registered",
         )
 
-    # Create user
     user = User(
         email=body.email,
         password_hash=hash_password(body.password),
@@ -29,7 +43,6 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
     )
     db.add(user)
 
-    # Create default sieve for user
     sieve = Sieve(
         user_id=user.id,
         name=f"{body.display_name}'s Sieve",
@@ -40,13 +53,13 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
     await db.refresh(user)
 
     token = create_access_token(str(user.id))
-    return TokenResponse(
-        access_token=token,
-        api_key=str(user.api_key),
-    )
+    data = TokenResponse(access_token=token, api_key=str(user.api_key))
+    response = JSONResponse(content=data.model_dump(), status_code=201)
+    set_auth_cookie(response, token, max_age_days=settings.jwt_expiry_days)
+    return response
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login")
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
@@ -58,10 +71,17 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
 
     token = create_access_token(str(user.id))
-    return TokenResponse(
-        access_token=token,
-        api_key=str(user.api_key),
-    )
+    data = TokenResponse(access_token=token, api_key=str(user.api_key))
+    response = JSONResponse(content=data.model_dump(), status_code=200)
+    set_auth_cookie(response, token, max_age_days=settings.jwt_expiry_days)
+    return response
+
+
+@router.post("/logout")
+async def logout():
+    response = JSONResponse(content={"detail": "Logged out"})
+    response.delete_cookie(key=COOKIE_NAME, path="/")
+    return response
 
 
 @router.get("/me", response_model=UserResponse)

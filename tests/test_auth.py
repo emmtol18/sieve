@@ -64,3 +64,19 @@ def test_get_token_missing_returns_none():
     request.cookies = {}
     request.headers = {}
     assert get_token_from_request(request) is None
+
+
+def test_set_auth_cookie_creates_response_with_cookie():
+    """set_auth_cookie sets httponly sieve_token cookie."""
+    from fastapi.responses import JSONResponse
+    from sieve.api.auth.routes import set_auth_cookie
+
+    response = JSONResponse(content={"ok": True})
+    set_auth_cookie(response, "test-jwt-token", max_age_days=7)
+
+    set_cookie = response.headers.get("set-cookie")
+    assert set_cookie is not None
+    assert "sieve_token=test-jwt-token" in set_cookie
+    assert "httponly" in set_cookie.lower()
+    assert "samesite=lax" in set_cookie.lower()
+    assert "path=/" in set_cookie.lower()

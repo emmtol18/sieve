@@ -83,3 +83,13 @@ def test_login_template_has_tabs():
     assert "Sign In" in html
     assert "Sign Up" in html
     assert "hx-post" in html
+
+
+def test_protected_routes_have_auth_check():
+    """Protected dashboard routes call _is_authenticated."""
+    import inspect
+    from sieve.dashboard.routes import sieve_page, capture_page, discover_page, compile_page, capsule_detail
+
+    for fn in [sieve_page, capture_page, discover_page, compile_page, capsule_detail]:
+        source = inspect.getsource(fn)
+        assert "_is_authenticated" in source, f"{fn.__name__} missing auth check"

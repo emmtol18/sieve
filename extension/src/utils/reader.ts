@@ -1210,7 +1210,7 @@ export class Reader {
 			const footer = doc.createElement('div');
 			footer.className = 'obsidian-reader-footer';
 			const footerItems = [
-				'Obsidian Reader',
+				'Sieve Reader',
 				wordCount ? new Intl.NumberFormat().format(wordCount) + ' words' : '',
 				(parseTime ? 'parsed in ' + new Intl.NumberFormat().format(parseTime) + ' ms' : '')
 			].filter(Boolean);

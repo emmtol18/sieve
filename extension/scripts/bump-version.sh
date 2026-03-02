@@ -26,7 +26,7 @@ JSON_FILES=(
 	"dev/manifest.json"
 )
 
-PBXPROJ="xcode/Obsidian Web Clipper/Obsidian Web Clipper.xcodeproj/project.pbxproj"
+PBXPROJ="xcode/Sieve Clipper/Sieve Clipper.xcodeproj/project.pbxproj"
 
 echo "Bumping version to $NEW_VERSION"
 echo ""

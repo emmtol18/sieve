@@ -197,10 +197,10 @@ async function initializeExtension(tabId: number) {
 function setupMessageListeners() {
 	browser.runtime.onMessage.addListener((request: any, sender: browser.Runtime.MessageSender, sendResponse: (response?: any) => void) => {
 		if (request.action === "triggerQuickClip") {
-			handleClipObsidian().then(() => {
+			handleClipToSieve().then(() => {
 				sendResponse({success: true});
 			}).catch((error) => {
-				console.error('Error in handleClipObsidian:', error);
+				console.error('Error in handleClipToSieve:', error);
 				sendResponse({success: false, error: error.message});
 			});
 			return true;
@@ -457,7 +457,7 @@ function setupEventListeners(tabId: number) {
 						
 						const shareData = {
 							files: [file],
-							text: 'Shared from Obsidian Web Clipper'
+							text: 'Shared from Sieve Clipper'
 						};
 
 						if (navigator.canShare(shareData)) {
@@ -1152,26 +1152,26 @@ function determineMainAction() {
 			mainButton.textContent = getMessage('copyToClipboard');
 			mainButton.onclick = () => copyContent();
 			// Add direct actions to secondary
-			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleClipObsidian());
+			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleClipToSieve());
 			addSecondaryAction(secondaryActions, 'saveFile', handleSaveToDownloads);
 			break;
 		case 'saveFile':
 			mainButton.textContent = getMessage('saveFile');
 			mainButton.onclick = () => handleSaveToDownloads();
 			// Add direct actions to secondary
-			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleClipObsidian());
+			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleClipToSieve());
 			addSecondaryAction(secondaryActions, 'copyToClipboard', copyContent);
 			break;
 		default: // 'captureToSieve'
 			mainButton.textContent = getMessage('captureToSieve');
-			mainButton.onclick = () => handleClipObsidian();
+			mainButton.onclick = () => handleClipToSieve();
 			// Add direct actions to secondary
 			addSecondaryAction(secondaryActions, 'copyToClipboard', copyContent);
 			addSecondaryAction(secondaryActions, 'saveFile', handleSaveToDownloads);
 	}
 }
 
-async function handleClipObsidian(): Promise<void> {
+async function handleClipToSieve(): Promise<void> {
 	if (!currentTemplate) return;
 
 	const vaultDropdown = document.getElementById('vault-select') as HTMLSelectElement;
@@ -1207,7 +1207,7 @@ async function handleClipObsidian(): Promise<void> {
 			setTimeout(() => window.close(), 500);
 		}
 	} catch (error) {
-		console.error('Error in handleClipObsidian:', error);
+		console.error('Error in handleClipToSieve:', error);
 		showError('failedToSaveFile');
 		throw error;
 	}

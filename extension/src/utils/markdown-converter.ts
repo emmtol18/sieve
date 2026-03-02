@@ -229,7 +229,7 @@ export function createMarkdownContent(content: string, url: string) {
 		}
 	});
 
-	// Use Obsidian format for YouTube embeds and tweets
+	// Use embed format for YouTube embeds and tweets
 	turndownService.addRule('embedToMarkdown', {
 		filter: function (node: Node): boolean {
 			if (node instanceof HTMLIFrameElement) {
@@ -598,7 +598,7 @@ export function createMarkdownContent(content: string, url: string) {
 				alertContent = contentElement?.textContent || content.replace(titleElement.textContent, '');
 			}
 
-			// Format as Obsidian callout
+			// Format as callout
 			return `\n> [!${type}]\n> ${alertContent.trim().replace(/\n/g, '\n> ')}\n`;
 		}
 	});

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Sieve — Color Scheme Explorer</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #111; color: #ccc; min-height: 100vh;
+    display: flex; flex-direction: column;
+}
+.shell-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.625rem 1.25rem; background: #181818; border-bottom: 1px solid #2a2a2a; flex-shrink: 0;
+}
+.shell-header h1 { font-size: 0.8125rem; font-weight: 600; color: #e5e5e5; }
+.shell-header span { font-size: 0.75rem; color: #666; }
+.shell-body { display: flex; flex: 1; overflow: hidden; }
+.shell-sidebar {
+    width: 280px; min-width: 280px; background: #161616; border-right: 1px solid #2a2a2a;
+    overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1.25rem;
+}
+.shell-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.shell-preview { flex: 1; overflow: auto; }
+.shell-prompt {
+    border-top: 1px solid #2a2a2a; background: #161616; padding: 0.75rem 1.25rem;
+    display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0;
+}
+.shell-prompt pre {
+    flex: 1; font-size: 0.75rem; font-family: "SF Mono", "Fira Code", monospace;
+    color: #aaa; white-space: pre-wrap; line-height: 1.5; max-height: 80px; overflow-y: auto;
+}
+.copy-btn {
+    padding: 0.375rem 0.75rem; font-size: 0.75rem; font-weight: 600; font-family: inherit;
+    background: #242430; color: #ccc; border: 1px solid #3a3a45; border-radius: 4px; cursor: pointer;
+    white-space: nowrap;
+}
+.copy-btn:hover { background: #2c2c35; }
+
+/* Sidebar */
+.sg-title {
+    font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #666; margin-bottom: 0.5rem;
+}
+.sg-group { display: flex; flex-direction: column; gap: 0.375rem; }
+.sg-preset {
+    display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem 0.625rem;
+    background: #1e1e24; border: 1px solid #2a2a2a; border-radius: 6px; cursor: pointer;
+    font-family: inherit; color: #ccc; text-align: left; width: 100%; font-size: 0.8125rem;
+    transition: border-color 0.12s;
+}
+.sg-preset:hover { border-color: #444; }
+.sg-preset.active { border-color: #7c7cf0; background: #1a1a28; }
+.sg-swatches { display: flex; gap: 2px; flex-shrink: 0; }
+.sg-swatch { width: 14px; height: 14px; border-radius: 2px; border: 1px solid rgba(255,255,255,0.06); }
+.sg-preset-name { font-weight: 500; }
+.sg-preset-desc { font-size: 0.6875rem; color: #777; margin-top: 1px; }
+.sg-color-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; }
+.sg-color-label { font-size: 0.75rem; color: #888; flex: 1; }
+.sg-color-input {
+    width: 28px; height: 28px; border: 1px solid #3a3a45; border-radius: 3px;
+    cursor: pointer; background: none; padding: 0;
+}
+.sg-color-input::-webkit-color-swatch-wrapper { padding: 1px; }
+.sg-color-input::-webkit-color-swatch { border: none; border-radius: 2px; }
+.sg-color-hex { font-size: 0.6875rem; font-family: "SF Mono", monospace; color: #666; width: 56px; text-align: right; }
+
+/* View toggle */
+.sg-view-toggle { display: flex; border-bottom: 1px solid #2a2a2a; }
+.sg-view-btn {
+    flex: 1; padding: 0.5rem; font-size: 0.75rem; font-weight: 500; font-family: inherit;
+    background: transparent; color: #666; border: none; border-bottom: 2px solid transparent;
+    cursor: pointer; margin-bottom: -1px;
+}
+.sg-view-btn:hover { color: #ccc; }
+.sg-view-btn.active { color: #e5e5e5; border-bottom-color: #7c7cf0; }
+</style>
+</head>
+<body>
+
+<div class="shell-header">
+    <h1>Neural Sieve — Color Scheme Explorer</h1>
+    <span>Pick a palette, tweak colors, copy the prompt</span>
+</div>
+
+<div class="shell-body">
+    <div class="shell-sidebar" id="sidebar"></div>
+    <div class="shell-main">
+        <div class="sg-view-toggle" id="view-toggle"></div>
+        <div class="shell-preview" id="preview-wrap"></div>
+    </div>
+</div>
+
+<div class="shell-prompt">
+    <pre id="prompt-output"></pre>
+    <button class="copy-btn" id="copy-btn">Copy</button>
+</div>
+
+<script>
+const PALETTES = {
+    current: {
+        name: 'Current', desc: 'Indigo on cool charcoal',
+        bg: '#131316', nav: '#1a1a1f', card: '#1e1e24', border: '#2c2c35',
+        text: '#e5e5e5', muted: '#888888', accent: '#6366f1',
+        successBg: 'rgba(34,197,94,0.1)', successBorder: 'rgba(34,197,94,0.25)', successText: '#4ade80',
+        errorBg: 'rgba(239,68,68,0.1)', errorBorder: 'rgba(239,68,68,0.25)', errorText: '#f87171',
+        subtle: '#242430', hoverBorder: '#3a3a45', badgeBg: '#25253a', badgeText: '#6366f1', tagBg: '#25253a', tagText: '#6366f1',
+    },
+    warmInk: {
+        name: 'Warm Ink', desc: 'Amber on deep sepia',
+        bg: '#15130e', nav: '#1c1a13', card: '#211f17', border: '#332e22',
+        text: '#e8e2d6', muted: '#8a8275', accent: '#c49340',
+        successBg: 'rgba(180,150,60,0.1)', successBorder: 'rgba(180,150,60,0.25)', successText: '#c8b060',
+        errorBg: 'rgba(168,92,66,0.1)', errorBorder: 'rgba(168,92,66,0.25)', errorText: '#c07858',
+        subtle: '#2a2720', hoverBorder: '#44402e', badgeBg: '#2e2a1a', badgeText: '#c49340', tagBg: '#2e2a1a', tagText: '#c49340',
+    },
+    nightOcean: {
+        name: 'Night Ocean', desc: 'Teal on blue-black',
+        bg: '#0c1014', nav: '#111820', card: '#151d26', border: '#1f2a36',
+        text: '#cdd8e4', muted: '#6b7d8f', accent: '#3aaa7e',
+        successBg: 'rgba(58,170,126,0.1)', successBorder: 'rgba(58,170,126,0.25)', successText: '#50c89a',
+        errorBg: 'rgba(196,112,96,0.1)', errorBorder: 'rgba(196,112,96,0.25)', errorText: '#d4836e',
+        subtle: '#1a2430', hoverBorder: '#2a3a4a', badgeBg: '#142a28', badgeText: '#3aaa7e', tagBg: '#142a28', tagText: '#3aaa7e',
+    },
+    obsidian: {
+        name: 'Obsidian', desc: 'Copper on pure neutral',
+        bg: '#181818', nav: '#1e1e1e', card: '#232323', border: '#333333',
+        text: '#dedede', muted: '#808080', accent: '#c4946a',
+        successBg: 'rgba(160,144,80,0.1)', successBorder: 'rgba(160,144,80,0.25)', successText: '#b8a868',
+        errorBg: 'rgba(176,112,96,0.1)', errorBorder: 'rgba(176,112,96,0.25)', errorText: '#c48878',
+        subtle: '#2a2a2a', hoverBorder: '#444444', badgeBg: '#2e2a24', badgeText: '#c4946a', tagBg: '#2e2a24', tagText: '#c4946a',
+    },
+    deepPlum: {
+        name: 'Deep Plum', desc: 'Rose-copper on purple-black',
+        bg: '#14111a', nav: '#1a1620', card: '#1e1926', border: '#302838',
+        text: '#ddd8e6', muted: '#8880a0', accent: '#b87050',
+        successBg: 'rgba(154,136,80,0.12)', successBorder: 'rgba(154,136,80,0.25)', successText: '#b8a868',
+        errorBg: 'rgba(160,96,112,0.12)', errorBorder: 'rgba(160,96,112,0.25)', errorText: '#c08090',
+        subtle: '#261e30', hoverBorder: '#403650', badgeBg: '#2a1e30', badgeText: '#b87050', tagBg: '#2a1e30', tagText: '#b87050',
+    },
+};
+
+const CAPSULES = [
+    { cat: 'Technology', title: 'The Bitter Lesson of AI Research', sum: 'Rich Sutton argues that general methods leveraging computation are ultimately the most effective in AI.', tags: ['AI', 'research', 'computation'], domain: 'AI/ML', diff: 'intermediate', pin: true },
+    { cat: 'Productivity', title: 'Building a Second Brain', sum: "Tiago Forte's method for organizing digital information using the PARA framework.", tags: ['PKM', 'PARA', 'notes'], domain: 'Knowledge', diff: 'beginner', pin: false },
+    { cat: 'Technology', title: 'Attention Is All You Need', sum: 'The transformer architecture replaced recurrence with self-attention, enabling massive parallelization.', tags: ['transformers', 'NLP'], domain: 'AI/ML', diff: 'advanced', pin: true },
+    { cat: 'Learning', title: 'Spaced Repetition for Deep Understanding', sum: 'Expanding intervals between reviews to move knowledge from working memory to long-term memory.', tags: ['memory', 'Anki'], domain: 'Education', diff: 'beginner', pin: false },
+    { cat: 'Technology', title: 'Why SQLite is Perfect for Edge Computing', sum: 'Serverless architecture, zero configuration, ACID compliant, and the database is a single file.', tags: ['SQLite', 'databases'], domain: 'Software', diff: 'intermediate', pin: false },
+    { cat: 'Business', title: 'The Indie Hacker Playbook', sum: 'Ship fast, validate with real users, automate everything, and keep costs near zero.', tags: ['indie', 'startups'], domain: 'Business', diff: 'beginner', pin: false },
+];
+
+const state = { palette: 'current', view: 'sieve' };
+let colors = { ...PALETTES.current };
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function previewStyle(c) {
+    return [
+        '.ns{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:'+c.bg+';color:'+c.text+';min-height:100%;-webkit-font-smoothing:antialiased}',
+        '.ns a{color:'+c.accent+';text-decoration:none}',
+        '.ns .nv{display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:56px;background:'+c.nav+';border-bottom:1px solid '+c.border+'}',
+        '.ns .nv-brand{font-size:1.125rem;font-weight:700;color:'+c.text+';letter-spacing:-0.02em}',
+        '.ns .nv-links{display:flex;gap:0.25rem;align-items:center}',
+        '.ns .nv-links a{color:'+c.muted+';font-size:0.875rem;font-weight:500;padding:0.5rem 0.75rem;border-radius:6px;cursor:default}',
+        '.ns .nv-logout{background:'+c.subtle+';color:'+c.text+';border:1px solid '+c.hoverBorder+';padding:0.375rem 0.875rem;font-size:0.8125rem;font-weight:600;border-radius:8px;cursor:default;font-family:inherit}',
+        '.ns .ct{max-width:1200px;margin:0 auto;padding:2rem 1.5rem 4rem}',
+        '.ns .ph{margin-bottom:2rem}',
+        '.ns .ph h1{font-size:1.75rem;font-weight:700;letter-spacing:-0.03em;color:'+c.text+'}',
+        '.ns .ph-sub{color:'+c.muted+';font-size:0.9375rem;margin-top:0.25rem}',
+        '.ns .tb{display:flex;gap:1rem;margin-bottom:1.5rem}',
+        '.ns .inp{width:100%;padding:0.625rem 0.875rem;font-size:0.9375rem;color:'+c.text+';background:'+c.card+';border:1px solid '+c.border+';border-radius:8px;outline:none;font-family:inherit}',
+        '.ns .inp::placeholder{color:'+c.muted+';opacity:0.5}',
+        '.ns .sel{min-width:140px;appearance:none;padding-right:2rem}',
+        '.ns .cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem}',
+        '.ns .cd{background:'+c.card+';border:1px solid '+c.border+';border-radius:12px;padding:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,0.15);transition:border-color 0.25s,box-shadow 0.25s,transform 0.25s}',
+        '.ns .cd:hover{border-color:'+c.hoverBorder+';box-shadow:0 8px 30px rgba(0,0,0,0.35);transform:translateY(-2px)}',
+        '.ns .cc{display:flex;flex-direction:column;gap:0.625rem}',
+        '.ns .ch{display:flex;align-items:center;justify-content:space-between}',
+        '.ns .ct-t{font-size:1.0625rem;font-weight:600;line-height:1.35;color:'+c.text+';letter-spacing:-0.01em}',
+        '.ns .cs{font-size:0.875rem;color:'+c.muted+';line-height:1.5}',
+        '.ns .cm{display:flex;gap:0.5rem;font-size:0.75rem;color:'+c.muted+';opacity:0.65;margin-top:auto;padding-top:0.5rem}',
+        '.ns .bg{display:inline-block;font-size:0.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:0.2rem 0.5rem;border-radius:4px;background:'+c.badgeBg+';color:'+c.badgeText+'}',
+        '.ns .tl{display:flex;flex-wrap:wrap;gap:0.375rem}',
+        '.ns .tc{display:inline-block;font-size:0.75rem;font-weight:500;padding:0.2rem 0.6rem;border-radius:100px;background:'+c.tagBg+';color:'+c.tagText+'}',
+        '.ns .pi{color:'+c.accent+';opacity:0.8;font-weight:600}',
+        '.ns .al{padding:0.75rem 1rem;border-radius:8px;font-size:0.875rem;font-weight:500;margin-bottom:1rem}',
+        '.ns .al-s{background:'+c.successBg+';border:1px solid '+c.successBorder+';color:'+c.successText+'}',
+        '.ns .al-e{background:'+c.errorBg+';border:1px solid '+c.errorBorder+';color:'+c.errorText+'}',
+        '.ns .btn{display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.625rem 1.25rem;font-size:0.875rem;font-weight:600;font-family:inherit;border:none;border-radius:8px;cursor:default}',
+        '.ns .btn-p{background:'+c.accent+';color:#fff}',
+        '.ns .btn-b{width:100%}',
+        '.ns .btn-g{background:#fff;color:#1f1f1f;border:1px solid #dadce0;font-weight:500;gap:0.75rem}',
+        '.ns .ac{display:flex;align-items:center;justify-content:center;min-height:calc(100% - 56px - 4rem);padding:2rem}',
+        '.ns .acd{width:100%;max-width:400px;background:'+c.card+';border:1px solid '+c.border+';border-radius:16px;padding:2.5rem 2rem}',
+        '.ns .at{font-size:1.5rem;font-weight:700;text-align:center;color:'+c.text+';letter-spacing:-0.02em}',
+        '.ns .as{text-align:center;color:'+c.muted+';font-size:0.9375rem;margin-top:0.25rem;margin-bottom:1.5rem}',
+        '.ns .adv{display:flex;align-items:center;gap:1rem;margin:1.25rem 0;color:'+c.muted+';opacity:0.5;font-size:0.8125rem}',
+        '.ns .adv::before,.ns .adv::after{content:"";flex:1;height:1px;background:'+c.border+'}',
+        '.ns .atabs{display:flex;border:1px solid '+c.border+';border-radius:8px;overflow:hidden;margin-bottom:1.5rem}',
+        '.ns .atab{flex:1;padding:0.5rem;font-size:0.875rem;font-weight:600;font-family:inherit;background:transparent;color:'+c.muted+';border:none;cursor:default}',
+        '.ns .atab-a{background:'+c.accent+';color:#fff}',
+        '.ns .fg{margin-bottom:1.25rem}',
+        '.ns .fl{display:block;font-size:0.8125rem;font-weight:600;color:'+c.muted+';margin-bottom:0.375rem;text-transform:uppercase;letter-spacing:0.04em}',
+        '.ns .sh{font-size:0.8125rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:'+c.accent+';margin-bottom:0.75rem;padding-bottom:0.375rem;border-bottom:1px solid '+c.badgeBg+'}',
+        '.ns .cp-t{font-size:2rem;font-weight:700;letter-spacing:-0.03em;color:'+c.text+';line-height:1.2;margin-bottom:0.5rem}',
+        '.ns .cp-c{font-size:0.9375rem;line-height:1.7;color:'+c.muted+'}',
+        '.ns .cp-f{display:flex;gap:1rem;font-size:0.75rem;color:'+c.muted+';opacity:0.5;padding-top:1.5rem;border-top:1px solid '+c.border+';margin-top:2rem}',
+    ].join('\n');
+}
+
+function cardHTML(c) {
+    var pin = c.pin ? '<span class="pi">&#9733;</span>' : '';
+    var tags = '';
+    c.tags.forEach(function(t){ tags += '<span class="tc">' + esc(t) + '</span>'; });
+    return '<div class="cd cc">'
+        + '<div class="ch">' + (c.cat ? '<span class="bg">' + esc(c.cat) + '</span>' : '') + pin + '</div>'
+        + '<div class="ct-t">' + esc(c.title) + '</div>'
+        + '<div class="cs">' + esc(c.sum) + '</div>'
+        + '<div class="tl">' + tags + '</div>'
+        + '<div class="cm"><span>' + esc(c.domain) + '</span><span>' + esc(c.diff) + '</span></div>'
+        + '</div>';
+}
+
+function navHTML(links) {
+    return '<div class="nv"><span class="nv-brand">Neural Sieve</span>'
+        + (links ? '<div class="nv-links"><a>My Sieve</a><a>Capture</a><a>Discover</a><a>Compile</a><button class="nv-logout">Logout</button></div>' : '')
+        + '</div>';
+}
+
+function sieveHTML() {
+    var cards = '';
+    CAPSULES.forEach(function(c){ cards += cardHTML(c); });
+    return navHTML(true)
+        + '<div class="ct"><div class="ph"><h1>My Sieve</h1><p class="ph-sub">Your curated knowledge capsules</p></div>'
+        + '<div class="tb"><div style="flex:1;min-width:200px"><input type="text" class="inp" placeholder="Search capsules..." readonly></div>'
+        + '<div style="display:flex;gap:0.5rem"><select class="inp sel" disabled><option>All Categories</option></select>'
+        + '<select class="inp sel" disabled><option>All Domains</option></select></div></div>'
+        + '<div class="cg">' + cards + '</div></div>';
+}
+
+function loginHTML() {
+    return navHTML(false)
+        + '<div class="ac"><div class="acd">'
+        + '<div class="at">Neural Sieve</div>'
+        + '<div class="as">Sign in to your knowledge base</div>'
+        + '<button class="btn btn-g btn-b">'
+        + '<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 010-9.18l-7.98-6.19a24.04 24.04 0 000 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
+        + 'Continue with Google</button>'
+        + '<div class="adv"><span>or</span></div>'
+        + '<div class="atabs"><button class="atab atab-a">Sign In</button><button class="atab">Sign Up</button></div>'
+        + '<div class="fg"><label class="fl">Email</label><input type="email" class="inp" placeholder="you@example.com" readonly></div>'
+        + '<div class="fg"><label class="fl">Password</label><input type="password" class="inp" placeholder="Your password" readonly></div>'
+        + '<button class="btn btn-p btn-b">Sign In</button>'
+        + '</div></div>';
+}
+
+function alertsHTML() {
+    var c = CAPSULES[0];
+    return navHTML(true)
+        + '<div class="ct">'
+        + '<div class="ph"><h1>Alerts &amp; Feedback</h1><p class="ph-sub">How notifications appear</p></div>'
+        + '<div class="al al-s">Capsule captured successfully — your knowledge has been saved.</div>'
+        + '<div class="al al-e">Failed to process the URL. Please check the link and try again.</div>'
+        + '<div style="margin-top:1.5rem"><div class="al al-s">Knowledge pack &ldquo;Karpathy AI&rdquo; subscribed — 24 capsules added.</div></div>'
+        + '<div><div class="al al-e">Session expired. Please sign in again.</div></div>'
+        + '<div style="margin-top:3rem"><div class="ph"><h1>Single Card</h1><p class="ph-sub">Component up close</p></div>'
+        + '<div style="max-width:400px">' + cardHTML(c) + '</div></div>'
+        + '</div>';
+}
+
+function detailHTML() {
+    var c = CAPSULES[0];
+    var tags = '';
+    c.tags.forEach(function(t){ tags += '<span class="tc">' + esc(t) + '</span>'; });
+    return navHTML(true)
+        + '<div class="ct" style="max-width:800px">'
+        + '<div style="margin-bottom:1rem"><a style="font-size:0.875rem;color:' + colors.muted + '">&#8592; Back to Sieve</a></div>'
+        + '<div style="display:flex;gap:0.5rem;margin-bottom:0.75rem"><span class="bg">' + esc(c.cat) + '</span>'
+        + '<span style="font-size:0.8125rem;color:' + colors.muted + ';padding:0.15rem 0.5rem;background:' + colors.subtle + ';border-radius:4px">' + esc(c.diff) + '</span></div>'
+        + '<div class="cp-t">' + esc(c.title) + '</div>'
+        + '<div class="tl" style="margin:1rem 0">' + tags + '</div>'
+        + '<div style="margin-top:2rem"><div class="sh">Executive Summary</div><div class="cp-c">' + esc(c.sum) + '</div></div>'
+        + '<div style="margin-top:2rem"><div class="sh">Core Insight</div><div class="cp-c">General methods that leverage computation are more effective long-term than approaches that try to encode human knowledge directly.</div></div>'
+        + '<div class="cp-f"><span>' + esc(c.domain) + '</span><span>2026-02-28</span><span>manual capture</span></div>'
+        + '</div>';
+}
+
+function renderPreview() {
+    var wrap = document.getElementById('preview-wrap');
+    var content = '';
+    if (state.view === 'sieve') content = sieveHTML();
+    else if (state.view === 'login') content = loginHTML();
+    else if (state.view === 'alerts') content = alertsHTML();
+    else if (state.view === 'detail') content = detailHTML();
+
+    var frame = document.createElement('div');
+    frame.className = 'ns';
+    frame.style.minHeight = '100%';
+
+    var styleEl = document.createElement('style');
+    styleEl.textContent = previewStyle(colors);
+    frame.appendChild(styleEl);
+
+    var inner = document.createElement('div');
+    inner.innerHTML = content;
+    while (inner.firstChild) frame.appendChild(inner.firstChild);
+
+    wrap.replaceChildren(frame);
+}
+
+function buildSidebar() {
+    var sb = document.getElementById('sidebar');
+    sb.replaceChildren();
+
+    // Presets
+    var pTitle = document.createElement('div');
+    pTitle.className = 'sg-title';
+    pTitle.textContent = 'Palette';
+    var pGroup = document.createElement('div');
+    pGroup.className = 'sg-group';
+
+    Object.keys(PALETTES).forEach(function(key) {
+        var p = PALETTES[key];
+        var btn = document.createElement('button');
+        btn.className = 'sg-preset' + (state.palette === key ? ' active' : '');
+        btn.dataset.palette = key;
+
+        var swatches = document.createElement('div');
+        swatches.className = 'sg-swatches';
+        [p.bg, p.card, p.accent].forEach(function(color) {
+            var sw = document.createElement('div');
+            sw.className = 'sg-swatch';
+            sw.style.background = color;
+            swatches.appendChild(sw);
+        });
+        btn.appendChild(swatches);
+
+        var info = document.createElement('div');
+        var name = document.createElement('div');
+        name.className = 'sg-preset-name';
+        name.textContent = p.name;
+        var desc = document.createElement('div');
+        desc.className = 'sg-preset-desc';
+        desc.textContent = p.desc;
+        info.appendChild(name);
+        info.appendChild(desc);
+        btn.appendChild(info);
+
+        btn.addEventListener('click', function() {
+            state.palette = key;
+            colors = { ...PALETTES[key] };
+            updateAll();
+        });
+
+        pGroup.appendChild(btn);
+    });
+
+    var pSection = document.createElement('div');
+    pSection.appendChild(pTitle);
+    pSection.appendChild(pGroup);
+    sb.appendChild(pSection);
+
+    // Fine-tune
+    var colorRows = [
+        ['bg','Background'],['nav','Navigation'],['card','Card surface'],['border','Borders'],
+        ['subtle','Subtle surface'],['text','Text'],['muted','Muted text'],['accent','Accent'],
+        ['successText','Success color'],['errorText','Error color'],
+    ];
+
+    var fTitle = document.createElement('div');
+    fTitle.className = 'sg-title';
+    fTitle.textContent = 'Fine-tune';
+    var fGroup = document.createElement('div');
+    fGroup.className = 'sg-group';
+
+    colorRows.forEach(function(pair) {
+        var key = pair[0], label = pair[1];
+        var row = document.createElement('div');
+        row.className = 'sg-color-row';
+
+        var lbl = document.createElement('span');
+        lbl.className = 'sg-color-label';
+        lbl.textContent = label;
+        row.appendChild(lbl);
+
+        var inp = document.createElement('input');
+        inp.type = 'color';
+        inp.className = 'sg-color-input';
+        inp.value = colors[key] || '#888888';
+        row.appendChild(inp);
+
+        var hex = document.createElement('span');
+        hex.className = 'sg-color-hex';
+        hex.textContent = colors[key] || '#888888';
+        row.appendChild(hex);
+
+        inp.addEventListener('input', function() {
+            colors[key] = inp.value;
+            hex.textContent = inp.value;
+            state.palette = 'custom';
+            renderPreview();
+            updatePrompt();
+            // Update preset active states
+            sb.querySelectorAll('.sg-preset').forEach(function(b){ b.classList.remove('active'); });
+        });
+
+        fGroup.appendChild(row);
+    });
+
+    var fSection = document.createElement('div');
+    fSection.appendChild(fTitle);
+    fSection.appendChild(fGroup);
+    sb.appendChild(fSection);
+}
+
+function buildViewToggle() {
+    var vt = document.getElementById('view-toggle');
+    vt.replaceChildren();
+    var views = [['sieve','Sieve (cards)'],['login','Login'],['alerts','Alerts'],['detail','Capsule Detail']];
+    views.forEach(function(pair) {
+        var btn = document.createElement('button');
+        btn.className = 'sg-view-btn' + (state.view === pair[0] ? ' active' : '');
+        btn.textContent = pair[1];
+        btn.addEventListener('click', function() {
+            state.view = pair[0];
+            updateAll();
+        });
+        vt.appendChild(btn);
+    });
+}
+
+function updatePrompt() {
+    var parts = [];
+    var d = PALETTES.current;
+
+    if (colors.bg !== d.bg) parts.push('background: ' + colors.bg);
+    if (colors.nav !== d.nav) parts.push('navigation: ' + colors.nav);
+    if (colors.card !== d.card) parts.push('cards: ' + colors.card);
+    if (colors.border !== d.border) parts.push('borders: ' + colors.border);
+    if (colors.subtle !== d.subtle) parts.push('subtle surfaces: ' + colors.subtle);
+    if (colors.text !== d.text) parts.push('text: ' + colors.text);
+    if (colors.muted !== d.muted) parts.push('muted text: ' + colors.muted);
+    if (colors.accent !== d.accent) parts.push('accent: ' + colors.accent);
+    if (colors.successText !== d.successText) parts.push('success color: ' + colors.successText);
+    if (colors.errorText !== d.errorText) parts.push('error color: ' + colors.errorText);
+    if (colors.hoverBorder !== d.hoverBorder) parts.push('hover borders: ' + colors.hoverBorder);
+    if (colors.badgeBg !== d.badgeBg) parts.push('badge background: ' + colors.badgeBg);
+    if (colors.badgeText !== d.badgeText) parts.push('badge text: ' + colors.badgeText);
+    if (colors.tagBg !== d.tagBg) parts.push('tag background: ' + colors.tagBg);
+    if (colors.tagText !== d.tagText) parts.push('tag text: ' + colors.tagText);
+
+    var el = document.getElementById('prompt-output');
+    if (parts.length === 0) {
+        el.textContent = 'Using current palette \u2014 no changes to apply.';
+    } else {
+        var pName = state.palette !== 'custom' && PALETTES[state.palette] ? ' (based on "' + PALETTES[state.palette].name + '" preset)' : '';
+        el.textContent = 'Update the Neural Sieve v3 dashboard color scheme' + pName + '. Change these CSS colors in style.css:\n' + parts.join('\n');
+    }
+}
+
+function updateAll() {
+    buildSidebar();
+    buildViewToggle();
+    renderPreview();
+    updatePrompt();
+}
+
+document.getElementById('copy-btn').addEventListener('click', function() {
+    var text = document.getElementById('prompt-output').textContent;
+    navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+    });
+});
+
+updateAll();
+</script>
+</body>
+</html>

@@ -52,9 +52,10 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(String(200), nullable=True)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    oauth_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
     api_key: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), unique=True, default=uuid.uuid4
     )

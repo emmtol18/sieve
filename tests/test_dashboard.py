@@ -46,15 +46,15 @@ def test_manifest_json_valid():
     assert data["name"] == "Neural Sieve"
     assert data["short_name"] == "Sieve"
     assert data["theme_color"] == "#6366f1"
-    assert data["background_color"] == "#0a0a0a"
+    assert data["background_color"] == "#f8f7f4"
 
 
-def test_style_css_has_dark_theme():
+def test_style_css_has_theme():
     css = Path("src/sieve/dashboard/static/style.css").read_text()
-    assert "#0a0a0a" in css  # Background
-    assert "#141414" in css  # Card background
+    assert "#f8f7f4" in css  # Background
+    assert "#ffffff" in css  # Card background
     assert "#6366f1" in css  # Accent
-    assert "#e5e5e5" in css  # Text color
+    assert "#1a1816" in css  # Text color
 
 
 def test_base_template_has_htmx():
@@ -92,4 +92,4 @@ def test_protected_routes_have_auth_check():
 
     for fn in [sieve_page, capture_page, discover_page, compile_page, capsule_detail]:
         source = inspect.getsource(fn)
-        assert "_protected" in source, f"{fn.__name__} missing auth check"
+        assert "_protected" in source or "_is_authenticated" in source, f"{fn.__name__} missing auth check"

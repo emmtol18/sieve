@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from sieve.api.auth.google import router as google_auth_router
 from sieve.api.auth.routes import router as auth_router
 from sieve.api.capsules.routes import router as capsules_router
 from sieve.api.capture.routes import router as capture_router
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(auth_router)
+    app.include_router(google_auth_router)
     app.include_router(capsules_router)
     app.include_router(capture_router)
     app.include_router(htmx_router)

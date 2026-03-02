@@ -135,7 +135,7 @@ def test_base_metadata_has_all_tables():
 def test_user_table_columns():
     table = Base.metadata.tables["users"]
     column_names = {c.name for c in table.columns}
-    expected = {"id", "email", "password_hash", "display_name", "is_admin", "api_key", "created_at"}
+    expected = {"id", "email", "password_hash", "display_name", "is_admin", "api_key", "created_at", "oauth_provider"}
     assert expected == column_names
 
 

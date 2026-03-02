@@ -3,50 +3,64 @@
 {% block content %}
 <section class="page-header">
     <h1>Compile Skills</h1>
-    <p class="page-subtitle">Transform your capsules into actionable skill documents</p>
+    <p class="page-subtitle">Transform your capsules into Claude Code skill files</p>
 </section>
 
 <div class="compile-options">
     <div class="card compile-card">
         <div class="compile-icon">&#9670;</div>
-        <h3 class="card-title">Personal Capsules</h3>
-        <p class="card-summary">Compile skills from your own captured knowledge and insights.</p>
+        <h3 class="card-title">Per Capsule</h3>
+        <p class="card-summary">One skill per capsule — the most granular option. Each capsule becomes its own focused skill.</p>
         <button
             class="btn btn-primary btn-block"
-            hx-post="/api/compile/"
-            hx-vals='{"scope": "personal"}'
+            hx-post="/htmx/compile/"
+            hx-vals='{"by": "capsule"}'
             hx-target="#compile-preview"
             hx-swap="innerHTML"
             hx-indicator="#compile-spinner"
-        >Compile Personal</button>
+        >Compile Per Capsule</button>
     </div>
 
     <div class="card compile-card">
         <div class="compile-icon">&#9733;</div>
-        <h3 class="card-title">Subscribed Packs</h3>
-        <p class="card-summary">Compile skills from your subscribed leader packs.</p>
+        <h3 class="card-title">By Category</h3>
+        <p class="card-summary">Group capsules by topic category. One skill per category (Technology, Productivity, etc.).</p>
         <button
             class="btn btn-primary btn-block"
-            hx-post="/api/compile/"
-            hx-vals='{"scope": "packs"}'
+            hx-post="/htmx/compile/"
+            hx-vals='{"by": "category"}'
             hx-target="#compile-preview"
             hx-swap="innerHTML"
             hx-indicator="#compile-spinner"
-        >Compile Packs</button>
+        >Compile By Category</button>
     </div>
 
     <div class="card compile-card">
         <div class="compile-icon">&#10022;</div>
-        <h3 class="card-title">Everything</h3>
-        <p class="card-summary">Compile skills from all available capsules in your sieve.</p>
+        <h3 class="card-title">By Author</h3>
+        <p class="card-summary">Group capsules by author or leader pack. Distill all knowledge from one source into a single skill.</p>
         <button
             class="btn btn-primary btn-block"
-            hx-post="/api/compile/"
-            hx-vals='{"scope": "all"}'
+            hx-post="/htmx/compile/"
+            hx-vals='{"by": "author"}'
             hx-target="#compile-preview"
             hx-swap="innerHTML"
             hx-indicator="#compile-spinner"
-        >Compile All</button>
+        >Compile By Author</button>
+    </div>
+
+    <div class="card compile-card">
+        <div class="compile-icon">&#9881;</div>
+        <h3 class="card-title">By Pack</h3>
+        <p class="card-summary">Group capsules by leader pack. One skill per subscribed pack.</p>
+        <button
+            class="btn btn-primary btn-block"
+            hx-post="/htmx/compile/"
+            hx-vals='{"by": "pack"}'
+            hx-target="#compile-preview"
+            hx-swap="innerHTML"
+            hx-indicator="#compile-spinner"
+        >Compile By Pack</button>
     </div>
 </div>
 

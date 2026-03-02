@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Sieve v3 — Frontend Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ======== Playground Shell ======== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #111;
+    color: #ccc;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+.pg-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    background: #181818;
+    border-bottom: 1px solid #2a2a2a;
+    flex-shrink: 0;
+}
+.pg-header h1 { font-size: 0.875rem; font-weight: 600; color: #e5e5e5; letter-spacing: -0.01em; }
+.pg-header span { font-size: 0.75rem; color: #666; }
+.pg-body { display: flex; flex: 1; overflow: hidden; }
+.pg-sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: #161616;
+    border-right: 1px solid #2a2a2a;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+.pg-preview {
+    flex: 1;
+    overflow: auto;
+    background: #131316;
+}
+.pg-group-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6366f1;
+    margin-bottom: 0.5rem;
+}
+.pg-group { display: flex; flex-direction: column; gap: 0.375rem; }
+.pg-btn {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-family: inherit;
+    background: #242430;
+    color: #aaa;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.pg-btn:hover { background: #2c2c35; color: #e5e5e5; }
+.pg-btn.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+.pg-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+}
+.pg-toggle-label { font-size: 0.8125rem; color: #999; }
+.pg-toggle {
+    width: 36px; height: 20px;
+    background: #3a3a45;
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: none;
+    flex-shrink: 0;
+}
+.pg-toggle.on { background: #6366f1; }
+.pg-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.15s;
+}
+.pg-toggle.on::after { transform: translateX(16px); }
+
+/* ======== Neural Sieve Theme (warm linen light) ======== */
+.ns-root {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f8f7f4;
+    color: #1a1816;
+    line-height: 1.6;
+    min-height: 100%;
+    -webkit-font-smoothing: antialiased;
+}
+.ns-root a { color: #6366f1; text-decoration: none; transition: color 0.15s ease; }
+.ns-root a:hover { color: #4f52d9; }
+.ns-root .hidden { display: none !important; }
+
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; height: 56px; background: #ffffff; border-bottom: 1px solid #e5e2dc; position: sticky; top: 0; z-index: 100; }
+.nav-brand { font-size: 1.125rem; font-weight: 700; color: #1a1816; letter-spacing: -0.02em; cursor: pointer; }
+.nav-brand:hover { color: #6366f1; }
+.nav-links { display: flex; gap: 0.25rem; align-items: center; }
+.nav-links a { color: #7a756d; font-size: 0.875rem; font-weight: 500; padding: 0.5rem 0.75rem; border-radius: 6px; transition: color 0.15s ease, background 0.15s ease; cursor: pointer; }
+.nav-links a:hover { color: #1a1816; background: #f2f1ed; }
+.nav-links .ns-logout { background: #f2f1ed; color: #1a1816; border: 1px solid #d5d1ca; padding: 0.375rem 0.875rem; font-size: 0.8125rem; font-weight: 600; border-radius: 8px; cursor: pointer; font-family: inherit; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem 4rem; animation: fadeIn 0.3s ease-out; }
+
+.page-header { margin-bottom: 2rem; }
+.page-header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em; color: #111110; }
+.page-subtitle { color: #7a756d; font-size: 0.9375rem; margin-top: 0.25rem; }
+
+.toolbar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.search-box { flex: 1; min-width: 200px; }
+.filter-group { display: flex; gap: 0.5rem; }
+
+.input { width: 100%; padding: 0.625rem 0.875rem; font-size: 0.9375rem; color: #1a1816; background: #ffffff; border: 1px solid #e5e2dc; border-radius: 8px; outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; font-family: inherit; }
+.input::placeholder { color: #b5b0a8; }
+.input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12); }
+.select-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a756d' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2.25rem; min-width: 150px; }
+.form-group { margin-bottom: 1.25rem; }
+.form-label { display: block; font-size: 0.8125rem; font-weight: 600; color: #6a655d; margin-bottom: 0.375rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 600; font-family: inherit; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease; white-space: nowrap; }
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: #6366f1; color: #fff; }
+.btn-primary:hover { background: #4f52d9; box-shadow: 0 2px 12px rgba(99, 102, 241, 0.25); }
+.btn-block { width: 100%; }
+
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+.card { background: #ffffff; border: 1px solid #e5e2dc; border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: border-color 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s cubic-bezier(0.4,0,0.2,1), transform 0.25s cubic-bezier(0.4,0,0.2,1); }
+.card:hover { border-color: #d5d1ca; box-shadow: 0 8px 30px rgba(0,0,0,0.08); transform: translateY(-2px); }
+.card.no-hover:hover { border-color: #e5e2dc; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transform: none; }
+.capsule-card { display: flex; flex-direction: column; gap: 0.625rem; color: #1a1816; cursor: pointer; }
+.card-header { display: flex; align-items: center; justify-content: space-between; }
+.card-title { font-size: 1.0625rem; font-weight: 600; line-height: 1.35; color: #111110; letter-spacing: -0.01em; }
+.card-summary { font-size: 0.875rem; color: #6a655d; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.card-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.75rem; color: #9a958d; margin-top: auto; padding-top: 0.5rem; }
+.meta-sep::before { content: "\00b7"; margin-right: 0.5rem; }
+
+.badge { display: inline-block; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.2rem 0.5rem; border-radius: 4px; background: #eeedf8; color: #6366f1; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.tag-chip { display: inline-block; font-size: 0.75rem; font-weight: 500; padding: 0.2rem 0.6rem; border-radius: 100px; background: #eeedf8; color: #6366f1; transition: background 0.15s ease; }
+.pin-indicator { color: #d4880a; font-weight: 600; }
+
+.search-results-count { font-size: 0.8125rem; color: #7a756d; margin-bottom: 0.75rem; animation: fadeIn 0.2s ease-out; grid-column: 1 / -1; }
+.search-results-count strong { color: #1a1816; }
+
+/* Auth */
+.auth-container { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 56px - 4rem); }
+.auth-card { width: 100%; max-width: 400px; background: #ffffff; border: 1px solid #e5e2dc; border-radius: 16px; padding: 2.5rem 2rem; }
+.auth-title { font-size: 1.5rem; font-weight: 700; text-align: center; color: #111110; letter-spacing: -0.02em; }
+.auth-subtitle { text-align: center; color: #7a756d; font-size: 0.9375rem; margin-top: 0.25rem; margin-bottom: 1.5rem; }
+.auth-tabs { display: flex; border: 1px solid #e5e2dc; border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem; }
+.auth-tab { flex: 1; padding: 0.5rem; font-size: 0.875rem; font-weight: 600; font-family: inherit; background: transparent; color: #7a756d; border: none; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
+.auth-tab:hover { color: #1a1816; }
+.auth-tab--active { background: #6366f1; color: #fff; }
+.auth-form { margin-bottom: 1rem; }
+.auth-message { font-size: 0.875rem; text-align: center; margin-top: 1rem; }
+.btn-google { background: #fff; color: #1f1f1f; border: 1px solid #dadce0; font-weight: 500; gap: 0.75rem; transition: background 0.15s ease, box-shadow 0.15s ease; }
+.btn-google:hover { background: #f7f8f8; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.btn-google svg { flex-shrink: 0; }
+.auth-divider { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; color: #b5b0a8; font-size: 0.8125rem; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: #e5e2dc; }
+
+/* Alerts */
+.alert { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500; margin-bottom: 1rem; animation: fadeIn 0.25s ease-out; }
+.alert-success { background: rgba(45,138,94,0.06); border: 1px solid rgba(45,138,94,0.18); color: #2d8a5e; }
+.alert-error { background: rgba(196,80,58,0.06); border: 1px solid rgba(196,80,58,0.18); color: #c4503a; }
+
+/* Skeleton */
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.skeleton-card { background: #ffffff; border: 1px solid #e5e2dc; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.skeleton-line { height: 14px; background: linear-gradient(90deg, #f2f1ed 25%, #e8e5e0 50%, #f2f1ed 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: 4px; }
+.skeleton-line--title { height: 18px; width: 70%; }
+.skeleton-line--badge { height: 20px; width: 80px; border-radius: 4px; }
+.skeleton-line--short { width: 40%; }
+.skeleton-line--full { width: 100%; }
+
+/* Empty state */
+.empty-state { grid-column: 1 / -1; text-align: center; padding: 4rem 2rem; color: #9a958d; }
+.empty-icon { font-size: 3rem; margin-bottom: 1rem; color: #d5d1ca; }
+.empty-state h3 { font-size: 1.25rem; color: #6a655d; margin-bottom: 0.5rem; }
+.empty-state p { font-size: 0.9375rem; color: #9a958d; }
+</style>
+</head>
+<body>
+
+<div class="pg-header">
+    <h1>Neural Sieve v3 — Frontend Preview</h1>
+    <span>Interactive playground</span>
+</div>
+
+<div class="pg-body">
+    <div class="pg-sidebar" id="sidebar"></div>
+    <div class="pg-preview">
+        <div class="ns-root" id="preview-root" style="min-height: 100%;"></div>
+    </div>
+</div>
+
+<script>
+const CAPSULES = [
+    { category: 'Technology', title: 'The Bitter Lesson of AI Research', summary: "Rich Sutton argues that general methods leveraging computation are ultimately the most effective in AI. Methods that leverage human knowledge tend to plateau.", tags: ['AI', 'research', 'computation'], domain: 'AI/ML', difficulty: 'intermediate', date: '2026-02-28', pinned: true },
+    { category: 'Productivity', title: 'Building a Second Brain', summary: "Tiago Forte's method for organizing digital information. Capture, organize, distill, and express knowledge using the PARA framework.", tags: ['PKM', 'PARA', 'notes'], domain: 'Knowledge Management', difficulty: 'beginner', date: '2026-02-27', pinned: false },
+    { category: 'Technology', title: 'Attention Is All You Need', summary: 'The transformer architecture revolutionized NLP by replacing recurrence with self-attention mechanisms, enabling massive parallelization during training.', tags: ['transformers', 'NLP', 'deep-learning'], domain: 'AI/ML', difficulty: 'advanced', date: '2026-02-25', pinned: true },
+    { category: 'Learning', title: 'Spaced Repetition for Deep Understanding', summary: 'Using expanding intervals between reviews to move knowledge from working memory to long-term memory. Anki and SuperMemo implement this algorithmically.', tags: ['memory', 'Anki', 'learning'], domain: 'Education', difficulty: 'beginner', date: '2026-02-24', pinned: false },
+    { category: 'Technology', title: 'Why SQLite is Perfect for Edge Computing', summary: "SQLite's serverless architecture makes it ideal for edge deployments. Zero configuration, ACID compliant, and the database is a single file.", tags: ['SQLite', 'databases', 'edge'], domain: 'Software', difficulty: 'intermediate', date: '2026-02-22', pinned: false },
+    { category: 'Business', title: 'The Indie Hacker Playbook', summary: "Levelsio's approach to building profitable solo businesses: ship fast, validate with real users, automate everything, and keep costs near zero.", tags: ['indie', 'startups', 'automation'], domain: 'Business', difficulty: 'beginner', date: '2026-02-20', pinned: false },
+];
+
+const state = { page: 'login', loginTab: 'login', alert: 'none', hover: true, pins: true };
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.textContent; }
+
+function buildSidebar() {
+    const sb = document.getElementById('sidebar');
+    const el = document.createElement('div');
+    el.style.cssText = 'display:flex;flex-direction:column;gap:1.25rem;';
+
+    // Page section
+    const pages = [
+        { id: 'login', label: 'Login' },
+        { id: 'sieve', label: 'My Sieve (skeleton)' },
+        { id: 'sieve-loaded', label: 'Sieve (loaded)' },
+        { id: 'sieve-search', label: 'Sieve (search)' },
+        { id: 'empty', label: 'Empty State' },
+    ];
+    let html = '<div><div class="pg-group-title">Page</div><div class="pg-group">';
+    pages.forEach(p => {
+        html += '<button class="pg-btn' + (state.page === p.id ? ' active' : '') + '" data-action="page" data-value="' + p.id + '">' + esc(p.label) + '</button>';
+    });
+    html += '</div></div>';
+
+    // Login tab
+    html += '<div><div class="pg-group-title">Login Tab</div><div class="pg-group">';
+    html += '<button class="pg-btn' + (state.loginTab === 'login' ? ' active' : '') + '" data-action="tab" data-value="login">Sign In</button>';
+    html += '<button class="pg-btn' + (state.loginTab === 'signup' ? ' active' : '') + '" data-action="tab" data-value="signup">Sign Up</button>';
+    html += '</div></div>';
+
+    // Alerts
+    html += '<div><div class="pg-group-title">Alerts</div><div class="pg-group">';
+    ['none', 'success', 'error'].forEach(a => {
+        html += '<button class="pg-btn' + (state.alert === a ? ' active' : '') + '" data-action="alert" data-value="' + a + '">' + (a.charAt(0).toUpperCase() + a.slice(1)) + '</button>';
+    });
+    html += '</div></div>';
+
+    // Toggles
+    html += '<div><div class="pg-group-title">Toggles</div>';
+    html += '<div class="pg-toggle-row"><span class="pg-toggle-label">Card hover effect</span><button class="pg-toggle' + (state.hover ? ' on' : '') + '" data-action="toggle-hover"></button></div>';
+    html += '<div class="pg-toggle-row"><span class="pg-toggle-label">Pinned stars</span><button class="pg-toggle' + (state.pins ? ' on' : '') + '" data-action="toggle-pins"></button></div>';
+    html += '</div>';
+
+    // Presets
+    html += '<div><div class="pg-group-title">Presets</div><div class="pg-group">';
+    html += '<button class="pg-btn" data-action="preset" data-value="fresh">Fresh install</button>';
+    html += '<button class="pg-btn" data-action="preset" data-value="active">Active user</button>';
+    html += '<button class="pg-btn" data-action="preset" data-value="searching">Searching</button>';
+    html += '</div></div>';
+
+    el.insertAdjacentHTML('beforeend', html);
+    sb.replaceChildren(el);
+
+    sb.addEventListener('click', function(e) {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const value = btn.dataset.value;
+        if (action === 'page') { state.page = value; }
+        else if (action === 'tab') { state.loginTab = value; }
+        else if (action === 'alert') { state.alert = value; }
+        else if (action === 'toggle-hover') { state.hover = !state.hover; }
+        else if (action === 'toggle-pins') { state.pins = !state.pins; }
+        else if (action === 'preset') {
+            if (value === 'fresh') { state.page = 'login'; state.loginTab = 'login'; state.alert = 'none'; }
+            else if (value === 'active') { state.page = 'sieve-loaded'; state.alert = 'success'; }
+            else if (value === 'searching') { state.page = 'sieve-search'; state.alert = 'none'; }
+        }
+        render();
+    });
+}
+
+function capsuleCardHTML(c) {
+    const pinHTML = (c.pinned && state.pins) ? '<span class="pin-indicator" title="Pinned">&#9733;</span>' : '';
+    const hoverCls = state.hover ? '' : ' no-hover';
+    let tagsHTML = '';
+    c.tags.forEach(t => { tagsHTML += '<span class="tag-chip">' + esc(t) + '</span>'; });
+    return '<div class="card capsule-card' + hoverCls + '">'
+        + '<div class="card-header">'
+        + (c.category ? '<span class="badge">' + esc(c.category) + '</span>' : '')
+        + pinHTML
+        + '</div>'
+        + '<h3 class="card-title">' + esc(c.title) + '</h3>'
+        + '<p class="card-summary">' + esc(c.summary) + '</p>'
+        + '<div class="tag-list">' + tagsHTML + '</div>'
+        + '<div class="card-meta">'
+        + (c.domain ? '<span>' + esc(c.domain) + '</span>' : '')
+        + (c.difficulty ? '<span class="meta-sep">' + esc(c.difficulty) + '</span>' : '')
+        + (c.date ? '<span class="meta-sep">' + esc(c.date) + '</span>' : '')
+        + '</div></div>';
+}
+
+function skeletonHTML() {
+    let h = '';
+    for (let i = 0; i < 6; i++) {
+        h += '<div class="skeleton-card">'
+            + '<div class="skeleton-line skeleton-line--badge"></div>'
+            + '<div class="skeleton-line skeleton-line--title"></div>'
+            + '<div class="skeleton-line skeleton-line--full"></div>'
+            + '<div class="skeleton-line skeleton-line--full"></div>'
+            + '<div class="skeleton-line skeleton-line--short"></div>'
+            + '</div>';
+    }
+    return h;
+}
+
+function alertHTML() {
+    if (state.alert === 'success') return '<div class="alert alert-success">Capsule captured successfully! Your knowledge has been saved.</div>';
+    if (state.alert === 'error') return '<div class="alert alert-error">Failed to authenticate with Google. Please try again.</div>';
+    return '';
+}
+
+function navHTML() {
+    const showLinks = state.page !== 'login';
+    return '<nav class="nav"><span class="nav-brand">Neural Sieve</span>'
+        + (showLinks ? '<div class="nav-links"><a>My Sieve</a><a>Capture</a><a>Discover</a><a>Compile</a><button class="ns-logout">Logout</button></div>' : '')
+        + '</nav>';
+}
+
+function loginPageHTML() {
+    const loginActive = state.loginTab === 'login';
+    return '<main class="container"><div class="auth-container" style="min-height:calc(100vh - 200px);">'
+        + '<div class="auth-card">'
+        + '<h1 class="auth-title">Neural Sieve</h1>'
+        + '<p class="auth-subtitle">Sign in to your knowledge base</p>'
+        + '<button class="btn btn-google btn-block" onclick="event.preventDefault()">'
+        + '<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 010-9.18l-7.98-6.19a24.04 24.04 0 000 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
+        + 'Continue with Google</button>'
+        + '<div class="auth-divider"><span>or</span></div>'
+        + '<div class="auth-tabs">'
+        + '<button class="auth-tab' + (loginActive ? ' auth-tab--active' : '') + '">Sign In</button>'
+        + '<button class="auth-tab' + (!loginActive ? ' auth-tab--active' : '') + '">Sign Up</button>'
+        + '</div>'
+        + (loginActive
+            ? '<form class="auth-form" onsubmit="event.preventDefault()">'
+              + '<div class="form-group"><label class="form-label">Email</label><input type="email" class="input" placeholder="you@example.com"></div>'
+              + '<div class="form-group"><label class="form-label">Password</label><input type="password" class="input" placeholder="Your password"></div>'
+              + '<button type="submit" class="btn btn-primary btn-block">Sign In</button></form>'
+            : '<form class="auth-form" onsubmit="event.preventDefault()">'
+              + '<div class="form-group"><label class="form-label">Display Name</label><input type="text" class="input" placeholder="Your name"></div>'
+              + '<div class="form-group"><label class="form-label">Email</label><input type="email" class="input" placeholder="you@example.com"></div>'
+              + '<div class="form-group"><label class="form-label">Password</label><input type="password" class="input" placeholder="Choose a password"></div>'
+              + '<button type="submit" class="btn btn-primary btn-block">Create Account</button></form>')
+        + '<div class="auth-message"></div>'
+        + '</div></div></main>';
+}
+
+function sieveToolbarHTML(searchValue) {
+    return '<div class="toolbar"><div class="search-box">'
+        + '<input type="search" placeholder="Search capsules..." class="input"' + (searchValue ? ' value="' + esc(searchValue) + '"' : '') + '>'
+        + '</div><div class="filter-group">'
+        + '<select class="input select-input"><option>All Categories</option><option>Technology</option><option>Productivity</option><option>Learning</option></select>'
+        + '<select class="input select-input"><option>All Domains</option><option>Software</option><option>AI/ML</option><option>Business</option></select>'
+        + '</div></div>';
+}
+
+function render() {
+    buildSidebar();
+    const root = document.getElementById('preview-root');
+    let html = navHTML();
+
+    // Alert
+    const alertStr = alertHTML();
+    if (alertStr) {
+        html += '<div style="max-width:1200px;margin:0 auto;padding:1rem 1.5rem 0;">' + alertStr + '</div>';
+    }
+
+    if (state.page === 'login') {
+        html += loginPageHTML();
+    } else if (state.page === 'sieve') {
+        html += '<main class="container">'
+            + '<section class="page-header"><h1>My Sieve</h1><p class="page-subtitle">Your curated knowledge capsules</p></section>'
+            + sieveToolbarHTML()
+            + '<div class="card-grid">' + skeletonHTML() + '</div></main>';
+    } else if (state.page === 'sieve-loaded') {
+        let cards = '';
+        CAPSULES.forEach(c => { cards += capsuleCardHTML(c); });
+        html += '<main class="container">'
+            + '<section class="page-header"><h1>My Sieve</h1><p class="page-subtitle">Your curated knowledge capsules</p></section>'
+            + sieveToolbarHTML()
+            + '<div class="card-grid">' + cards + '</div></main>';
+    } else if (state.page === 'sieve-search') {
+        const results = [CAPSULES[0], CAPSULES[2]];
+        let cards = '<div class="search-results-count"><strong>' + results.length + '</strong> results for &ldquo;neural networks&rdquo;</div>';
+        results.forEach(c => { cards += capsuleCardHTML(c); });
+        html += '<main class="container">'
+            + '<section class="page-header"><h1>My Sieve</h1><p class="page-subtitle">Your curated knowledge capsules</p></section>'
+            + sieveToolbarHTML('neural networks')
+            + '<div class="card-grid">' + cards + '</div></main>';
+    } else if (state.page === 'empty') {
+        html += '<main class="container">'
+            + '<section class="page-header"><h1>My Sieve</h1><p class="page-subtitle">Your curated knowledge capsules</p></section>'
+            + sieveToolbarHTML()
+            + '<div class="card-grid"><div class="empty-state"><div class="empty-icon">&#9670;</div>'
+            + '<h3>No capsules yet</h3>'
+            + '<p>Start by <a href="#">capturing some knowledge</a> or <a href="#">subscribing to a leader pack</a>.</p>'
+            + '</div></div></main>';
+    }
+
+    root.insertAdjacentHTML('afterbegin', '');
+    // Safe: all content is hardcoded, no user input
+    const temp = document.createElement('div');
+    temp.style.cssText = 'min-height:100%;';
+    temp.className = 'ns-root';
+    temp.insertAdjacentHTML('beforeend', html);
+    root.replaceWith(temp);
+    temp.id = 'preview-root';
+}
+
+buildSidebar();
+render();
+</script>
+</body>
+</html>

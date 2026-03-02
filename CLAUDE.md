@@ -13,6 +13,10 @@
 - `uv run <command>` — run anything
 - `uv add <package>` — add a dependency
 
+## LLM Backend
+**BlackFuel API is the default LLM backend.** Base URL: `https://api.fuel1.ai/v1`, model: `openai/gpt-oss-120b:eu`.
+Uses the `openai` Python SDK with custom base_url. API key env var: `SIEVE_OPENAI_API_KEY`.
+
 ## Conventions
 - Python 3.12+, async/await throughout
 - SQLAlchemy async ORM, Alembic migrations

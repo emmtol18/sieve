@@ -45,10 +45,10 @@ COPY src/ src/
 COPY alembic.ini ./
 
 # Expose port
-EXPOSE 8420
+EXPOSE 8421
 
 # Run migrations then start server
-CMD ["sh", "-c", "uv run alembic upgrade head && uv run sieve serve --port 8420"]
+CMD ["sh", "-c", "uv run alembic upgrade head && uv run sieve serve --port 8421"]
 ```
 
 ## Step 3: Create fly.toml
@@ -62,7 +62,7 @@ primary_region = "iad"
 [build]
 
 [http_service]
-  internal_port = 8420
+  internal_port = 8421
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
@@ -70,7 +70,7 @@ primary_region = "iad"
 
 [env]
   SIEVE_HOST = "0.0.0.0"
-  SIEVE_PORT = "8420"
+  SIEVE_PORT = "8421"
 ```
 
 ## Step 4: Launch the App
@@ -96,8 +96,18 @@ This creates the app and a PostgreSQL database. Fly automatically sets the `DATA
 # Generate a strong JWT secret
 fly secrets set SIEVE_JWT_SECRET=$(openssl rand -hex 32)
 
-# Set your OpenAI API key
+# Set your OpenAI API key (or Fuel1 key if using Fuel1)
 fly secrets set SIEVE_OPENAI_API_KEY=sk-your-key-here
+
+# Set custom LLM API base (default: https://api.openai.com/v1)
+# For Fuel1 deployment:
+fly secrets set SIEVE_OPENAI_API_BASE=https://api.fuel1.ai/v1
+
+# Google OAuth (optional — sign-in with Google)
+# Create credentials at https://console.cloud.google.com/apis/credentials
+fly secrets set SIEVE_GOOGLE_CLIENT_ID=your-google-client-id
+fly secrets set SIEVE_GOOGLE_CLIENT_SECRET=your-google-client-secret
+fly secrets set SIEVE_GOOGLE_REDIRECT_URI=https://neural-sieve.fly.dev/auth/google/callback
 
 # The DATABASE_URL is set automatically by Fly PostgreSQL
 # But our app expects SIEVE_DATABASE_URL, so set it:

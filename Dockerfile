@@ -10,6 +10,6 @@ RUN uv sync --frozen --no-dev
 COPY src/ src/
 COPY alembic.ini ./
 
-EXPOSE 8420
+EXPOSE 8421
 
-CMD ["sh", "-c", "uv run alembic upgrade head && uv run sieve serve --port 8420"]
+CMD ["sh", "-c", "uv run alembic upgrade head && uv run sieve serve --port 8421"]

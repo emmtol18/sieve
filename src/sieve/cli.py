@@ -14,7 +14,7 @@ def version():
 
 
 @cli.command()
-@click.option("--port", default=8420)
+@click.option("--port", default=8421)
 def serve(port):
     """Start the API server."""
     import uvicorn
@@ -25,11 +25,16 @@ def serve(port):
 
 
 @cli.command()
-@click.option("--pack", help="Compile a specific leader pack")
-@click.option("--personal", is_flag=True, help="Compile personal capsules only")
-@click.option("--all", "all_capsules", is_flag=True, help="Compile everything")
+@click.option(
+    "--by",
+    "group_by",
+    type=click.Choice(["capsule", "category", "author", "pack"]),
+    default="capsule",
+    help="Grouping strategy: one skill per capsule, category, author, or pack.",
+)
+@click.option("--all", "all_capsules", is_flag=True, help="Include all capsules, not just skill-eligible")
 @click.option("--output", default=".claude/skills", help="Output directory")
-def compile(pack, personal, all_capsules, output):
+def compile(group_by, all_capsules, output):
     """Compile capsules into Claude Code skill files."""
     import asyncio
     from pathlib import Path
@@ -37,12 +42,20 @@ def compile(pack, personal, all_capsules, output):
     from sieve.compiler.compiler import SkillCompiler
     from sieve.config import settings
 
+    if not settings.openai_api_key:
+        raise click.ClickException(
+            "SIEVE_OPENAI_API_KEY is not set. Set it in .env or as an environment variable."
+        )
+    if not settings.sieve_api_key:
+        raise click.ClickException(
+            "SIEVE_SIEVE_API_KEY is not set. Set it in .env or as an environment variable."
+        )
+
     compiler = SkillCompiler(api_url=settings.sieve_api_url, api_key=settings.sieve_api_key)
     paths = asyncio.run(
         compiler.compile_to_skills(
             output_dir=Path(output),
-            pack=pack,
-            personal=personal,
+            by=group_by,
             all_capsules=all_capsules,
         )
     )

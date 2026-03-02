@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class LLMClient:
     def __init__(self) -> None:
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key)
+        self.client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=settings.openai_api_base)
         self.model = settings.openai_model
 
     async def extract_capsule(self, content: str) -> dict:

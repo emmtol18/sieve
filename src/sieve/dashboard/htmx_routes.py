@@ -68,7 +68,7 @@ async def htmx_login(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(password, user.password_hash):
+    if not user or not user.password_hash or not verify_password(password, user.password_hash):
         return _render_partial("partials/auth_message.html", error="Invalid email or password")
 
     token = create_access_token(str(user.id))
@@ -156,7 +156,23 @@ async def htmx_list_capsules(
     capsules = result.scalars().all()
 
     capsule_dicts = [capsule_to_response(c).model_dump() for c in capsules]
-    return _render_partial("partials/capsule_grid.html", capsules=capsule_dicts)
+
+    is_filtered = bool(search or category or domain)
+
+    grouped_capsules: dict[str, list] | None = None
+    if not is_filtered:
+        grouped_capsules = {}
+        for c in capsule_dicts:
+            cat = c.get("category") or "Uncategorized"
+            grouped_capsules.setdefault(cat, []).append(c)
+
+    return _render_partial(
+        "partials/capsule_grid.html",
+        capsules=capsule_dicts,
+        grouped_capsules=grouped_capsules,
+        count=len(capsule_dicts),
+        search_term=search or "",
+    )
 
 
 @router.post("/capture/", response_class=HTMLResponse)

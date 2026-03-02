@@ -1,4 +1,16 @@
-{% if capsules %}
+{% if search_term %}
+<div class="search-results-count" style="grid-column: 1 / -1;">
+    <strong>{{ count }}</strong> result{{ 's' if count != 1 else '' }} for &ldquo;{{ search_term }}&rdquo;
+</div>
+{% endif %}
+{% if grouped_capsules %}
+    {% for category, group in grouped_capsules.items() %}
+    <h2 class="category-heading">{{ category }}</h2>
+    {% for capsule in group %}
+    {% include "partials/capsule_card.html" %}
+    {% endfor %}
+    {% endfor %}
+{% elif capsules %}
     {% for capsule in capsules %}
     {% include "partials/capsule_card.html" %}
     {% endfor %}

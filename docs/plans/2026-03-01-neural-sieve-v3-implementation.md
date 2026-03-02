@@ -113,10 +113,10 @@ class Settings(BaseSettings):
 
     # Server
     host: str = "0.0.0.0"
-    port: int = 8420
+    port: int = 8421
 
     # MCP
-    sieve_api_url: str = "http://localhost:8420"
+    sieve_api_url: str = "http://localhost:8421"
     sieve_api_key: str = ""
 
     model_config = {"env_prefix": "SIEVE_", "env_file": ".env"}
@@ -692,7 +692,7 @@ Add to `src/sieve/cli.py`:
 
 ```python
 @cli.command()
-@click.option("--port", default=8420)
+@click.option("--port", default=8421)
 def serve(port):
     """Start the API server."""
     import uvicorn
@@ -1291,8 +1291,8 @@ from sieve.mcp.api_client import SieveAPIClient
 
 
 def test_api_client_init():
-    client = SieveAPIClient(api_url="http://localhost:8420", api_key="test-key")
-    assert client.api_url == "http://localhost:8420"
+    client = SieveAPIClient(api_url="http://localhost:8421", api_key="test-key")
+    assert client.api_url == "http://localhost:8421"
     assert client.api_key == "test-key"
 ```
 
@@ -1370,7 +1370,7 @@ server = Server("neural-sieve")
 
 def get_client() -> SieveAPIClient:
     return SieveAPIClient(
-        api_url=os.environ.get("SIEVE_API_URL", "http://localhost:8420"),
+        api_url=os.environ.get("SIEVE_API_URL", "http://localhost:8421"),
         api_key=os.environ.get("SIEVE_API_KEY", ""),
     )
 
@@ -1546,7 +1546,7 @@ def test_compiler_group_by_author():
         {"author": "karpathy", "title": "B", "tags": ["ml"]},
         {"author": "personal", "title": "C", "tags": ["dev"]},
     ]
-    compiler = SkillCompiler(api_url="http://localhost:8420", api_key="test")
+    compiler = SkillCompiler(api_url="http://localhost:8421", api_key="test")
     groups = compiler.group_capsules(capsules, by="author")
     assert "karpathy" in groups
     assert len(groups["karpathy"]) == 2
@@ -2099,7 +2099,7 @@ async def migrate(api_url: str, api_key: str):
 
 if __name__ == "__main__":
     import sys
-    api_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8420"
+    api_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8421"
     api_key = sys.argv[2] if len(sys.argv) > 2 else ""
     asyncio.run(migrate(api_url, api_key))
 ```

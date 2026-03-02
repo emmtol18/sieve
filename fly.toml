@@ -4,7 +4,7 @@ primary_region = "iad"
 [build]
 
 [http_service]
-  internal_port = 8420
+  internal_port = 8421
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
@@ -12,4 +12,4 @@ primary_region = "iad"
 
 [env]
   SIEVE_HOST = "0.0.0.0"
-  SIEVE_PORT = "8420"
+  SIEVE_PORT = "8421"

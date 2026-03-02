@@ -14,7 +14,7 @@ server = Server("neural-sieve")
 def get_client() -> SieveAPIClient:
     """Create an API client from environment variables."""
     return SieveAPIClient(
-        api_url=os.environ.get("SIEVE_API_URL", "http://localhost:8420"),
+        api_url=os.environ.get("SIEVE_API_URL", "http://localhost:8421"),
         api_key=os.environ.get("SIEVE_API_KEY", ""),
     )
 

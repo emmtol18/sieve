@@ -46,6 +46,9 @@ cp .env.example .env
 #   SIEVE_DATABASE_URL=postgresql+asyncpg://localhost:5432/neural_sieve_v3
 #   SIEVE_JWT_SECRET=<generate-a-strong-secret>
 #   SIEVE_OPENAI_API_KEY=sk-...
+#   SIEVE_OPENAI_API_BASE=https://api.fuel1.ai/v1   # optional, default: OpenAI
+#   SIEVE_GOOGLE_CLIENT_ID=...                       # optional, for Google sign-in
+#   SIEVE_GOOGLE_CLIENT_SECRET=...
 ```
 
 ### Set Up Database
@@ -61,25 +64,37 @@ uv run alembic upgrade head
 # Start the API + dashboard
 uv run sieve serve
 
-# Open http://localhost:8420
+# Open http://localhost:8421
 ```
 
 ### Create Your Account
 
 ```bash
 # Via API
-curl -X POST http://localhost:8420/api/auth/signup \
+curl -X POST http://localhost:8421/api/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email": "you@example.com", "password": "your-password", "display_name": "Your Name"}'
 
 # Save the api_key from the response — you'll need it for MCP + CLI
 ```
 
+## Obsidian Integration
+
+[Obsidian](https://obsidian.md/) is a powerful knowledge management app that stores notes as local Markdown files. Neural Sieve integrates with Obsidian via the **Web Clipper** browser extension to capture knowledge directly into your sieve.
+
+### Setup
+
+1. **Install Obsidian** — download from [obsidian.md](https://obsidian.md/)
+2. **Install Obsidian Web Clipper** — get the browser extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/obsidian-web-clipper/cnjifjpddelmedmihgijeibhnjfabmlf) or [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/obsidian-web-clipper/)
+3. **Configure the Clipper** — point it at your Neural Sieve capture endpoint (`/api/capture/`)
+
+A dedicated Neural Sieve Obsidian plugin is planned for Phase 3, which will provide deeper two-way sync between your vault and your sieve.
+
 ## CLI Commands
 
 ```bash
 uv run sieve version          # Show version
-uv run sieve serve             # Start API server (default port 8420)
+uv run sieve serve             # Start API server (default port 8421)
 uv run sieve mcp               # Start MCP server for Claude Code
 uv run sieve compile           # Compile capsules into Claude skills
 uv run sieve compile --pack karpathy   # Compile one leader pack
@@ -137,6 +152,8 @@ uv run scripts/migrate_v1.py https://your-app.fly.dev your-api-key
 |--------|------|-------------|
 | POST | `/api/auth/signup` | Create account |
 | POST | `/api/auth/login` | Get JWT token |
+| GET | `/auth/google/login` | Google OAuth sign-in |
+| GET | `/auth/google/callback` | Google OAuth callback |
 | GET | `/api/auth/me` | Current user |
 | GET | `/api/capsules/` | List capsules |
 | POST | `/api/capsules/` | Create capsule |

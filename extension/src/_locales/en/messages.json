@@ -18,7 +18,7 @@
 		"message": "Add provider"
 	},
 	"addToObsidian": {
-		"message": "Add to Obsidian"
+		"message": "Capture to Sieve"
 	},
 	"addVaultPlaceholder": {
 		"message": "Press enter to add a vault"
@@ -42,7 +42,7 @@
 		"message": "No API key"
 	},
 	"apiKeysWarning": {
-		"message": "By using an external provider you agree to their terms and privacy policy. Interpreter requests are sent directly to the provider you choose. Obsidian does not gather or store any data about your requests."
+		"message": "By using an external provider you agree to their terms and privacy policy. Interpreter requests are sent directly to the provider you choose. Neural Sieve does not gather or store any data about your requests."
 	},
 	"appendToDaily": {
 		"message": "Add to daily note, at the bottom"
@@ -90,10 +90,10 @@
 		"message": "Choose template file"
 	},
 	"clipBehavior": {
-		"message": "Clip behavior"
+		"message": "Capture behavior"
 	},
 	"clipBehaviorDescription": {
-		"message": "Choose how highlighted content is saved to Obsidian. Defines the $strong_start${{content}}$strong_end$ variable.",
+		"message": "Choose how highlighted content is saved to Sieve. Defines the $strong_start${{content}}$strong_end$ variable.",
 		"placeholders": {
 			"strong_end": {
 				"content": "</strong>"
@@ -104,7 +104,7 @@
 		}
 	},
 	"clipboardError": {
-		"message": "Obsidian is not able to access your clipboard. Try the troubleshooting instructions here: $1",
+		"message": "Sieve Clipper is not able to access your clipboard. Try the troubleshooting instructions here: $1",
 		"placeholders": {
 			"1": {
 				"content": "$1"
@@ -115,10 +115,10 @@
 		"message": "Close"
 	},
 	"commandOpenClipper": {
-		"message": "Open Obsidian Clipper"
+		"message": "Open Sieve Clipper"
 	},
 	"commandQuickClip": {
-		"message": "Quick clip"
+		"message": "Quick capture"
 	},
 	"commandToggleHighlighter": {
 		"message": "Toggle highlighter mode"
@@ -184,13 +184,13 @@
 		"message": "Duplicate"
 	},
 	"earlyAccessDescription": {
-		"message": "Use features that require the latest $link_start$early access version$link_end$ of Obsidian. Currently requires Obsidian 1.7.2 or later.",
+		"message": "Use features that require the latest $link_start$early access version$link_end$ of Neural Sieve.",
 		"placeholders": {
 			"link_end": {
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"https://help.obsidian.md/Obsidian/Early+access+versions\" target=\"_blank\">"
+				"content": "<a href=\"https://neuralsieve.com\" target=\"_blank\">"
 			}
 		}
 	},
@@ -213,7 +213,7 @@
 		"message": "Enable highlighter"
 	},
 	"enableHighlighterDescription": {
-		"message": "Highlight content on web pages that you can save to Obsidian."
+		"message": "Highlight content on web pages that you can save to Sieve."
 	},
 	"enableInterpreter": {
 		"message": "Enable interpreter"
@@ -225,7 +225,7 @@
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"https://help.obsidian.md/web-clipper/interpreter\" target=\"_blank\">"
+				"content": "<a href=\"https://neuralsieve.com/docs/interpreter\" target=\"_blank\">"
 			},
 			"strong_end": {
 				"content": "</strong>"
@@ -260,7 +260,7 @@
 		"message": "Export properties"
 	},
 	"exportPropertiesDescription": {
-		"message": "Save Web Clipper properties to a $strong_start$types.json$strong_end$ file that can be imported into your Obsidian vault, or into Web Clipper on other devices.",
+		"message": "Save Sieve Clipper properties to a $strong_start$types.json$strong_end$ file that can be imported into Sieve Clipper on other devices.",
 		"placeholders": {
 			"strong_end": {
 				"content": "</strong>"
@@ -271,10 +271,10 @@
 		}
 	},
 	"extensionDescription": {
-		"message": "Save content from the web in a private and durable format that you can access offline. The official browser extension for Obsidian."
+		"message": "Capture knowledge to your Neural Sieve. One click, zero fields."
 	},
 	"extensionName": {
-		"message": "Obsidian Web Clipper"
+		"message": "Sieve Clipper"
 	},
 	"failedToCopyText": {
 		"message": "Failed to copy text"
@@ -325,7 +325,7 @@
 		"message": "Feedback"
 	},
 	"feedbackDescription": {
-		"message": "How can we improve Web Clipper? Please visit our help page, where you can report bugs, suggest features, and get help with common issues."
+		"message": "How can we improve Sieve Clipper? Please visit our help page, where you can report bugs, suggest features, and get help with common issues."
 	},
 	"feedbackTitle": {
 		"message": "Thanks for your feedback"
@@ -346,7 +346,7 @@
 		"message": "Help"
 	},
 	"helpDescription": {
-		"message": "Learn how to use Web Clipper and get help troubleshooting."
+		"message": "Learn how to use Sieve Clipper and get help troubleshooting."
 	},
 	"highlightInline": {
 		"message": "Highlight the page content"
@@ -385,7 +385,7 @@
 		"message": "Import properties"
 	},
 	"importPropertiesDescription": {
-		"message": "To import your properties from Obsidian, locate the $strong_1_start$types.json$strong_1_end$ file in the $strong_2_start$.obsidian$strong_2_end$ folder within your vault. Note this folder is hidden by default on most operating systems.",
+		"message": "Import properties from a $strong_1_start$types.json$strong_1_end$ file exported from Sieve Clipper on another device.",
 		"placeholders": {
 			"strong_1_end": {
 				"content": "</strong>"
@@ -443,7 +443,7 @@
 		"message": "Legacy mode"
 	},
 	"legacyModeDescription": {
-		"message": "Uses the URI clipping method compatible with Obsidian 1.6.7 or earlier. Note that the length of the content you can clip is limited by your browser and OS. Some pages may fail without any errors."
+		"message": "Uses the URI capture method. Note that the length of the content you can capture is limited by your browser and OS. Some pages may fail without any errors."
 	},
 	"modelName": {
 		"message": "Display name"
@@ -509,7 +509,7 @@
 				"content": "</a>"
 			},
 			"link_start": {
-				"content": "<a href=\"https://help.obsidian.md/web-clipper/variables\" target=\"_blank\">"
+				"content": "<a href=\"https://neuralsieve.com/docs/variables\" target=\"_blank\">"
 			}
 		}
 	},
@@ -517,13 +517,13 @@
 		"message": "Notes about this page..."
 	},
 	"onlyHttpSupported": {
-		"message": "This page cannot be clipped. Only http and https URLs are supported."
+		"message": "This page cannot be captured. Only http and https URLs are supported."
 	},
 	"open": {
 		"message": "Open"
 	},
 	"openBehaviorDescription": {
-		"message": "Choose how Web Clipper opens by default."
+		"message": "Choose how Sieve Clipper opens by default."
 	},
 	"openBehaviorTitle": {
 		"message": "Open behavior"
@@ -544,7 +544,7 @@
 		"message": "Overwrite note"
 	},
 	"pageCannotBeClipped": {
-		"message": "This page cannot be clipped."
+		"message": "This page cannot be captured."
 	},
 	"pageVariables": {
 		"message": "Page variables"
@@ -652,7 +652,7 @@
 		"message": "Providers"
 	},
 	"rateExtensionDescription": {
-		"message": "Are you enjoying Web Clipper? Help us by giving it a rating."
+		"message": "Are you enjoying Sieve Clipper? Help us by giving it a rating."
 	},
 	"reader": {
 		"message": "Reader"
@@ -745,7 +745,7 @@
 		"message": "To change key assignments, go to $1, click the gear icon, and select \"Manage Extension Shortcuts\"."
 	},
 	"shortcutInstructionsIntro": {
-		"message": "Keyboard shortcuts give you quick access to clipper features."
+		"message": "Keyboard shortcuts give you quick access to Sieve Clipper features."
 	},
 	"shortcutInstructionsSafari": {
 		"message": "Keyboard shortcuts are not customizable on Safari."
@@ -763,10 +763,10 @@
 		"message": "Show page variables"
 	},
 	"silentOpen": {
-		"message": "Save clipped note without opening it"
+		"message": "Save captured note without opening it"
 	},
 	"silentOpenDescription": {
-		"message": "Clipped notes will be saved but will not open as a new tab. Obsidian will still be brought to the foreground."
+		"message": "Captured notes will be saved but will not open as a new tab."
 	},
 	"specificNoteName": {
 		"message": "Specific note name"
@@ -793,7 +793,7 @@
 		"message": "Properties"
 	},
 	"templatePropertiesDescription": {
-		"message": "Properties to add to the top of the clipped note. Use variables to pre-populate data from the page."
+		"message": "Properties to add to the top of the captured note. Use variables to pre-populate data from the page."
 	},
 	"templateTriggers": {
 		"message": "Template triggers"
@@ -837,7 +837,7 @@
 		"message": "Vaults"
 	},
 	"vaultsDescription": {
-		"message": "By default, clipped notes are saved to the currently open vault. You can add vaults here if you want the option to save to different vaults. Vault names must exactly match the name of the Obsidian vault. Press $strong_start$enter$strong_end$ to add a vault.",
+		"message": "By default, captured notes are saved to the currently open vault. You can add vaults here if you want the option to save to different vaults. Press $strong_start$enter$strong_end$ to add a vault.",
 		"placeholders": {
 			"strong_end": {
 				"content": "</strong>"

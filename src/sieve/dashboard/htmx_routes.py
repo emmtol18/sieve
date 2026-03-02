@@ -1,6 +1,6 @@
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_, select
@@ -593,4 +593,44 @@ async def htmx_update_my_sieve(
 
     return HTMLResponse(
         content='<div class="alert alert-success">Settings saved successfully.</div>'
+    )
+
+
+# ---------------------------------------------------------------------------
+# Import routes
+# ---------------------------------------------------------------------------
+
+
+@router.post("/import/vault", response_class=HTMLResponse)
+async def htmx_import_vault(
+    request: Request,
+    file: UploadFile,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """HTMX wrapper around the vault import endpoint — returns HTML."""
+    from sieve.api.import_vault.routes import import_vault
+
+    try:
+        result = await import_vault(file=file, user=user, db=db)
+    except HTTPException as exc:
+        return HTMLResponse(
+            content=f'<div class="alert alert-error">{exc.detail}</div>',
+            status_code=exc.status_code,
+        )
+
+    imported = result["imported"]
+    skipped = result["skipped"]
+    duplicates = result["duplicates"]
+
+    parts = [f"<strong>{imported}</strong> capsule{'s' if imported != 1 else ''} imported"]
+    if skipped:
+        parts.append(f"{skipped} skipped")
+    if duplicates:
+        parts.append(f"{duplicates} duplicate{'s' if duplicates != 1 else ''}")
+
+    summary = ", ".join(parts) + "."
+
+    return HTMLResponse(
+        content=f'<div class="alert alert-success">{summary}</div>'
     )

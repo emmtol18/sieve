@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Import from Obsidian — Neural Sieve{% endblock %}
+{% block content %}
+<section class="page-header">
+    <h1>Import from Obsidian</h1>
+    <p class="page-subtitle">Import your Obsidian vault notes as capsules</p>
+</section>
+
+<div class="import-instructions">
+    <h2>How it works</h2>
+    <ol>
+        <li>Export your Obsidian vault as a <strong>.zip</strong> file</li>
+        <li>Upload the zip below — markdown files will be parsed automatically</li>
+        <li>Each note is analyzed by AI to extract structured knowledge</li>
+        <li>Duplicate titles are skipped, empty or short notes are ignored</li>
+    </ol>
+</div>
+
+<form
+    hx-post="/htmx/import/vault"
+    hx-encoding="multipart/form-data"
+    hx-target="#import-results"
+    hx-swap="innerHTML"
+    hx-indicator="#import-spinner"
+>
+    <div class="drop-zone" id="drop-zone">
+        <p class="drop-zone-icon">&#128194;</p>
+        <p class="drop-zone-text">Drag and drop your Obsidian vault .zip here</p>
+        <p class="drop-zone-or">or</p>
+        <input type="file" name="file" accept=".zip" id="file-input">
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+            <span class="btn-text">Import</span>
+            <span id="import-spinner" class="spinner htmx-indicator"></span>
+        </button>
+    </div>
+</form>
+
+<div id="import-results" class="import-results"></div>
+
+<script>
+(function() {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('click', function(e) {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            var fileName = e.dataTransfer.files[0].name;
+            dropZone.querySelector('.drop-zone-text').textContent = 'Selected: ' + fileName;
+        }
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (fileInput.files.length) {
+            dropZone.querySelector('.drop-zone-text').textContent = 'Selected: ' + fileInput.files[0].name;
+        }
+    });
+})();
+</script>
+{% endblock %}

@@ -64,6 +64,11 @@ async def compile_page(request: Request):
     return _protected(request, "compile.html")
 
 
+@router.get("/import", response_class=HTMLResponse)
+async def import_page(request: Request):
+    return _protected(request, "import.html")
+
+
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return _render(request, "login.html")

@@ -226,3 +226,35 @@ def test_dashboard_routes_include_new_pages():
     paths = [r.path for r in router.routes]
     assert "/settings" in paths
     assert "/sieve/@{username}" in paths
+
+
+# ---------------------------------------------------------------------------
+# Import page tests (Tasks 17-19)
+# ---------------------------------------------------------------------------
+
+
+def test_import_template_exists():
+    import os
+
+    assert os.path.exists("src/sieve/dashboard/templates/import.html")
+
+
+def test_import_template_has_upload_form():
+    html = Path("src/sieve/dashboard/templates/import.html").read_text()
+    assert "hx-post" in html
+    assert "multipart/form-data" in html
+    assert "drop-zone" in html
+    assert 'accept=".zip"' in html
+
+
+def test_import_route_exists():
+    from sieve.dashboard.routes import router
+
+    paths = [r.path for r in router.routes]
+    assert "/import" in paths
+
+
+def test_css_has_drop_zone():
+    css = Path("src/sieve/dashboard/static/style.css").read_text()
+    assert ".drop-zone" in css
+    assert ".dragover" in css

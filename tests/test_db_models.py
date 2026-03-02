@@ -1,6 +1,8 @@
 import uuid
 
-from sieve.db.models import Base, Capsule, LeaderPack, Review, Sieve, Subscription, User
+import pytest
+
+from sieve.db.models import Base, Capsule, Follow, LeaderPack, Review, Sieve, Subscription, User
 
 
 def test_user_model_fields():
@@ -9,9 +11,11 @@ def test_user_model_fields():
         email="test@example.com",
         password_hash="hashed",
         display_name="Test User",
+        username="testuser",
     )
     assert user.email == "test@example.com"
     assert user.is_admin is False
+    assert user.username == "testuser"
 
 
 def test_user_model_api_key_default():
@@ -21,6 +25,7 @@ def test_user_model_api_key_default():
         email="key@example.com",
         password_hash="hashed",
         display_name="Key User",
+        username="keyuser",
     )
     assert user.email == "key@example.com"
     assert user.display_name == "Key User"
@@ -128,14 +133,14 @@ def test_review_model_fields():
 
 def test_base_metadata_has_all_tables():
     table_names = set(Base.metadata.tables.keys())
-    expected = {"users", "sieves", "capsules", "leader_packs", "subscriptions", "reviews"}
+    expected = {"users", "sieves", "capsules", "leader_packs", "subscriptions", "reviews", "follows"}
     assert expected == table_names
 
 
 def test_user_table_columns():
     table = Base.metadata.tables["users"]
     column_names = {c.name for c in table.columns}
-    expected = {"id", "email", "password_hash", "display_name", "is_admin", "api_key", "created_at"}
+    expected = {"id", "email", "username", "password_hash", "display_name", "is_admin", "api_key", "created_at"}
     assert expected == column_names
 
 
@@ -149,3 +154,39 @@ def test_capsule_table_columns():
         "status", "pinned", "skill_eligible", "created_at", "updated_at",
     }
     assert expected == column_names
+
+
+@pytest.mark.asyncio
+async def test_follow_model(db_session, test_user):
+    """Follow model stores follower/followed sieve relationship."""
+    user2 = User(email="other@example.com", display_name="Other", username="other", password_hash="x")
+    db_session.add(user2)
+    await db_session.flush()
+    sieve2 = Sieve(user_id=user2.id, name="Other's Sieve")
+    db_session.add(sieve2)
+    await db_session.flush()
+
+    user, sieve = test_user
+    follow = Follow(follower_sieve_id=sieve.id, followed_sieve_id=sieve2.id)
+    db_session.add(follow)
+    await db_session.commit()
+
+    assert follow.id is not None
+    assert follow.follower_sieve_id == sieve.id
+    assert follow.followed_sieve_id == sieve2.id
+    assert follow.created_at is not None
+
+
+@pytest.mark.asyncio
+async def test_user_has_username(db_session, test_user):
+    """User model has a username field."""
+    user, _ = test_user
+    assert hasattr(user, "username")
+
+
+@pytest.mark.asyncio
+async def test_sieve_has_bio_and_avatar(db_session, test_user):
+    """Sieve model has bio and avatar_url fields."""
+    _, sieve = test_user
+    assert hasattr(sieve, "bio")
+    assert hasattr(sieve, "avatar_url")

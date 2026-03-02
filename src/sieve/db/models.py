@@ -52,6 +52,7 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -77,12 +78,46 @@ class Sieve(Base):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(String(2000), default="")
+    bio: Mapped[str] = mapped_column(String(500), default="")
+    avatar_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     user: Mapped["User"] = relationship(back_populates="sieve")
     capsules: Mapped[list["Capsule"]] = relationship(
         back_populates="sieve", cascade="all, delete-orphan"
+    )
+    followers: Mapped[list["Follow"]] = relationship(
+        foreign_keys="Follow.followed_sieve_id",
+        cascade="all, delete-orphan",
+    )
+    following: Mapped[list["Follow"]] = relationship(
+        foreign_keys="Follow.follower_sieve_id",
+        cascade="all, delete-orphan",
+    )
+
+
+class Follow(Base):
+    __tablename__ = "follows"
+    __table_args__ = (
+        UniqueConstraint("follower_sieve_id", "followed_sieve_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    follower_sieve_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("sieves.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    followed_sieve_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("sieves.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
     )
 
 

@@ -214,9 +214,9 @@ def test_profile_template_has_stats():
     assert "follow-btn" in html
 
 
-def test_base_template_has_bottom_nav():
+def test_base_template_has_nav_links():
     html = Path("src/sieve/dashboard/templates/base.html").read_text()
-    assert "bottom-nav" in html
+    assert "nav-links" in html
     assert "/settings" in html
 
 
@@ -275,6 +275,17 @@ def test_skill_detail_route_exists():
     from sieve.dashboard.routes import router
     paths = [r.path for r in router.routes]
     assert "/skills/{skill_id}" in paths
+
+
+def test_base_template_has_skills_nav():
+    html = Path("src/sieve/dashboard/templates/base.html").read_text()
+    assert "/skills" in html
+
+
+def test_capsule_detail_has_create_skill():
+    html = Path("src/sieve/dashboard/templates/capsule_detail.html").read_text()
+    assert "create-skill-section" in html
+    assert "primary_capsule_id" in html
 
 
 def test_skills_templates_exist():

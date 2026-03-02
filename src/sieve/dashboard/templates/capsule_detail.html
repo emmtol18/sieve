@@ -15,6 +15,7 @@
                     title="{% if capsule.pinned %}Unpin{% else %}Pin{% endif %}"
                 >&#9733;</button>
                 <button class="btn btn-secondary btn-sm" onclick="document.getElementById('edit-section').classList.toggle('hidden')">Edit</button>
+                <button class="btn btn-primary btn-sm" onclick="document.getElementById('create-skill-section').classList.toggle('hidden')">Create Skill</button>
                 <button
                     class="btn btn-danger btn-sm"
                     hx-delete="/htmx/capsules/{{ capsule.id }}"
@@ -89,6 +90,31 @@
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Save Changes</button>
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('edit-section').classList.add('hidden')">Cancel</button>
+        </div>
+    </form>
+</section>
+
+<section id="create-skill-section" class="edit-section hidden">
+    <h2 class="section-heading">Create Skill from Capsule</h2>
+    <p style="font-size: 0.8125rem; color: #86868b; margin-bottom: 1rem;">
+        This capsule will be the primary source. Optionally add more capsules as context.
+    </p>
+    <form
+        hx-post="/htmx/skills/compile"
+        hx-target="body"
+        hx-swap="innerHTML"
+    >
+        <input type="hidden" name="primary_capsule_id" value="{{ capsule.id }}">
+        <div class="form-group">
+            <label class="form-label" for="context-ids">Additional Capsule IDs (comma-separated, optional)</label>
+            <input type="text" id="context-ids" name="context_capsule_ids" class="input" placeholder="e.g. abc123, def456">
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <span class="htmx-indicator spinner"></span>
+                Compile Skill
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('create-skill-section').classList.add('hidden')">Cancel</button>
         </div>
     </form>
 </section>

@@ -13,6 +13,7 @@
 				<div id="sidebar">
 					<ul>
 						<li class="sidebar-heading" data-i18n="settingsHeading">Settings</li>
+						<li data-section="account" data-i18n="account">Account</li>
 						<li data-section="general" class="active" data-i18n="general">General</li>
 						<li data-section="properties" data-i18n="properties">Properties</li>
 						<li data-section="highlighter" data-i18n="highlighter">Highlighter</li>
@@ -35,6 +36,32 @@
 							<span class="hamburger-icon"></span>
 						</button>
 					</div>
+					<div class="settings-section" id="account-section" style="display: none;">
+						<h2>Account</h2>
+						<div class="setting-item">
+							<label>Server URL</label>
+							<input id="server-url-input" type="url" class="setting-input" placeholder="https://app.neuralsieve.com" />
+						</div>
+						<div id="account-logged-in" style="display: none;">
+							<div class="setting-item">
+								<label>Signed in as</label>
+								<span id="settings-user-email"></span>
+							</div>
+							<button id="settings-logout-btn" class="mod-warning">Log out</button>
+						</div>
+						<div id="account-logged-out" style="display: none;">
+							<p>Not signed in. Use the extension popup to sign in.</p>
+						</div>
+						<h3>Capture Mode</h3>
+						<div class="setting-item">
+							<label>Default capture mode</label>
+							<select id="capture-mode-select" class="dropdown">
+								<option value="quick">Quick — one click, no popup</option>
+								<option value="full">Full — open popup with preview</option>
+							</select>
+						</div>
+					</div>
+
 					<div id="general-section" class="settings-section active">
 						<div class="settings-section-header">
 							<h2 data-i18n="generalSettings">General settings</h2>
@@ -119,12 +146,6 @@
 										<a href="https://neuralsieve.com/docs" id="help-open-btn" class="btn" target="_blank" data-i18n="open">Open</a>
 									</div>
 								</div>
-							</div>
-							<div>
-								<h3 data-i18n="vaults">Vaults</h3>
-								<div class="setting-item-description" data-i18n="vaultsDescription">By default, captured notes are saved to the currently open vault. You can add vaults here if you want the option to save to different vaults. Press <strong>enter</strong> to add a&nbsp;vault.</div>
-								<input type="text" id="vault-input" data-i18n="addVaultPlaceholder" placeholder="Press enter to add a vault" autocomplete="off" spellcheck="false" />
-								<ul id="vault-list"></ul>
 							</div>
 							<div id="hotkeys-subsection">
 								<h3 data-i18n="hotkeys">Hotkeys</h3>

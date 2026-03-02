@@ -2,7 +2,7 @@ import { updateUrl } from '../utils/routing';
 import { generalSettings } from '../utils/storage-utils';
 import { initializePropertyTypesManager } from './property-types-manager';
 
-export type SettingsSection = 'general' | 'properties' | 'highlighter' | 'reader' | 'templates';
+export type SettingsSection = 'account' | 'general' | 'properties' | 'highlighter' | 'reader' | 'templates';
 
 export function showSettingsSection(section: SettingsSection, templateId?: string): void {
 	const sections = document.querySelectorAll('.settings-section');
@@ -60,11 +60,12 @@ export function initializeSidebar(): void {
 	if (sidebar) {
 		sidebar.addEventListener('click', (event) => {	
 			const target = event.target as HTMLElement;
-			if (target.dataset.section === 'general'
+			if (target.dataset.section === 'account'
+				|| target.dataset.section === 'general'
 				|| target.dataset.section === 'properties'
 				|| target.dataset.section === 'highlighter'
 				|| target.dataset.section === 'reader') {
-				showSettingsSection(target.dataset.section as 'general' | 'properties' | 'highlighter' | 'reader');
+				showSettingsSection(target.dataset.section as 'account' | 'general' | 'properties' | 'highlighter' | 'reader');
 			}
 			if (settingsContainer) {
 				settingsContainer.classList.remove('sidebar-open');

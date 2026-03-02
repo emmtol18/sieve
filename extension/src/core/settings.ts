@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 	async function handleUrlParameters(): Promise<void> {
 		const { section, templateId } = getUrlParameters();
 
-		if (section === 'general' || section === 'properties' || section === 'highlighter' || section === 'reader') {
+		if (section === 'account' || section === 'general' || section === 'properties' || section === 'highlighter' || section === 'reader') {
 			showSettingsSection(section);
 		} else if (templateId) {
 			const template = findTemplateById(templateId);

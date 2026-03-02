@@ -158,6 +158,7 @@ export function initializeGeneralSettings(): void {
 			}
 		}
 
+		initializeAccountSettings();
 		initializeShowMoreActionsToggle();
 		initializeBetaFeaturesToggle();
 		initializeOpenBehaviorDropdown();
@@ -178,6 +179,43 @@ export function initializeGeneralSettings(): void {
 		if (feedbackCloseBtn) {
 			feedbackCloseBtn.addEventListener('click', () => hideModal(feedbackModal));
 		}
+	});
+}
+
+function initializeAccountSettings(): void {
+	const serverUrlInput = document.getElementById('server-url-input') as HTMLInputElement;
+	const captureModeSelect = document.getElementById('capture-mode-select') as HTMLSelectElement;
+	const loggedIn = document.getElementById('account-logged-in')!;
+	const loggedOut = document.getElementById('account-logged-out')!;
+
+	if (serverUrlInput) serverUrlInput.value = generalSettings.serverUrl;
+	if (captureModeSelect) captureModeSelect.value = generalSettings.captureMode;
+
+	if (generalSettings.authUser) {
+		if (loggedIn) loggedIn.style.display = 'block';
+		if (loggedOut) loggedOut.style.display = 'none';
+		const emailSpan = document.getElementById('settings-user-email');
+		if (emailSpan) emailSpan.textContent = generalSettings.authUser.email;
+	} else {
+		if (loggedIn) loggedIn.style.display = 'none';
+		if (loggedOut) loggedOut.style.display = 'block';
+	}
+
+	serverUrlInput?.addEventListener('change', async () => {
+		generalSettings.serverUrl = serverUrlInput.value.replace(/\/+$/, '');
+		await saveSettings();
+	});
+
+	captureModeSelect?.addEventListener('change', async () => {
+		generalSettings.captureMode = captureModeSelect.value as 'quick' | 'full';
+		await saveSettings();
+	});
+
+	document.getElementById('settings-logout-btn')?.addEventListener('click', async () => {
+		generalSettings.authToken = null;
+		generalSettings.authUser = null;
+		await saveSettings();
+		initializeAccountSettings();
 	});
 }
 

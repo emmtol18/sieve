@@ -44,16 +44,16 @@ def test_manifest_json_valid():
     data = json.loads(manifest_path.read_text())
     assert data["name"] == "Neural Sieve"
     assert data["short_name"] == "Sieve"
-    assert data["theme_color"] == "#000000"
-    assert data["background_color"] == "#000000"
+    assert data["theme_color"] == "#faf8f5"
+    assert data["background_color"] == "#faf8f5"
 
 
 def test_style_css_has_theme():
     css = Path("src/sieve/dashboard/static/style.css").read_text()
-    assert "#000" in css  # Background
-    assert "#111" in css  # Card background
-    assert "#d4d4d4" in css  # Neutral accent
-    assert "#f5f5f5" in css  # Text color
+    assert "#faf8f5" in css  # Background
+    assert "#fff" in css  # Card background
+    assert "#c06014" in css  # Accent
+    assert "#2d2a26" in css  # Text color
 
 
 def test_base_template_has_htmx():

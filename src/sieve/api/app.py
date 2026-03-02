@@ -8,6 +8,7 @@ from sieve.api.auth.google import router as google_auth_router
 from sieve.api.auth.routes import router as auth_router
 from sieve.api.capsules.routes import router as capsules_router
 from sieve.api.capture.routes import router as capture_router
+from sieve.api.skills.routes import router as skills_router
 from sieve.api.discover.routes import router as discover_router
 from sieve.api.feed.routes import router as feed_router
 from sieve.api.import_vault.routes import router as import_router
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(google_auth_router)
     app.include_router(capsules_router)
     app.include_router(capture_router)
+    app.include_router(skills_router)
     app.include_router(sieves_router)
     app.include_router(feed_router)
     app.include_router(discover_router)

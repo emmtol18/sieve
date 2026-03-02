@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { Template, Property, PromptVariable } from '../types/types';
 import { incrementStat, addHistoryEntry, getClipHistory } from '../utils/storage-utils';
-import { generateFrontmatter, saveToObsidian } from '../utils/obsidian-note-creator';
+import { generateFrontmatter } from '../utils/frontmatter';
 import { extractPageContent, initializePageContent } from '../utils/content-extractor';
 import { compileTemplate } from '../utils/template-compiler';
 import { initializeIcons, getPropertyTypeIcon } from '../icons/icons';
@@ -12,7 +12,6 @@ import { loadTemplates, createDefaultTemplate } from '../managers/template-manag
 import browser from '../utils/browser-polyfill';
 import { addBrowserClassToHtml, detectBrowser } from '../utils/browser-detection';
 import { createElementWithClass } from '../utils/dom-utils';
-import { initializeInterpreter, handleInterpreterUI, collectPromptVariables } from '../utils/interpreter';
 import { adjustNoteNameHeight } from '../utils/ui-utils';
 import { debugLog } from '../utils/debug';
 import { showVariables, initializeVariablesPanel, updateVariablesPanel } from '../managers/inspect-variables';
@@ -170,14 +169,7 @@ async function initializeExtension(tabId: number) {
 		currentTemplate = templates[0];
 		debugLog('Templates', 'Current template set to:', currentTemplate);
 
-		// Load last selected vault
-		lastSelectedVault = await getLocalStorage('lastSelectedVault');
-		if (!lastSelectedVault && loadedSettings.vaults.length > 0) {
-			lastSelectedVault = loadedSettings.vaults[0];
-		}
-		debugLog('Vaults', 'Last selected vault:', lastSelectedVault);
-
-		updateVaultDropdown(loadedSettings.vaults);
+		updateVaultDropdown([]);
 
 		const tab = await getTabInfo(tabId);
 		if (!tab.url || isBlankPage(tab.url)) {
@@ -321,7 +313,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 			try {
 				// DOM-dependent initializations
-				updateVaultDropdown(loadedSettings.vaults);
+				updateVaultDropdown([]);
 				populateTemplateDropdown();
 				setupEventListeners(currentTabId);
 				await initializeUI();
@@ -477,7 +469,7 @@ function setupEventListeners(tabId: number) {
 							navigator.share(shareData)
 								.then(async () => {
 									const tabInfo = await getCurrentTabInfo();
-									await incrementStat('share', vault, path, tabInfo.url, tabInfo.title);
+									await incrementStat('share', path, tabInfo.url, tabInfo.title);
 									const moreDropdown = document.getElementById('more-dropdown');
 									if (moreDropdown) {
 											moreDropdown.classList.remove('show');
@@ -584,25 +576,6 @@ function clearError(): void {
 function logError(message: string, error?: any): void {
 	console.error(message, error);
 	showError(message);
-}
-
-async function waitForInterpreter(interpretBtn: HTMLButtonElement): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const checkProcessing = () => {
-			if (!interpretBtn.classList.contains('processing')) {
-				if (interpretBtn.classList.contains('done')) {
-					resolve();
-				} else if (interpretBtn.classList.contains('error')) {
-					reject(new Error(getMessage('failedToProcessInterpreter')));
-				} else {
-					setTimeout(checkProcessing, 100);
-				}
-			} else {
-				setTimeout(checkProcessing, 100);
-			}
-		};
-		checkProcessing();
-	});
 }
 
 async function refreshFields(tabId: number, checkTemplateTriggers: boolean = true) {
@@ -720,9 +693,7 @@ async function initializeTemplateFields(currentTabId: number, template: Template
 	// Handle vault selection
 	const vaultDropdown = document.getElementById('vault-select') as HTMLSelectElement;
 	if (vaultDropdown) {
-		if (template.vault) {
-			vaultDropdown.value = template.vault;
-		} else if (lastSelectedVault) {
+		if (lastSelectedVault) {
 			vaultDropdown.value = lastSelectedVault;
 		}
 	}
@@ -883,39 +854,6 @@ async function initializeTemplateFields(currentTabId: number, template: Template
 	}
 
 	if (template) {
-		if (generalSettings.interpreterEnabled) {
-			await initializeInterpreter(template, variables, currentTabId!, currentUrl);
-
-			// Check if there are any prompt variables
-			const promptVariables = collectPromptVariables(template);
-
-			// If auto-run is enabled and there are prompt variables, use interpreter
-			if (generalSettings.interpreterAutoRun && promptVariables.length > 0) {
-				try {
-					const interpretBtn = document.getElementById('interpret-btn') as HTMLButtonElement;
-					const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
-					const selectedModelId = modelSelect?.value || generalSettings.interpreterModel;
-					const modelConfig = generalSettings.models.find(m => m.id === selectedModelId);
-					if (!modelConfig) {
-						throw new Error(`Model configuration not found for ${selectedModelId}`);
-					}
-					await handleInterpreterUI(template, variables, currentTabId!, currentUrl, modelConfig);
-
-					// Ensure the button shows the completed state after auto-run
-					if (interpretBtn) {
-						interpretBtn.classList.add('done');
-						interpretBtn.disabled = true;
-					}
-				} catch (error) {
-					console.error('Error auto-processing with interpreter:', error);
-					const interpretBtn = document.getElementById('interpret-btn') as HTMLButtonElement;
-					if (interpretBtn) {
-						interpretBtn.classList.add('error');
-					}
-				}
-			}
-		}
-
 		const replacedTemplate = await getReplacedTemplate(template, variables, currentTabId!, currentUrl);
 		debugLog('Variables', 'Current template with replaced variables:', JSON.stringify(replacedTemplate, null, 2));
 	}
@@ -1136,12 +1074,12 @@ export async function copyToClipboard(content: string) {
 		const vault = vaultDropdown?.value || '';
 		
 		const tabInfo = await getCurrentTabInfo();
-		await incrementStat('copyToClipboard', vault, path, tabInfo.url, tabInfo.title);
+		await incrementStat('copyToClipboard', path, tabInfo.url, tabInfo.title);
 
 		// Change the main button text temporarily
 		const clipButton = document.getElementById('clip-btn');
 		if (clipButton) {
-			const originalText = clipButton.textContent || getMessage('addToObsidian');
+			const originalText = clipButton.textContent || getMessage('captureToSieve');
 			clipButton.textContent = getMessage('copied');
 			
 			// Reset the text after 1.5 seconds
@@ -1187,7 +1125,7 @@ async function handleSaveToDownloads() {
 		});
 
 		const tabInfo = await getCurrentTabInfo();
-		await incrementStat('saveFile', vault, path, tabInfo.url, tabInfo.title);
+		await incrementStat('saveFile', path, tabInfo.url, tabInfo.title);
 
 		const moreDropdown = document.getElementById('more-dropdown');
 		if (moreDropdown) {
@@ -1214,18 +1152,18 @@ function determineMainAction() {
 			mainButton.textContent = getMessage('copyToClipboard');
 			mainButton.onclick = () => copyContent();
 			// Add direct actions to secondary
-			addSecondaryAction(secondaryActions, 'addToObsidian', () => handleClipObsidian());
+			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleClipObsidian());
 			addSecondaryAction(secondaryActions, 'saveFile', handleSaveToDownloads);
 			break;
 		case 'saveFile':
 			mainButton.textContent = getMessage('saveFile');
 			mainButton.onclick = () => handleSaveToDownloads();
 			// Add direct actions to secondary
-			addSecondaryAction(secondaryActions, 'addToObsidian', () => handleClipObsidian());
+			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleClipObsidian());
 			addSecondaryAction(secondaryActions, 'copyToClipboard', copyContent);
 			break;
-		default: // 'addToObsidian'
-			mainButton.textContent = getMessage('addToObsidian');
+		default: // 'captureToSieve'
+			mainButton.textContent = getMessage('captureToSieve');
 			mainButton.onclick = () => handleClipObsidian();
 			// Add direct actions to secondary
 			addSecondaryAction(secondaryActions, 'copyToClipboard', copyContent);
@@ -1240,7 +1178,6 @@ async function handleClipObsidian(): Promise<void> {
 	const noteContentField = document.getElementById('note-content-field') as HTMLTextAreaElement;
 	const noteNameField = document.getElementById('note-name-field') as HTMLInputElement;
 	const pathField = document.getElementById('path-name-field') as HTMLInputElement;
-	const interpretBtn = document.getElementById('interpret-btn') as HTMLButtonElement;
 
 	if (!vaultDropdown || !noteContentField) {
 		showError('Some required fields are missing. Please try reloading the extension.');
@@ -1248,16 +1185,6 @@ async function handleClipObsidian(): Promise<void> {
 	}
 
 	try {
-		// Handle interpreter if needed
-		if (generalSettings.interpreterEnabled && interpretBtn && collectPromptVariables(currentTemplate).length > 0) {
-			if (interpretBtn.classList.contains('processing')) {
-				await waitForInterpreter(interpretBtn);
-			} else if (!interpretBtn.classList.contains('done')) {
-				interpretBtn.click();
-				await waitForInterpreter(interpretBtn);
-			}
-		}
-
 		// Gather content
 		const properties = Array.from(document.querySelectorAll('.metadata-property input')).map(input => {
 			const inputElement = input as HTMLInputElement;
@@ -1271,20 +1198,10 @@ async function handleClipObsidian(): Promise<void> {
 		const frontmatter = await generateFrontmatter(properties);
 		const fileContent = frontmatter + noteContentField.value;
 
-		// Save to Obsidian
-		const selectedVault = currentTemplate.vault || vaultDropdown.value;
-		const isDailyNote = currentTemplate.behavior === 'append-daily' || currentTemplate.behavior === 'prepend-daily';
-		const noteName = isDailyNote ? '' : noteNameField?.value || '';
-		const path = isDailyNote ? '' : pathField?.value || '';
-
-		await saveToObsidian(fileContent, noteName, path, selectedVault, currentTemplate.behavior);
+		// TODO: Task 9 will rewire this to use captureToSieve API
+		const path = pathField?.value || '';
 		const tabInfo = await getCurrentTabInfo();
-		await incrementStat('addToObsidian', selectedVault, path, tabInfo.url, tabInfo.title);
-
-		if (!currentTemplate.vault) {
-			lastSelectedVault = selectedVault;
-			await setLocalStorage('lastSelectedVault', lastSelectedVault);
-		}
+		await incrementStat('captureToSieve', path, tabInfo.url, tabInfo.title);
 
 		if (!isSidePanel) {
 			setTimeout(() => window.close(), 500);
@@ -1327,7 +1244,7 @@ function getActionIcon(actionType: string): string {
 	switch (actionType) {
 		case 'copyToClipboard': return 'copy';
 		case 'saveFile': return 'file-down';
-		case 'addToObsidian': return 'pen-line';
+		case 'captureToSieve': return 'pen-line';
 		default: return 'plus';
 	}
 }

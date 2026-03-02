@@ -38,7 +38,6 @@
 		</div>
 		<p class="error-message" style="display: none;"></p>
 		<div class="clipper">
-			<textarea id="note-name-field" type="text" data-i18n="noteName" rows="1"></textarea>
 			<div class="metadata-properties-header">
 				<span data-i18n="properties"></span>
 				<i data-lucide="chevron-down"></i>
@@ -48,11 +47,24 @@
 				<textarea id="note-content-field" rows="4" data-i18n="notesAboutPage"></textarea>
 			</div>
 			<div class="clipper-footer">
-				<div class="vault-path-container">
-					<div id="vault-container" style="display: none;">
-						<select id="vault-select"></select>
+				<div id="auth-section">
+					<div id="auth-login" style="display: none;">
+						<div class="auth-form">
+							<input id="login-email" type="email" placeholder="Email" class="auth-input" />
+							<input id="login-password" type="password" placeholder="Password" class="auth-input" />
+							<div class="auth-actions">
+								<button id="login-btn" class="mod-cta">Sign In</button>
+								<a id="signup-link" class="auth-link">Create account</a>
+							</div>
+							<p id="login-error" class="error-message" style="display: none;"></p>
+						</div>
 					</div>
-					<input id="path-name-field" type="text" data-i18n="folder"/>
+					<div id="auth-user" style="display: none;">
+						<div class="auth-user-info">
+							<span id="auth-username"></span>
+							<a id="logout-link" class="auth-link">Log out</a>
+						</div>
+					</div>
 				</div>
 					<div class="action-buttons" id="action-buttons">
 					<button id="clip-btn" class="mod-cta"><!-- Text set by determineMainAction --></button>

@@ -6,13 +6,14 @@ import { extractPageContent, initializePageContent } from '../utils/content-extr
 import { compileTemplate } from '../utils/template-compiler';
 import { initializeIcons, getPropertyTypeIcon } from '../icons/icons';
 import { findMatchingTemplate, initializeTriggers } from '../utils/triggers';
-import { getLocalStorage, setLocalStorage, loadSettings, generalSettings, Settings } from '../utils/storage-utils';
+import { getLocalStorage, setLocalStorage, loadSettings, generalSettings, saveSettings, Settings } from '../utils/storage-utils';
+import { loginToSieve, fetchCurrentUser, captureToSieve, SieveApiError } from '../utils/sieve-api-client';
 import { escapeHtml, unescapeValue } from '../utils/string-utils';
 import { loadTemplates, createDefaultTemplate } from '../managers/template-manager';
 import browser from '../utils/browser-polyfill';
 import { addBrowserClassToHtml, detectBrowser } from '../utils/browser-detection';
 import { createElementWithClass } from '../utils/dom-utils';
-import { adjustNoteNameHeight } from '../utils/ui-utils';
+// adjustNoteNameHeight removed - note-name-field no longer in popup
 import { debugLog } from '../utils/debug';
 import { showVariables, initializeVariablesPanel, updateVariablesPanel } from '../managers/inspect-variables';
 import { isBlankPage, isValidUrl } from '../utils/active-tab-manager';
@@ -32,7 +33,6 @@ let currentTemplate: Template | null = null;
 let templates: Template[] = [];
 let currentVariables: { [key: string]: string } = {};
 let currentTabId: number | undefined;
-let lastSelectedVault: string | null = null;
 
 const isSidePanel = window.location.pathname.includes('side-panel.html');
 const urlParams = new URLSearchParams(window.location.search);
@@ -102,33 +102,23 @@ const memoizedExtractPageContent = memoizeWithExpiration(
 	}
 );
 
-// Width is used to update the note name field height
 let previousWidth = window.innerWidth;
 
 function setPopupDimensions() {
 	// Get the actual height of the popup after the browser has determined its maximum
 	const actualHeight = document.documentElement.offsetHeight;
-	
+
 	// Calculate the viewport height and width
 	const viewportHeight = window.innerHeight;
 	const viewportWidth = window.innerWidth;
-	
+
 	// Use the smaller of the two heights
 	const finalHeight = Math.min(actualHeight, viewportHeight);
-	
+
 	// Set the --popup-height CSS variable to the final height
 	document.documentElement.style.setProperty('--chromium-popup-height', `${finalHeight}px`);
 
-	// Check if the width has changed
-	if (viewportWidth !== previousWidth) {
-		previousWidth = viewportWidth;
-		
-		// Adjust the note name field height
-		const noteNameField = document.getElementById('note-name-field') as HTMLTextAreaElement;
-		if (noteNameField) {
-			adjustNoteNameHeight(noteNameField);
-		}
-	}
+	previousWidth = viewportWidth;
 }
 
 const debouncedSetPopupDimensions = debounce(setPopupDimensions, 100); // 100ms delay
@@ -169,8 +159,6 @@ async function initializeExtension(tabId: number) {
 		currentTemplate = templates[0];
 		debugLog('Templates', 'Current template set to:', currentTemplate);
 
-		updateVaultDropdown([]);
-
 		const tab = await getTabInfo(tabId);
 		if (!tab.url || isBlankPage(tab.url)) {
 			showError('pageCannotBeClipped');
@@ -197,10 +185,10 @@ async function initializeExtension(tabId: number) {
 function setupMessageListeners() {
 	browser.runtime.onMessage.addListener((request: any, sender: browser.Runtime.MessageSender, sendResponse: (response?: any) => void) => {
 		if (request.action === "triggerQuickClip") {
-			handleClipToSieve().then(() => {
+			handleCaptureToSieve().then(() => {
 				sendResponse({success: true});
 			}).catch((error) => {
-				console.error('Error in handleClipToSieve:', error);
+				console.error('Error in handleCaptureToSieve:', error);
 				sendResponse({success: false, error: error.message});
 			});
 			return true;
@@ -313,10 +301,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 			try {
 				// DOM-dependent initializations
-				updateVaultDropdown([]);
 				populateTemplateDropdown();
 				setupEventListeners(currentTabId);
 				await initializeUI();
+
+				// Initialize auth UI
+				await initializeAuth();
+				setupAuthListeners();
 
 				// Initial content load
 				await refreshFields(currentTabId);
@@ -347,16 +338,6 @@ function setupEventListeners(tabId: number) {
 	if (templateDropdown) {
 		templateDropdown.addEventListener('change', function(this: HTMLSelectElement) {
 			handleTemplateChange(this.value);
-		});
-	}
-
-	const noteNameField = document.getElementById('note-name-field') as HTMLTextAreaElement;
-	if (noteNameField) {
-		noteNameField.addEventListener('input', () => adjustNoteNameHeight(noteNameField));
-		noteNameField.addEventListener('keydown', function(e) {
-			if (e.key === 'Enter' && !e.shiftKey) {
-				e.preventDefault();
-			}
 		});
 	}
 
@@ -444,8 +425,7 @@ function setupEventListeners(tabId: number) {
 					const fileContent = frontmatter + noteContent;
 					
 					// Call share directly from the click handler
-					const noteNameField = document.getElementById('note-name-field') as HTMLInputElement;
-					let fileName = noteNameField?.value || 'untitled';
+					let fileName = 'untitled';
 					fileName = sanitizeFileName(fileName);
 					if (!fileName.toLowerCase().endsWith('.md')) {
 						fileName += '.md';
@@ -461,15 +441,10 @@ function setupEventListeners(tabId: number) {
 						};
 
 						if (navigator.canShare(shareData)) {
-							const pathField = document.getElementById('path-name-field') as HTMLInputElement;
-							const vaultDropdown = document.getElementById('vault-select') as HTMLSelectElement;
-							const path = pathField?.value || '';
-							const vault = vaultDropdown?.value || '';
-
 							navigator.share(shareData)
 								.then(async () => {
 									const tabInfo = await getCurrentTabInfo();
-									await incrementStat('share', path, tabInfo.url, tabInfo.title);
+									await incrementStat('share', undefined, tabInfo.url, tabInfo.title);
 									const moreDropdown = document.getElementById('more-dropdown');
 									if (moreDropdown) {
 											moreDropdown.classList.remove('show');
@@ -690,14 +665,6 @@ async function initializeTemplateFields(currentTabId: number, template: Template
 	// Cache the current URL once at the start to avoid repeated getTabInfo calls
 	const currentUrl = currentTabId ? (await getTabInfo(currentTabId)).url || '' : '';
 
-	// Handle vault selection
-	const vaultDropdown = document.getElementById('vault-select') as HTMLSelectElement;
-	if (vaultDropdown) {
-		if (lastSelectedVault) {
-			vaultDropdown.value = lastSelectedVault;
-		}
-	}
-
 	currentVariables = variables;
 	const existingTemplateProperties = document.querySelector('.metadata-properties') as HTMLElement;
 
@@ -820,28 +787,6 @@ async function initializeTemplateFields(currentTabId: number, template: Template
 
 	initializeIcons(newTemplateProperties);
 
-	const noteNameField = document.getElementById('note-name-field') as HTMLTextAreaElement;
-	if (noteNameField) {
-		noteNameField.setAttribute('data-template-value', template.noteNameFormat);
-		noteNameField.value = formattedNoteName.trim();
-		adjustNoteNameHeight(noteNameField);
-	}
-
-	const pathField = document.getElementById('path-name-field') as HTMLInputElement;
-	const pathContainer = document.querySelector('.vault-path-container') as HTMLElement;
-
-	if (pathField && pathContainer) {
-		const isDailyNote = template.behavior === 'append-daily' || template.behavior === 'prepend-daily';
-
-		if (isDailyNote) {
-			pathField.style.display = 'none';
-		} else {
-			pathContainer.style.display = 'flex';
-			pathField.value = formattedPath;
-			pathField.setAttribute('data-template-value', template.path);
-		}
-	}
-
 	const noteContentField = document.getElementById('note-content-field') as HTMLTextAreaElement;
 	if (noteContentField) {
 		if (template.noteContentFormat) {
@@ -933,39 +878,81 @@ async function getReplacedTemplate(template: Template, variables: { [key: string
 	return replacedTemplate;
 }
 
-function updateVaultDropdown(vaults: string[]) {
-	const vaultDropdown = document.getElementById('vault-select') as HTMLSelectElement | null;
-	const vaultContainer = document.getElementById('vault-container');
+async function initializeAuth(): Promise<void> {
+	const loginSection = document.getElementById('auth-login')!;
+	const userSection = document.getElementById('auth-user')!;
 
-	if (!vaultDropdown || !vaultContainer) return;
-
-	// Clear existing options
-	vaultDropdown.textContent = '';
-	
-	vaults.forEach(vault => {
-		const option = document.createElement('option');
-		option.value = vault;
-		option.textContent = vault;
-		vaultDropdown.appendChild(option);
-	});
-
-	// Only show vault selector if vaults are defined
-	if (vaults.length > 0) {
-		vaultContainer.style.display = 'block';
-		if (lastSelectedVault && vaults.includes(lastSelectedVault)) {
-			vaultDropdown.value = lastSelectedVault;
-		} else {
-			vaultDropdown.value = vaults[0];
-		}
+	if (generalSettings.authToken && generalSettings.authUser) {
+		loginSection.style.display = 'none';
+		userSection.style.display = 'flex';
+		const usernameEl = document.getElementById('auth-username')!;
+		usernameEl.textContent = generalSettings.authUser.displayName || generalSettings.authUser.email;
 	} else {
-		vaultContainer.style.display = 'none';
+		loginSection.style.display = 'block';
+		userSection.style.display = 'none';
+	}
+}
+
+function setupAuthListeners(): void {
+	document.getElementById('login-btn')?.addEventListener('click', handleLogin);
+	document.getElementById('login-password')?.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter') handleLogin();
+	});
+	document.getElementById('logout-link')?.addEventListener('click', handleLogout);
+	document.getElementById('signup-link')?.addEventListener('click', () => {
+		browser.tabs.create({ url: `${generalSettings.serverUrl}/signup` });
+	});
+}
+
+async function handleLogin(): Promise<void> {
+	const emailInput = document.getElementById('login-email') as HTMLInputElement;
+	const passwordInput = document.getElementById('login-password') as HTMLInputElement;
+	const errorEl = document.getElementById('login-error')!;
+	const loginBtn = document.getElementById('login-btn') as HTMLButtonElement;
+	const email = emailInput.value;
+	const password = passwordInput.value;
+
+	if (!email || !password) {
+		errorEl.textContent = 'Please enter email and password';
+		errorEl.style.display = 'block';
+		return;
 	}
 
-	// Add event listener to update lastSelectedVault when changed
-	vaultDropdown.addEventListener('change', () => {
-		lastSelectedVault = vaultDropdown.value;
-		setLocalStorage('lastSelectedVault', lastSelectedVault);
-	});
+	loginBtn.disabled = true;
+	loginBtn.textContent = 'Signing in...';
+	errorEl.style.display = 'none';
+
+	try {
+		const { access_token } = await loginToSieve(generalSettings.serverUrl, email, password);
+		const user = await fetchCurrentUser(generalSettings.serverUrl, access_token);
+		generalSettings.authToken = access_token;
+		generalSettings.authUser = {
+			email: user.email,
+			username: '',
+			displayName: user.display_name,
+		};
+		await saveSettings();
+		await initializeAuth();
+		determineMainAction();
+	} catch (err) {
+		if (err instanceof SieveApiError) {
+			errorEl.textContent = err.message;
+		} else {
+			errorEl.textContent = 'Connection failed. Check your server URL.';
+		}
+		errorEl.style.display = 'block';
+	} finally {
+		loginBtn.disabled = false;
+		loginBtn.textContent = 'Sign In';
+	}
+}
+
+async function handleLogout(): Promise<void> {
+	generalSettings.authToken = null;
+	generalSettings.authUser = null;
+	await saveSettings();
+	await initializeAuth();
+	determineMainAction();
 }
 
 function refreshPopup() {
@@ -1067,14 +1054,9 @@ export async function copyToClipboard(content: string) {
 			action: 'copy-to-clipboard',
 			text: content
 		});
-		
-		const pathField = document.getElementById('path-name-field') as HTMLInputElement;
-		const vaultDropdown = document.getElementById('vault-select') as HTMLSelectElement;
-		const path = pathField?.value || '';
-		const vault = vaultDropdown?.value || '';
-		
+
 		const tabInfo = await getCurrentTabInfo();
-		await incrementStat('copyToClipboard', path, tabInfo.url, tabInfo.title);
+		await incrementStat('copyToClipboard', undefined, tabInfo.url, tabInfo.title);
 
 		// Change the main button text temporarily
 		const clipButton = document.getElementById('clip-btn');
@@ -1095,13 +1077,7 @@ export async function copyToClipboard(content: string) {
 
 async function handleSaveToDownloads() {
 	try {
-		const noteNameField = document.getElementById('note-name-field') as HTMLInputElement;
-		const pathField = document.getElementById('path-name-field') as HTMLInputElement;
-		const vaultDropdown = document.getElementById('vault-select') as HTMLSelectElement;
-		
-		let fileName = noteNameField?.value || 'untitled';
-		const path = pathField?.value || '';
-		const vault = vaultDropdown?.value || '';
+		let fileName = 'untitled';
 		
 		const properties = Array.from(document.querySelectorAll('.metadata-property input')).map(input => {
 			const inputElement = input as HTMLInputElement;
@@ -1125,7 +1101,7 @@ async function handleSaveToDownloads() {
 		});
 
 		const tabInfo = await getCurrentTabInfo();
-		await incrementStat('saveFile', path, tabInfo.url, tabInfo.title);
+		await incrementStat('saveFile', undefined, tabInfo.url, tabInfo.title);
 
 		const moreDropdown = document.getElementById('more-dropdown');
 		if (moreDropdown) {
@@ -1138,78 +1114,107 @@ async function handleSaveToDownloads() {
 }
 
 function determineMainAction() {
-	const mainButton = document.getElementById('clip-btn');
+	const clipBtn = document.getElementById('clip-btn') as HTMLButtonElement;
 	const moreDropdown = document.getElementById('more-dropdown');
 	const secondaryActions = moreDropdown?.querySelector('.secondary-actions');
-	if (!mainButton || !secondaryActions) return;
+	if (!clipBtn || !secondaryActions) return;
 
 	// Clear existing secondary actions
 	secondaryActions.textContent = '';
 
+	if (!generalSettings.authToken) {
+		clipBtn.textContent = 'Sign in to capture';
+		clipBtn.disabled = true;
+		return;
+	}
+
+	clipBtn.disabled = false;
+	const saveBehavior = generalSettings.saveBehavior || 'captureToSieve';
+
 	// Set up actions based on saved behavior
-	switch (loadedSettings.saveBehavior) {
+	switch (saveBehavior) {
 		case 'copyToClipboard':
-			mainButton.textContent = getMessage('copyToClipboard');
-			mainButton.onclick = () => copyContent();
-			// Add direct actions to secondary
-			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleClipToSieve());
+			clipBtn.textContent = getMessage('copyToClipboard');
+			clipBtn.onclick = () => copyContent();
+			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleCaptureToSieve());
 			addSecondaryAction(secondaryActions, 'saveFile', handleSaveToDownloads);
 			break;
 		case 'saveFile':
-			mainButton.textContent = getMessage('saveFile');
-			mainButton.onclick = () => handleSaveToDownloads();
-			// Add direct actions to secondary
-			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleClipToSieve());
+			clipBtn.textContent = getMessage('saveFile');
+			clipBtn.onclick = () => handleSaveToDownloads();
+			addSecondaryAction(secondaryActions, 'captureToSieve', () => handleCaptureToSieve());
 			addSecondaryAction(secondaryActions, 'copyToClipboard', copyContent);
 			break;
 		default: // 'captureToSieve'
-			mainButton.textContent = getMessage('captureToSieve');
-			mainButton.onclick = () => handleClipToSieve();
-			// Add direct actions to secondary
+			clipBtn.textContent = 'Capture to Sieve';
+			clipBtn.onclick = () => handleCaptureToSieve();
 			addSecondaryAction(secondaryActions, 'copyToClipboard', copyContent);
 			addSecondaryAction(secondaryActions, 'saveFile', handleSaveToDownloads);
 	}
 }
 
-async function handleClipToSieve(): Promise<void> {
-	if (!currentTemplate) return;
-
-	const vaultDropdown = document.getElementById('vault-select') as HTMLSelectElement;
-	const noteContentField = document.getElementById('note-content-field') as HTMLTextAreaElement;
-	const noteNameField = document.getElementById('note-name-field') as HTMLInputElement;
-	const pathField = document.getElementById('path-name-field') as HTMLInputElement;
-
-	if (!vaultDropdown || !noteContentField) {
-		showError('Some required fields are missing. Please try reloading the extension.');
+async function handleCaptureToSieve(): Promise<void> {
+	if (!generalSettings.authToken) {
+		showError('Please sign in first');
 		return;
 	}
 
+	const clipBtn = document.getElementById('clip-btn') as HTMLButtonElement;
+	clipBtn.disabled = true;
+	clipBtn.textContent = 'Capturing...';
+
 	try {
-		// Gather content
-		const properties = Array.from(document.querySelectorAll('.metadata-property input')).map(input => {
-			const inputElement = input as HTMLInputElement;
-			return {
-				id: inputElement.dataset.id || Date.now().toString() + Math.random().toString(36).slice(2, 11),
-				name: inputElement.id,
-				value: inputElement.type === 'checkbox' ? inputElement.checked : inputElement.value
-			};
-		}) as Property[];
-
-		const frontmatter = await generateFrontmatter(properties);
-		const fileContent = frontmatter + noteContentField.value;
-
-		// TODO: Task 9 will rewire this to use captureToSieve API
-		const path = pathField?.value || '';
+		const contentField = document.getElementById('note-content-field') as HTMLTextAreaElement;
+		const content = contentField?.value || '';
 		const tabInfo = await getCurrentTabInfo();
-		await incrementStat('captureToSieve', path, tabInfo.url, tabInfo.title);
+		const pageUrl = tabInfo?.url || '';
 
-		if (!isSidePanel) {
-			setTimeout(() => window.close(), 500);
+		const response = await captureToSieve(
+			generalSettings.serverUrl,
+			generalSettings.authToken,
+			{ content, url: pageUrl, source_url: pageUrl }
+		);
+
+		// Show toast via content script
+		const activeTab = await browser.tabs.query({ active: true, currentWindow: true });
+		if (activeTab[0]?.id) {
+			await browser.tabs.sendMessage(activeTab[0].id, {
+				action: 'showSieveToast',
+				title: response.title,
+				capsuleId: response.id,
+				serverUrl: generalSettings.serverUrl,
+			});
 		}
-	} catch (error) {
-		console.error('Error in handleClipToSieve:', error);
-		showError('failedToSaveFile');
-		throw error;
+
+		await incrementStat('captureToSieve', undefined, pageUrl, response.title);
+
+		// Close popup unless side panel/iframe
+		const urlParams = new URLSearchParams(window.location.search);
+		if (urlParams.get('context') !== 'iframe' && urlParams.get('context') !== 'side-panel') {
+			window.close();
+		} else {
+			clipBtn.textContent = 'Captured!';
+			setTimeout(() => {
+				clipBtn.textContent = 'Capture to Sieve';
+				clipBtn.disabled = false;
+			}, 2000);
+		}
+	} catch (err) {
+		clipBtn.disabled = false;
+		clipBtn.textContent = 'Capture to Sieve';
+		if (err instanceof SieveApiError) {
+			if (err.code === 'auth_expired') {
+				generalSettings.authToken = null;
+				generalSettings.authUser = null;
+				await saveSettings();
+				await initializeAuth();
+				showError('Session expired. Please sign in again.');
+			} else {
+				showError(err.message);
+			}
+		} else {
+			showError('Capture failed. Please try again.');
+		}
 	}
 }
 

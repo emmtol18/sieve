@@ -1,26 +1,20 @@
 import browser from './browser-polyfill';
-import { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating } from '../types/types';
+import { Settings, SaveBehavior, PropertyType, HistoryEntry, Rating } from '../types/types';
 import { debugLog } from './debug';
-import { copyToClipboard } from 'core/popup';
 
-export type { Settings, ModelConfig, PropertyType, HistoryEntry, Provider, Rating };
+export type { Settings, PropertyType, HistoryEntry, Rating };
 
 export let generalSettings: Settings = {
-	vaults: [],
+	serverUrl: 'https://app.neuralsieve.com',
+	authToken: null,
+	authUser: null,
+	captureMode: 'quick' as const,
 	betaFeatures: false,
-	legacyMode: false,
-	silentOpen: false,
 	openBehavior: 'popup',
 	highlighterEnabled: true,
 	alwaysShowHighlights: false,
 	highlightBehavior: 'highlight-inline',
 	showMoreActionsButton: false,
-	interpreterModel: '',
-	models: [],
-	providers: [],
-	interpreterEnabled: false,
-	interpreterAutoRun: false,
-	defaultPromptContext: '',
 	propertyTypes: [],
 	readerSettings: {
 		fontSize: 1.5,
@@ -30,14 +24,14 @@ export let generalSettings: Settings = {
 		themeMode: 'auto'
 	},
 	stats: {
-		addToObsidian: 0,
+		captureToSieve: 0,
 		saveFile: 0,
 		copyToClipboard: 0,
 		share: 0
 	},
 	history: [],
 	ratings: [],
-	saveBehavior: 'addToObsidian'
+	saveBehavior: 'captureToSieve' as SaveBehavior,
 };
 
 export function setLocalStorage(key: string, value: any): Promise<void> {
@@ -52,12 +46,15 @@ interface StorageData {
 	general_settings?: {
 		showMoreActionsButton?: boolean;
 		betaFeatures?: boolean;
-		legacyMode?: boolean;
-		silentOpen?: boolean;
 		openBehavior?: boolean | 'popup' | 'embedded';
-		saveBehavior?: 'addToObsidian' | 'copyToClipboard' | 'saveFile';
+		saveBehavior?: SaveBehavior;
 	};
-	vaults?: string[];
+	sieve_auth?: {
+		serverUrl?: string;
+		authToken?: string | null;
+		authUser?: Settings['authUser'];
+		captureMode?: 'quick' | 'full';
+	};
 	highlighter_settings?: {
 		highlighterEnabled?: boolean;
 		alwaysShowHighlights?: boolean;
@@ -70,17 +67,9 @@ interface StorageData {
 		theme?: 'default' | 'flexoki';
 		themeMode?: 'auto' | 'light' | 'dark';
 	};
-	interpreter_settings?: {
-		interpreterModel?: string;
-		models?: ModelConfig[];
-		providers?: Provider[];
-		interpreterEnabled?: boolean;
-		interpreterAutoRun?: boolean;
-		defaultPromptContext?: string;
-	};
 	property_types?: PropertyType[];
 	stats?: {
-		addToObsidian: number;
+		captureToSieve: number;
 		saveFile: number;
 		copyToClipboard: number;
 		share: number;
@@ -94,26 +83,21 @@ const CURRENT_MIGRATION_VERSION = 1;
 
 export async function loadSettings(): Promise<Settings> {
 	const data = await browser.storage.sync.get(null) as StorageData;
-	
+
 	// Load default settings first
 	const defaultSettings: Settings = {
-		vaults: [],
+		serverUrl: 'https://app.neuralsieve.com',
+		authToken: null,
+		authUser: null,
+		captureMode: 'quick',
 		showMoreActionsButton: false,
 		betaFeatures: false,
-		legacyMode: false,
-		silentOpen: false,
 		openBehavior: 'popup',
 		highlighterEnabled: true,
 		alwaysShowHighlights: true,
 		highlightBehavior: 'highlight-inline',
-		interpreterModel: '',
-		models: [],
-		providers: [],
-		interpreterEnabled: false,
-		interpreterAutoRun: false,
-		defaultPromptContext: '',
 		propertyTypes: [],
-		saveBehavior: 'addToObsidian',
+		saveBehavior: 'captureToSieve',
 		readerSettings: {
 			fontSize: 1.5,
 			lineHeight: 1.6,
@@ -122,7 +106,7 @@ export async function loadSettings(): Promise<Settings> {
 			themeMode: 'auto'
 		},
 		stats: {
-			addToObsidian: 0,
+			captureToSieve: 0,
 			saveFile: 0,
 			copyToClipboard: 0,
 			share: 0
@@ -137,34 +121,20 @@ export async function loadSettings(): Promise<Settings> {
 		debugLog('Settings', `Updated migration version to ${CURRENT_MIGRATION_VERSION}`);
 	}
 
-	// Validate and sanitize data to prevent corruption
-	const sanitizedVaults = Array.isArray(data.vaults) ? data.vaults.filter(v => typeof v === 'string') : [];
-	const sanitizedModels = Array.isArray(data.interpreter_settings?.models) 
-		? data.interpreter_settings.models.filter(m => m && typeof m === 'object' && typeof m.id === 'string') 
-		: [];
-	const sanitizedProviders = Array.isArray(data.interpreter_settings?.providers) 
-		? data.interpreter_settings.providers.filter(p => p && typeof p === 'object' && typeof p.id === 'string') 
-		: [];
-
 	// Load user settings
 	const loadedSettings: Settings = {
-		vaults: sanitizedVaults.length > 0 ? sanitizedVaults : defaultSettings.vaults,
+		serverUrl: data.sieve_auth?.serverUrl ?? defaultSettings.serverUrl,
+		authToken: data.sieve_auth?.authToken ?? defaultSettings.authToken,
+		authUser: data.sieve_auth?.authUser ?? defaultSettings.authUser,
+		captureMode: data.sieve_auth?.captureMode ?? defaultSettings.captureMode,
 		showMoreActionsButton: data.general_settings?.showMoreActionsButton ?? defaultSettings.showMoreActionsButton,
 		betaFeatures: data.general_settings?.betaFeatures ?? defaultSettings.betaFeatures,
-		legacyMode: data.general_settings?.legacyMode ?? defaultSettings.legacyMode,
-		silentOpen: data.general_settings?.silentOpen ?? defaultSettings.silentOpen,
-		openBehavior: typeof data.general_settings?.openBehavior === 'boolean' 
-			? (data.general_settings.openBehavior ? 'embedded' : 'popup') 
+		openBehavior: typeof data.general_settings?.openBehavior === 'boolean'
+			? (data.general_settings.openBehavior ? 'embedded' : 'popup')
 			: (data.general_settings?.openBehavior ?? defaultSettings.openBehavior),
 		highlighterEnabled: data.highlighter_settings?.highlighterEnabled ?? defaultSettings.highlighterEnabled,
 		alwaysShowHighlights: data.highlighter_settings?.alwaysShowHighlights ?? defaultSettings.alwaysShowHighlights,
 		highlightBehavior: data.highlighter_settings?.highlightBehavior ?? defaultSettings.highlightBehavior,
-		interpreterModel: data.interpreter_settings?.interpreterModel || defaultSettings.interpreterModel,
-		models: sanitizedModels,
-		providers: sanitizedProviders,
-		interpreterEnabled: data.interpreter_settings?.interpreterEnabled ?? defaultSettings.interpreterEnabled,
-		interpreterAutoRun: data.interpreter_settings?.interpreterAutoRun ?? defaultSettings.interpreterAutoRun,
-		defaultPromptContext: data.interpreter_settings?.defaultPromptContext || defaultSettings.defaultPromptContext,
 		propertyTypes: data.property_types || defaultSettings.propertyTypes,
 		readerSettings: {
 			fontSize: data.reader_settings?.fontSize ?? defaultSettings.readerSettings.fontSize,
@@ -190,12 +160,15 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 	}
 
 	await browser.storage.sync.set({
-		vaults: generalSettings.vaults,
+		sieve_auth: {
+			serverUrl: generalSettings.serverUrl,
+			authToken: generalSettings.authToken,
+			authUser: generalSettings.authUser,
+			captureMode: generalSettings.captureMode,
+		},
 		general_settings: {
 			showMoreActionsButton: generalSettings.showMoreActionsButton,
 			betaFeatures: generalSettings.betaFeatures,
-			legacyMode: generalSettings.legacyMode,
-			silentOpen: generalSettings.silentOpen,
 			openBehavior: generalSettings.openBehavior,
 			saveBehavior: generalSettings.saveBehavior,
 		},
@@ -203,14 +176,6 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 			highlighterEnabled: generalSettings.highlighterEnabled,
 			alwaysShowHighlights: generalSettings.alwaysShowHighlights,
 			highlightBehavior: generalSettings.highlightBehavior
-		},
-		interpreter_settings: {
-			interpreterModel: generalSettings.interpreterModel,
-			models: generalSettings.models,
-			providers: generalSettings.providers,
-			interpreterEnabled: generalSettings.interpreterEnabled,
-			interpreterAutoRun: generalSettings.interpreterAutoRun,
-			defaultPromptContext: generalSettings.defaultPromptContext
 		},
 		property_types: generalSettings.propertyTypes,
 		reader_settings: {
@@ -224,14 +189,8 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 	});
 }
 
-export async function setLegacyMode(enabled: boolean): Promise<void> {
-	await saveSettings({ legacyMode: enabled });
-	console.log(`Legacy mode ${enabled ? 'enabled' : 'disabled'}`);
-}
-
 export async function incrementStat(
 	action: keyof Settings['stats'],
-	vault?: string,
 	path?: string,
 	url?: string,
 	title?: string
@@ -242,15 +201,14 @@ export async function incrementStat(
 
 	// Add history entry if URL is provided
 	if (url) {
-		await addHistoryEntry(action, url, title, vault, path);
+		await addHistoryEntry(action, url, title, path);
 	}
 }
 
 export async function addHistoryEntry(
-	action: keyof Settings['stats'], 
-	url: string, 
+	action: keyof Settings['stats'],
+	url: string,
 	title?: string,
-	vault?: string,
 	path?: string
 ): Promise<void> {
 	const entry: HistoryEntry = {
@@ -258,7 +216,6 @@ export async function addHistoryEntry(
 		url,
 		action,
 		title,
-		vault,
 		path
 	};
 

@@ -1,13 +1,12 @@
 export interface Template {
 	id: string;
 	name: string;
-	behavior: 'create' | 'append-specific' | 'append-daily' | 'prepend-specific' | 'prepend-daily' | 'overwrite';
+	behavior?: 'create' | 'append-specific' | 'append-daily' | 'prepend-specific' | 'prepend-daily' | 'overwrite';
 	noteNameFormat: string;
 	path: string;
 	noteContentFormat: string;
 	properties: Property[];
 	triggers?: string[];
-	vault?: string;
 	context?: string;
 }
 
@@ -36,21 +35,12 @@ export interface PropertyType {
 	defaultValue?: string;
 }
 
-export interface Provider {
-	id: string;
-	name: string;
-	baseUrl: string;
-	apiKey: string;
-	apiKeyRequired?: boolean;
-	presetId?: string;
-}
-
 export interface Rating {
 	rating: number;
 	date: string;
 }
 
-export type SaveBehavior = 'addToObsidian' | 'saveFile' | 'copyToClipboard';
+export type SaveBehavior = 'captureToSieve' | 'saveFile' | 'copyToClipboard';
 
 export interface ReaderSettings {
 	fontSize: number;
@@ -61,48 +51,38 @@ export interface ReaderSettings {
 }
 
 export interface Settings {
-	vaults: string[];
+	serverUrl: string;
+	authToken: string | null;
+	authUser: {
+		email: string;
+		username: string;
+		displayName: string;
+	} | null;
+	captureMode: 'quick' | 'full';
 	showMoreActionsButton: boolean;
 	betaFeatures: boolean;
-	legacyMode: boolean;
-	silentOpen: boolean;
 	openBehavior: 'popup' | 'embedded';
 	highlighterEnabled: boolean;
 	alwaysShowHighlights: boolean;
 	highlightBehavior: string;
-	interpreterModel?: string;
-	models: ModelConfig[];
-	providers: Provider[];
-	interpreterEnabled: boolean;
-	interpreterAutoRun: boolean;
-	defaultPromptContext: string;
 	propertyTypes: PropertyType[];
 	readerSettings: ReaderSettings;
 	stats: {
-		addToObsidian: number;
+		captureToSieve: number;
 		saveFile: number;
 		copyToClipboard: number;
 		share: number;
 	};
 	history: HistoryEntry[];
 	ratings: Rating[];
-	saveBehavior: 'addToObsidian' | 'saveFile' | 'copyToClipboard';
-}
-
-export interface ModelConfig {
-	id: string;
-	providerId: string;
-	providerModelId: string;
-	name: string;
-	enabled: boolean;
+	saveBehavior: SaveBehavior;
 }
 
 export interface HistoryEntry {
 	datetime: string;
 	url: string;
-	action: 'addToObsidian' | 'saveFile' | 'copyToClipboard' | 'share';
+	action: 'captureToSieve' | 'saveFile' | 'copyToClipboard' | 'share';
 	title?: string;
-	vault?: string;
 	path?: string;
 }
 

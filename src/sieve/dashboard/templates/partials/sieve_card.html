@@ -1,0 +1,20 @@
+<div class="sieve-card">
+    <div class="sieve-card-name">
+        <a href="/sieve/@{{ sieve.username }}">{{ sieve.display_name }}</a>
+    </div>
+    <div class="sieve-card-username">@{{ sieve.username }}</div>
+    {% if sieve.bio %}
+    <p class="sieve-card-bio">{{ sieve.bio }}</p>
+    {% endif %}
+    <div class="sieve-card-stats">
+        <span><strong>{{ sieve.follower_count }}</strong> followers</span>
+        <span><strong>{{ sieve.capsule_count }}</strong> capsules</span>
+    </div>
+    {% if not sieve.is_own %}
+        {% if sieve.is_following %}
+        <button class="follow-btn follow-btn--following" hx-delete="/htmx/sieves/@{{ sieve.username }}/follow" hx-swap="outerHTML">Following</button>
+        {% else %}
+        <button class="follow-btn follow-btn--follow" hx-post="/htmx/sieves/@{{ sieve.username }}/follow" hx-swap="outerHTML">Follow</button>
+        {% endif %}
+    {% endif %}
+</div>

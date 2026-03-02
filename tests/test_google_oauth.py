@@ -1,8 +1,11 @@
+"""Tests for Google OAuth signup with username generation."""
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from sieve.api.auth.deps import hash_password
+from sieve.api.auth.google import _generate_unique_username, _sanitize_username
 from sieve.db.models import Sieve, User
 
 
@@ -17,6 +20,53 @@ def google_configured(monkeypatch):
 
     new_settings = Settings()
     monkeypatch.setattr("sieve.api.auth.google.settings", new_settings)
+
+
+def test_sanitize_username_basic():
+    """Sanitize simple email prefix."""
+    assert _sanitize_username("john") == "john"
+
+
+def test_sanitize_username_with_dots():
+    """Dots converted to underscores."""
+    assert _sanitize_username("john.doe") == "john_doe"
+
+
+def test_sanitize_username_with_special_chars():
+    """Special characters converted to underscores."""
+    assert _sanitize_username("john+tag") == "john_tag"
+
+
+def test_sanitize_username_short():
+    """Short strings get padded to minimum 3 chars."""
+    result = _sanitize_username("ab")
+    assert len(result) >= 3
+    assert result == "ab_user"
+
+
+def test_sanitize_username_uppercase():
+    """Uppercase converted to lowercase."""
+    assert _sanitize_username("JohnDoe") == "johndoe"
+
+
+def test_sanitize_username_consecutive_special():
+    """Consecutive special chars collapse to single underscore."""
+    assert _sanitize_username("john...doe") == "john_doe"
+
+
+async def test_generate_unique_username_available(db_session):
+    """When base username is available, use it directly."""
+    username = await _generate_unique_username("john@example.com", db_session)
+    assert username == "john"
+
+
+async def test_generate_unique_username_taken(db_session, test_user):
+    """When base username is taken, append a random suffix."""
+    # test_user has username "testuser"
+    username = await _generate_unique_username("testuser@example.com", db_session)
+    assert username.startswith("testuser_")
+    assert username != "testuser"
+    assert len(username) >= 3
 
 
 async def test_google_login_redirects(client, google_configured):
@@ -34,8 +84,10 @@ async def test_google_login_501_when_not_configured(client):
 
 
 @patch("sieve.api.auth.google.AsyncOAuth2Client")
-async def test_google_callback_creates_user(mock_oauth_cls, client, db_session, google_configured):
-    """Google callback creates a new user with oauth_provider='google'."""
+async def test_google_callback_creates_user_with_username(
+    mock_oauth_cls, client, db_session, google_configured
+):
+    """Google callback creates a new user with oauth_provider='google' and a generated username."""
     mock_client = AsyncMock()
     mock_oauth_cls.return_value = mock_client
 
@@ -56,7 +108,7 @@ async def test_google_callback_creates_user(mock_oauth_cls, client, db_session, 
     assert response.headers["location"] == "/sieve"
     assert "sieve_token" in response.headers.get("set-cookie", "")
 
-    # Verify user was created
+    # Verify user was created with username and oauth_provider
     from sqlalchemy import select
 
     result = await db_session.execute(
@@ -67,16 +119,20 @@ async def test_google_callback_creates_user(mock_oauth_cls, client, db_session, 
     assert user.display_name == "Google User"
     assert user.oauth_provider == "google"
     assert user.password_hash is None
+    assert user.username == "googleuser"
 
 
 @patch("sieve.api.auth.google.AsyncOAuth2Client")
-async def test_google_callback_existing_user(mock_oauth_cls, client, db_session, google_configured):
+async def test_google_callback_existing_user(
+    mock_oauth_cls, client, db_session, google_configured
+):
     """Google callback logs in existing user without creating duplicate."""
     # Pre-create user
     user = User(
         email="existing@example.com",
         password_hash=hash_password("password"),
         display_name="Existing User",
+        username="existing",
     )
     db_session.add(user)
     sieve = Sieve(user_id=user.id, name="Test Sieve")
@@ -117,6 +173,7 @@ async def test_password_login_rejects_oauth_user(client, db_session):
         password_hash=None,
         display_name="OAuth Only",
         oauth_provider="google",
+        username="oauth_only",
     )
     db_session.add(user)
     sieve = Sieve(user_id=user.id, name="OAuth Sieve")

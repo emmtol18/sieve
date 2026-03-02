@@ -1,0 +1,24 @@
+<div class="feed-card">
+    <div class="feed-card-title">
+        <a href="/capsule/{{ capsule.id }}">{{ capsule.title }}</a>
+    </div>
+    <p class="feed-card-insight">{{ capsule.core_insight or capsule.executive_summary }}</p>
+    {% if capsule.tags %}
+    <div class="tag-list">
+        {% for tag in capsule.tags[:4] %}
+        <a href="/discover?tag={{ tag }}" class="tag-pill">{{ tag }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <div class="feed-card-meta">
+        {% if capsule.author_username %}
+        <a href="/sieve/@{{ capsule.author_username }}" class="feed-card-author">@{{ capsule.author_username }}</a>
+        {% endif %}
+        {% if capsule.source_domain %}
+        <span class="feed-card-source">{{ capsule.source_domain }}</span>
+        {% endif %}
+        {% if capsule.created_at %}
+        <span>{{ capsule.created_at[:10] if capsule.created_at is string else capsule.created_at.strftime('%Y-%m-%d') }}</span>
+        {% endif %}
+    </div>
+</div>

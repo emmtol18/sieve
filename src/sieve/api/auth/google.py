@@ -1,4 +1,6 @@
 import logging
+import re
+import secrets
 
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -32,6 +34,47 @@ def _make_client() -> AsyncOAuth2Client:
         client_secret=settings.google_client_secret,
         redirect_uri=settings.google_redirect_uri,
     )
+
+
+def _sanitize_username(raw: str) -> str:
+    """Convert a raw string (e.g. email prefix) into a valid username.
+
+    Rules: lowercase, alphanumeric + underscore, 3-50 chars.
+    """
+    cleaned = re.sub(r"[^a-z0-9_]", "_", raw.lower())
+    # Collapse consecutive underscores
+    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
+    # Ensure minimum length
+    if len(cleaned) < 3:
+        cleaned = cleaned + "_user"
+    # Truncate to 50 chars
+    return cleaned[:50]
+
+
+async def _generate_unique_username(email: str, db: AsyncSession) -> str:
+    """Generate a unique username from an email address.
+
+    Extracts the prefix before @, sanitizes it, and appends a random suffix
+    if the base username is already taken.
+    """
+    prefix = email.split("@")[0]
+    base = _sanitize_username(prefix)
+
+    # Try the base username first
+    result = await db.execute(select(User).where(User.username == base))
+    if not result.scalar_one_or_none():
+        return base
+
+    # Append random suffix until unique
+    for _ in range(10):
+        suffix = secrets.token_hex(2)  # 4-char hex suffix
+        candidate = f"{base[:45]}_{suffix}"
+        result = await db.execute(select(User).where(User.username == candidate))
+        if not result.scalar_one_or_none():
+            return candidate
+
+    # Extremely unlikely fallback
+    return f"{base[:42]}_{secrets.token_hex(4)}"
 
 
 @router.get("/login")
@@ -82,11 +125,13 @@ async def google_callback(code: str, db: AsyncSession = Depends(get_db)):
 
     if not user:
         display_name = userinfo.get("name") or email.split("@")[0]
+        username = await _generate_unique_username(email, db)
         user = User(
             email=email,
             password_hash=None,
             display_name=display_name,
             oauth_provider="google",
+            username=username,
         )
         db.add(user)
         sieve = Sieve(user_id=user.id, name=f"{display_name}'s Sieve")

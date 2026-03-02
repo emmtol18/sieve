@@ -1,0 +1,7 @@
+<div class="empty-state">
+    <div class="empty-icon">&#9670;</div>
+    <h3>{{ message }}</h3>
+    {% if cta_url and cta_text %}
+    <p><a href="{{ cta_url }}">{{ cta_text }}</a></p>
+    {% endif %}
+</div>

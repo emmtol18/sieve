@@ -172,6 +172,7 @@ async def test_user(db_session):
         email="test@example.com",
         password_hash=hash_password("testpassword"),
         display_name="Test User",
+        username="testuser",
     )
     db_session.add(user)
     sieve = Sieve(user_id=user.id, name="Test Sieve")

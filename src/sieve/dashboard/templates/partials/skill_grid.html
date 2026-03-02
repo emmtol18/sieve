@@ -1,0 +1,16 @@
+{% if search_term %}
+<div class="search-results-count" style="grid-column: 1 / -1;">
+    <strong>{{ count }}</strong> result{{ 's' if count != 1 else '' }} for &ldquo;{{ search_term }}&rdquo;
+</div>
+{% endif %}
+{% if skills %}
+    {% for skill in skills %}
+    {% include "partials/skill_card.html" %}
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <div class="empty-icon">&#9889;</div>
+        <h3>No skills yet</h3>
+        <p>Create a skill from any capsule in your sieve.</p>
+    </div>
+{% endif %}

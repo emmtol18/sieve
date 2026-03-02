@@ -88,9 +88,9 @@ def test_login_template_has_tabs():
 def test_protected_routes_have_auth_check():
     """Protected dashboard routes use the _protected auth guard."""
     import inspect
-    from sieve.dashboard.routes import sieve_page, capture_page, discover_page, compile_page, capsule_detail
+    from sieve.dashboard.routes import sieve_page, capture_page, discover_page, compile_page, capsule_detail, skills_page, skill_detail
 
-    for fn in [sieve_page, capture_page, discover_page, compile_page, capsule_detail]:
+    for fn in [sieve_page, capture_page, discover_page, compile_page, capsule_detail, skills_page, skill_detail]:
         source = inspect.getsource(fn)
         assert "_protected" in source or "_is_authenticated" in source, f"{fn.__name__} missing auth check"
 
@@ -138,10 +138,10 @@ def test_base_template_has_feed_nav():
     assert '/capture' in content
 
 
-def test_css_has_bottom_nav():
+def test_css_has_feed_filters():
     with open("src/sieve/dashboard/static/style.css") as f:
         content = f.read()
-    assert ".bottom-nav" in content
+    assert ".feed-filters" in content
 
 
 def test_css_has_feed_card():
@@ -168,10 +168,10 @@ def test_css_has_profile_header():
     assert ".profile-header" in content
 
 
-def test_css_has_tag_pill():
+def test_css_has_tag_chip():
     with open("src/sieve/dashboard/static/style.css") as f:
         content = f.read()
-    assert ".tag-pill" in content
+    assert ".tag-chip" in content
 
 
 def test_css_has_feed_filters():
@@ -258,3 +258,28 @@ def test_css_has_drop_zone():
     css = Path("src/sieve/dashboard/static/style.css").read_text()
     assert ".drop-zone" in css
     assert ".dragover" in css
+
+
+# ---------------------------------------------------------------------------
+# Skills dashboard tests (Task 6)
+# ---------------------------------------------------------------------------
+
+
+def test_skills_route_exists():
+    from sieve.dashboard.routes import router
+    paths = [r.path for r in router.routes]
+    assert "/skills" in paths
+
+
+def test_skill_detail_route_exists():
+    from sieve.dashboard.routes import router
+    paths = [r.path for r in router.routes]
+    assert "/skills/{skill_id}" in paths
+
+
+def test_skills_templates_exist():
+    templates_dir = Path("src/sieve/dashboard/templates")
+    assert (templates_dir / "skills.html").exists()
+    assert (templates_dir / "skill_detail.html").exists()
+    assert (templates_dir / "partials" / "skill_card.html").exists()
+    assert (templates_dir / "partials" / "skill_grid.html").exists()

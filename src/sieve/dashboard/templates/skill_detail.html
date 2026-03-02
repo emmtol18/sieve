@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{% if skill %}{{ skill.title }}{% else %}Skill{% endif %} — Neural Sieve{% endblock %}
+{% block content %}
+{% if skill %}
+<article class="capsule-detail">
+    <header class="capsule-header">
+        <div class="capsule-header-top">
+            <a href="/skills" class="back-link" hx-boost="true">&larr; Back to Skills</a>
+            <div class="capsule-actions">
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('edit-section').classList.toggle('hidden')">Edit</button>
+                <button
+                    class="btn btn-secondary btn-sm"
+                    hx-post="/htmx/skills/{{ skill.id }}/export"
+                    hx-swap="innerHTML"
+                    hx-target="#export-result"
+                >Export</button>
+                <button
+                    class="btn btn-secondary btn-sm"
+                    hx-post="/htmx/skills/{{ skill.id }}/recompile"
+                    hx-swap="none"
+                    hx-confirm="Re-compile this skill from its source capsules?"
+                >Re-compile</button>
+                <button
+                    class="btn btn-danger btn-sm"
+                    hx-delete="/htmx/skills/{{ skill.id }}"
+                    hx-confirm="Delete this skill? This cannot be undone."
+                    hx-target="body"
+                    hx-swap="innerHTML"
+                >Delete</button>
+            </div>
+        </div>
+        <div class="capsule-meta-bar">
+            <span class="meta-item">{{ skill.name }}</span>
+        </div>
+        <h1 class="capsule-title">{{ skill.title }}</h1>
+    </header>
+
+    <section class="capsule-section">
+        <h2 class="section-heading">Description</h2>
+        <p class="capsule-content">{{ skill.description }}</p>
+    </section>
+
+    <section class="capsule-section">
+        <h2 class="section-heading">Skill Body</h2>
+        <div class="capsule-content skill-body">{{ skill.body }}</div>
+    </section>
+
+    {% if source_capsules %}
+    <section class="capsule-section">
+        <h2 class="section-heading">Source Capsules</h2>
+        <div class="tag-list">
+            {% for sc in source_capsules %}
+            <a href="/capsule/{{ sc.id }}" class="tag-chip" hx-boost="true">{{ sc.title }} ({{ sc.role }})</a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <div id="export-result"></div>
+
+    <footer class="capsule-footer">
+        <span>Created {{ skill.created_at[:10] if skill.created_at else "" }}</span>
+        <span>Updated {{ skill.updated_at[:10] if skill.updated_at else "" }}</span>
+    </footer>
+</article>
+
+<section id="edit-section" class="edit-section hidden">
+    <h2 class="section-heading">Edit Skill</h2>
+    <form
+        hx-put="/htmx/skills/{{ skill.id }}"
+        hx-target="body"
+        hx-swap="innerHTML"
+    >
+        <div class="form-group">
+            <label class="form-label" for="edit-title">Title</label>
+            <input type="text" id="edit-title" name="title" value="{{ skill.title }}" class="input">
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="edit-description">Description</label>
+            <textarea id="edit-description" name="description" rows="3" class="input textarea">{{ skill.description }}</textarea>
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="edit-body">Body</label>
+            <textarea id="edit-body" name="body" rows="12" class="input textarea" style="font-family: 'SF Mono', monospace; font-size: 0.8125rem;">{{ skill.body }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('edit-section').classList.add('hidden')">Cancel</button>
+        </div>
+    </form>
+</section>
+
+{% else %}
+<div class="empty-state">
+    <a href="/skills" class="back-link" hx-boost="true">&larr; Back to Skills</a>
+    <div class="empty-icon">&#9889;</div>
+    <h3>Skill not found</h3>
+    <p>The skill with ID <code>{{ skill_id }}</code> could not be loaded.</p>
+</div>
+{% endif %}
+{% endblock %}

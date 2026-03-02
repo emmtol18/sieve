@@ -1,0 +1,11 @@
+<a href="/skills/{{ skill.id }}" class="card capsule-card" hx-boost="true">
+    <div class="card-header">
+        <span class="badge">Skill</span>
+    </div>
+    <h3 class="card-title">{{ skill.title }}</h3>
+    <p class="card-summary">{{ skill.description }}</p>
+    <div class="card-meta">
+        {% if skill.created_at %}<span>{{ skill.created_at[:10] }}</span>{% endif %}
+        <span class="meta-sep">{{ skill.source_capsule_count }} capsule{{ 's' if skill.source_capsule_count != 1 else '' }}</span>
+    </div>
+</a>

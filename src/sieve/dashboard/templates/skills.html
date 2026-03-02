@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Skills — Neural Sieve{% endblock %}
+{% block content %}
+<div class="toolbar">
+    <div class="search-box">
+        <input
+            type="search"
+            name="search"
+            placeholder="Search skills..."
+            class="input search-input"
+            hx-get="/htmx/skills/"
+            hx-trigger="input changed delay:300ms, search"
+            hx-target="#skill-grid"
+        >
+    </div>
+</div>
+
+<div id="skill-grid" class="card-grid"
+     hx-get="/htmx/skills/"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    {% include "partials/skeleton_grid.html" %}
+</div>
+{% endblock %}

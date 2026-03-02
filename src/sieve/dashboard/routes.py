@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sieve.api.auth.deps import get_current_user, verify_token
 from sieve.api.capsules.routes import capsule_to_response
 from sieve.db.database import get_db
-from sieve.db.models import Capsule, Follow, Sieve, User
+from sieve.db.models import Capsule, Follow, Sieve, Skill, SkillCapsule, User
 from sieve.utils import extract_domain
 
 router = APIRouter(tags=["dashboard"])
@@ -62,8 +62,77 @@ async def discover_page(request: Request):
 
 
 @router.get("/compile", response_class=HTMLResponse)
-async def compile_page(request: Request):
-    return _protected(request, "compile.html")
+async def compile_page(request: Request, db: AsyncSession = Depends(get_db)):
+    if not _is_authenticated(request):
+        return LOGIN_REDIRECT
+
+    from pathlib import Path
+
+    from sieve.config import settings
+
+    user_id = verify_token(request.cookies.get("sieve_token"))
+    result = await db.execute(select(User.email).where(User.id == user_id))
+    user_email = result.scalar_one_or_none() or ""
+
+    return _render(
+        request,
+        "compile.html",
+        {
+            "user_email": user_email,
+            "database_url": settings.database_url,
+            "project_dir": str(Path.cwd()),
+        },
+    )
+
+
+@router.get("/skills", response_class=HTMLResponse)
+async def skills_page(request: Request):
+    return _protected(request, "skills.html")
+
+
+@router.get("/skills/{skill_id}", response_class=HTMLResponse)
+async def skill_detail(
+    request: Request, skill_id: str, db: AsyncSession = Depends(get_db)
+):
+    if not _is_authenticated(request):
+        return LOGIN_REDIRECT
+
+    user_id = verify_token(request.cookies.get("sieve_token"))
+    result = await db.execute(select(Sieve).where(Sieve.user_id == user_id))
+    sieve = result.scalar_one_or_none()
+
+    skill = None
+    source_capsules = []
+    if sieve:
+        result = await db.execute(
+            select(Skill).where(Skill.id == skill_id, Skill.sieve_id == sieve.id)
+        )
+        row = result.scalar_one_or_none()
+        if row:
+            from sieve.api.skills.routes import skill_to_response
+            skill = skill_to_response(row).model_dump()
+
+            # Load source capsules
+            result = await db.execute(
+                select(SkillCapsule).where(SkillCapsule.skill_id == row.id)
+            )
+            links = result.scalars().all()
+            for link in links:
+                cap_result = await db.execute(
+                    select(Capsule).where(Capsule.id == link.capsule_id)
+                )
+                cap = cap_result.scalar_one_or_none()
+                if cap:
+                    source_capsules.append({
+                        "id": str(cap.id),
+                        "title": cap.title,
+                        "role": link.role,
+                    })
+
+    return _render(
+        request, "skill_detail.html",
+        {"skill": skill, "skill_id": skill_id, "source_capsules": source_capsules},
+    )
 
 
 @router.get("/import", response_class=HTMLResponse)

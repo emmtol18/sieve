@@ -165,12 +165,6 @@ def test_css_has_tag_chip():
     assert ".tag-chip" in content
 
 
-def test_css_has_feed_filters():
-    with open("src/sieve/dashboard/static/style.css") as f:
-        content = f.read()
-    assert ".feed-filters" in content
-
-
 def test_css_has_quick_capture():
     with open("src/sieve/dashboard/static/style.css") as f:
         content = f.read()

@@ -84,27 +84,8 @@ async def discover_page(request: Request):
 
 
 @router.get("/compile", response_class=HTMLResponse)
-async def compile_page(request: Request, db: AsyncSession = Depends(get_db)):
-    if not _is_authenticated(request):
-        return LOGIN_REDIRECT
-
-    from pathlib import Path
-
-    from sieve.config import settings
-
-    user_id = verify_token(request.cookies.get("sieve_token"))
-    result = await db.execute(select(User.email).where(User.id == user_id))
-    user_email = result.scalar_one_or_none() or ""
-
-    return _render(
-        request,
-        "compile.html",
-        {
-            "user_email": user_email,
-            "database_url": settings.database_url,
-            "project_dir": str(Path.cwd()),
-        },
-    )
+async def compile_page(request: Request):
+    return _protected(request, "compile.html")
 
 
 @router.get("/skills", response_class=HTMLResponse)
@@ -300,5 +281,6 @@ async def settings_page(request: Request, db: AsyncSession = Depends(get_db)):
         {
             "user": current_user,
             "sieve": sieve,
+            "user_email": current_user.email or "",
         },
     )

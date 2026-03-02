@@ -24,3 +24,7 @@ Uses the `openai` Python SDK with custom base_url. API key env var: `SIEVE_OPENA
 - uv as package manager (mandatory, see above)
 - Tests with pytest-asyncio
 - Dark theme for all frontend (HTMX + Jinja2)
+
+## Always add a clear commit message and a short summary of changes. 
+
+## Always modify doc such as deployment guides and readme when changes to the setup need to happen

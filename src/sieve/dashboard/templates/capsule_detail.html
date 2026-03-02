@@ -101,7 +101,7 @@
     </p>
     <form
         hx-post="/htmx/skills/compile"
-        hx-target="body"
+        hx-target="#skill-compile-result"
         hx-swap="innerHTML"
     >
         <input type="hidden" name="primary_capsule_id" value="{{ capsule.id }}">
@@ -117,6 +117,7 @@
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('create-skill-section').classList.add('hidden')">Cancel</button>
         </div>
     </form>
+    <div id="skill-compile-result"></div>
 </section>
 
 {% else %}

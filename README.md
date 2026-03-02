@@ -1,18 +1,18 @@
 # Neural Sieve v3
 
-Cloud-first knowledge-to-skills pipeline. Capture insights from the web, curate thought-leader knowledge packs, and compile everything into Claude Code skills — available from any device, always on.
+Cloud-first knowledge-to-skills pipeline. Capture insights from the web, curate your knowledge, and compile everything into Claude Code skills — available from any device, always on.
 
 ## What It Does
 
-1. **Capture** — Clip from the web (via Obsidian Clipper or dashboard), LLM extracts structured capsules
-2. **Curate** — Subscribe to leader packs (Karpathy, Levelsio, etc.) or build your own
+1. **Capture** — Clip from the web (via browser extension or dashboard), LLM extracts structured capsules
+2. **Curate** — Build your sieve, follow others, and organize by category
 3. **Compile** — Transform capsules into `.claude/skills/*.md` files that load at Claude Code session start
 4. **Search** — MCP server gives Claude real-time access to your knowledge base
 
 ## Architecture
 
 ```
-Obsidian Clipper / Dashboard / Extension
+Browser Extension / Dashboard / Import
           ↓
     Cloud Backend (FastAPI + PostgreSQL)
           ↓
@@ -28,7 +28,7 @@ Obsidian Clipper / Dashboard / Extension
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) (package manager)
 - PostgreSQL 16+
-- OpenAI API key
+- LLM API key (BlackFuel or OpenAI-compatible)
 
 ### Install
 
@@ -78,17 +78,13 @@ curl -X POST http://localhost:8421/api/auth/signup \
 # Save the api_key from the response — you'll need it for MCP + CLI
 ```
 
-## Obsidian Integration
+## Import from Obsidian
 
-[Obsidian](https://obsidian.md/) is a powerful knowledge management app that stores notes as local Markdown files. Neural Sieve integrates with Obsidian via the **Web Clipper** browser extension to capture knowledge directly into your sieve.
+You can import notes from your Obsidian vault:
 
-### Setup
-
-1. **Install Obsidian** — download from [obsidian.md](https://obsidian.md/)
-2. **Install Obsidian Web Clipper** — get the browser extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/obsidian-web-clipper/cnjifjpddelmedmihgijeibhnjfabmlf) or [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/obsidian-web-clipper/)
-3. **Configure the Clipper** — point it at your Neural Sieve capture endpoint (`/api/capture/`)
-
-A dedicated Neural Sieve Obsidian plugin is planned for Phase 3, which will provide deeper two-way sync between your vault and your sieve.
+1. Export your vault as a `.zip` file
+2. Go to **Settings > Import** in the dashboard
+3. Upload the zip — markdown files are parsed and captured as capsules
 
 ## CLI Commands
 
@@ -99,13 +95,12 @@ uv run sieve mcp               # Start MCP server for Claude Code
 uv run sieve compile                   # Compile one skill per capsule (default)
 uv run sieve compile --by category     # Group by category
 uv run sieve compile --by author       # Group by author
-uv run sieve compile --by pack         # Group by leader pack
 uv run sieve compile --all             # Include all capsules (not just skill-eligible)
 ```
 
 ## Connect to Claude Code
 
-Add to your Claude Code MCP config (`.mcp.json` or settings):
+Add to `~/.claude/settings.json`:
 
 ```json
 {
@@ -114,15 +109,17 @@ Add to your Claude Code MCP config (`.mcp.json` or settings):
       "command": "uv",
       "args": ["run", "--directory", "/path/to/neural-sieve-v3", "sieve", "mcp"],
       "env": {
-        "SIEVE_API_URL": "https://your-app.fly.dev",
-        "SIEVE_API_KEY": "your-api-key"
+        "SIEVE_USER_EMAIL": "you@example.com",
+        "SIEVE_DATABASE_URL": "your-database-url"
       }
     }
   }
 }
 ```
 
-Claude Code can now search your knowledge base, retrieve capsules, and access your pinned "eternal truths" during coding sessions.
+Replace `/path/to/neural-sieve-v3` with your project directory and `your-database-url` with your PostgreSQL connection string.
+
+Claude Code can now search your knowledge base, retrieve capsules, and access your pinned "eternal truths" during coding sessions. You can also configure this from the **Settings** page in the dashboard.
 
 ## Compile Skills
 
@@ -166,11 +163,15 @@ uv run scripts/migrate_v1.py https://your-app.fly.dev your-api-key
 | DELETE | `/api/capsules/{id}` | Delete capsule |
 | POST | `/api/capsules/search` | Search capsules |
 | POST | `/api/capture/` | Capture from URL/text |
+| GET | `/api/skills/` | List skills |
+| POST | `/api/skills/` | Create skill |
+| GET | `/api/discover/sieves` | Discover public sieves |
+| GET | `/api/discover/capsules` | Discover trending capsules |
 
 ## Tech Stack
 
 - **Backend:** Python 3.12, FastAPI, SQLAlchemy async, PostgreSQL 16
-- **Frontend:** HTMX + Jinja2, responsive dark theme
+- **Frontend:** HTMX + Jinja2, warm cream theme
 - **Search:** LLM-ranked semantic search (pgvector planned)
 - **MCP:** Model Context Protocol for Claude Code integration
 - **Package Manager:** uv (mandatory)
@@ -189,7 +190,7 @@ neural-sieve-v3/
 │   ├── mcp/              # MCP server for Claude Code
 │   ├── cli.py            # Click CLI entry point
 │   └── config.py         # Pydantic settings
-├── tests/                # 71 tests
+├── tests/                # 195 tests
 ├── scripts/              # Migration scripts
 ├── docs/plans/           # Design + implementation docs
 └── pyproject.toml

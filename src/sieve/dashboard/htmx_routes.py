@@ -679,9 +679,11 @@ async def htmx_list_skills(
     sieve: Sieve = Depends(get_user_sieve),
     db: AsyncSession = Depends(get_db),
 ):
+    from sqlalchemy.orm import selectinload
+
     from sieve.db.models import Skill
 
-    query = select(Skill).where(Skill.sieve_id == sieve.id)
+    query = select(Skill).where(Skill.sieve_id == sieve.id).options(selectinload(Skill.capsule_links))
 
     if search:
         term = f"%{escape_like(search)}%"

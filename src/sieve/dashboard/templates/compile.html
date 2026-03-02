@@ -6,26 +6,6 @@
     <p class="page-subtitle">Transform your capsules into Claude Code skill files</p>
 </section>
 
-<section class="card" style="margin-bottom: 2rem;">
-    <h2 style="margin-top: 0;">Connect to Claude Code</h2>
-    <p style="color: var(--text-muted); margin-bottom: 1rem;">Add this to your <code>~/.claude/settings.json</code>, then restart Claude Code.</p>
-    <div style="position: relative;">
-        <pre id="mcp-config" style="background: var(--bg-darker, #0d0d0d); border: 1px solid var(--border, #333); border-radius: 8px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.5;">{
-  "mcpServers": {
-    "neural-sieve": {
-      "command": "uv",
-      "args": ["run", "--directory", "{{ project_dir }}", "sieve", "mcp"],
-      "env": {
-        "SIEVE_USER_EMAIL": "{{ user_email }}",
-        "SIEVE_DATABASE_URL": "{{ database_url }}"
-      }
-    }
-  }
-}</pre>
-        <button onclick="navigator.clipboard.writeText(document.getElementById('mcp-config').textContent).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })" class="btn btn-secondary btn-sm" style="position: absolute; top: 0.5rem; right: 0.5rem;">Copy</button>
-    </div>
-</section>
-
 <div class="compile-options">
     <div class="card compile-card">
         <div class="compile-icon">&#9670;</div>
@@ -58,7 +38,7 @@
     <div class="card compile-card">
         <div class="compile-icon">&#10022;</div>
         <h3 class="card-title">By Author</h3>
-        <p class="card-summary">Group capsules by author or leader pack. Distill all knowledge from one source into a single skill.</p>
+        <p class="card-summary">Group capsules by author. Distill all knowledge from one source into a single skill.</p>
         <button
             class="btn btn-primary btn-block"
             hx-post="/htmx/compile/"
@@ -69,19 +49,6 @@
         >Compile By Author</button>
     </div>
 
-    <div class="card compile-card">
-        <div class="compile-icon">&#9881;</div>
-        <h3 class="card-title">By Pack</h3>
-        <p class="card-summary">Group capsules by leader pack. One skill per subscribed pack.</p>
-        <button
-            class="btn btn-primary btn-block"
-            hx-post="/htmx/compile/"
-            hx-vals='{"by": "pack"}'
-            hx-target="#compile-preview"
-            hx-swap="innerHTML"
-            hx-indicator="#compile-spinner"
-        >Compile By Pack</button>
-    </div>
 </div>
 
 <div class="compile-preview-section">

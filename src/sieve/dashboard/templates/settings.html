@@ -78,6 +78,29 @@
     </section>
 
     <section class="settings-section">
+        <h2>Claude Code Integration</h2>
+        <div class="form-group">
+            <p style="font-size:0.9375rem;color:#8a857e;margin-bottom:1rem">Add this to your <code>~/.claude/settings.json</code>, then restart Claude Code.</p>
+            <div style="position: relative;">
+                <pre id="mcp-config" class="skill-body">{
+  "mcpServers": {
+    "neural-sieve": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/neural-sieve-v3", "sieve", "mcp"],
+      "env": {
+        "SIEVE_USER_EMAIL": "{{ user_email }}",
+        "SIEVE_DATABASE_URL": "your-database-url"
+      }
+    }
+  }
+}</pre>
+                <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('mcp-config').textContent).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })" class="btn btn-secondary btn-sm" style="position: absolute; top: 0.5rem; right: 0.5rem;">Copy</button>
+            </div>
+            <p style="font-size:0.8125rem;color:#a09a93;margin-top:0.75rem">Replace <code>/path/to/neural-sieve-v3</code> with the project directory and <code>your-database-url</code> with your database connection string.</p>
+        </div>
+    </section>
+
+    <section class="settings-section">
         <h2>Import</h2>
         <div class="form-group">
             <p style="font-size:0.9375rem;color:#888;margin-bottom:1rem">Import notes from your Obsidian vault as capsules.</p>

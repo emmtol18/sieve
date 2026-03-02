@@ -5,18 +5,54 @@ from collections import defaultdict
 
 from mcp.server import Server
 from mcp.types import TextContent, Tool
+from sqlalchemy import select
 
+from sieve.db.database import async_session
+from sieve.db.models import Capsule, Sieve, User
 from sieve.mcp.api_client import SieveAPIClient
 
 server = Server("neural-sieve")
 
 
-def get_client() -> SieveAPIClient:
+def _get_api_client() -> SieveAPIClient:
     """Create an API client from environment variables."""
     return SieveAPIClient(
         api_url=os.environ.get("SIEVE_API_URL", "http://localhost:8421"),
         api_key=os.environ.get("SIEVE_API_KEY", ""),
     )
+
+
+async def _get_sieve_id():
+    """Look up the sieve ID for the configured user email."""
+    email = os.environ.get("SIEVE_USER_EMAIL", "")
+    if not email:
+        raise ValueError("SIEVE_USER_EMAIL environment variable is not set")
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(Sieve.id)
+            .join(User, User.id == Sieve.user_id)
+            .where(User.email == email)
+        )
+        sieve_id = result.scalar_one_or_none()
+        if not sieve_id:
+            raise ValueError(f"No sieve found for user {email}")
+        return sieve_id
+
+
+def _capsule_to_dict(c: Capsule) -> dict:
+    """Convert a Capsule ORM model to a dict matching the format helpers."""
+    return {
+        "id": str(c.id),
+        "title": c.title,
+        "executive_summary": c.executive_summary,
+        "core_insight": c.core_insight,
+        "full_content": c.full_content,
+        "tags": c.tags or [],
+        "category": c.category or "",
+        "domain": c.domain or "",
+        "pinned": c.pinned,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +135,38 @@ def format_index(data: dict) -> str:
     return "\n".join(lines)
 
 
+def format_skill(s: dict) -> str:
+    """Format a skill as SKILL.md-compatible markdown."""
+    lines = [
+        "---",
+        f"name: {s.get('name', 'unnamed')}",
+        f"description: {s.get('description', '')}",
+        "---",
+        "",
+        s.get("body", ""),
+    ]
+    return "\n".join(lines)
+
+
+def format_skill_list(data: dict) -> str:
+    """Format a list of skills as a bullet list."""
+    skills = data.get("skills", [])
+    total = data.get("total", len(skills))
+
+    if not skills:
+        return "No skills found."
+
+    lines = [f"Found {total} skill{'s' if total != 1 else ''}:\n"]
+    for s in skills:
+        name = s.get("name", "unnamed")
+        title = s.get("title", "Untitled")
+        desc = s.get("description", "")[:100]
+        skill_id = s.get("id", "?")
+        lines.append(f"- **{title}** (`{name}`) — {desc} — ID: {skill_id}")
+
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # MCP Tool definitions
 # ---------------------------------------------------------------------------
@@ -171,6 +239,42 @@ TOOLS = [
             "properties": {},
         },
     ),
+    Tool(
+        name="search_skills",
+        description=(
+            "Search the user's skills. Skills are compiled from capsules and contain "
+            "actionable knowledge formatted as Claude Code skills."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query for skill name or description",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum results (default: 10)",
+                    "default": 10,
+                },
+            },
+            "required": ["query"],
+        },
+    ),
+    Tool(
+        name="get_skill",
+        description="Get a specific skill by ID. Returns the full skill content as SKILL.md-compatible markdown.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "The skill ID",
+                },
+            },
+            "required": ["id"],
+        },
+    ),
 ]
 
 
@@ -189,35 +293,90 @@ async def handle_list_tools() -> list[Tool]:
 async def handle_call_tool(name: str, arguments: dict | None) -> list[TextContent]:
     """Dispatch tool calls to the appropriate handler."""
     arguments = arguments or {}
-    client = get_client()
 
     try:
+        sieve_id = await _get_sieve_id()
+
         if name == "search_capsules":
             query = arguments.get("query", "")
             limit = arguments.get("limit", 10)
-            filters = {}
-            if arguments.get("category"):
-                filters["category"] = arguments["category"]
-            if arguments.get("domain"):
-                filters["domain"] = arguments["domain"]
-            data = await client.search_capsules(query=query, limit=limit, **filters)
-            text = format_capsule_list(data)
+            category = arguments.get("category")
+            domain = arguments.get("domain")
+
+            async with async_session() as session:
+                stmt = select(Capsule).where(Capsule.sieve_id == sieve_id)
+
+                # ILIKE search across text fields
+                if query:
+                    pattern = f"%{query}%"
+                    stmt = stmt.where(
+                        Capsule.title.ilike(pattern)
+                        | Capsule.executive_summary.ilike(pattern)
+                        | Capsule.core_insight.ilike(pattern)
+                        | Capsule.full_content.ilike(pattern)
+                    )
+                if category:
+                    stmt = stmt.where(Capsule.category.ilike(f"%{category}%"))
+                if domain:
+                    stmt = stmt.where(Capsule.domain.ilike(f"%{domain}%"))
+
+                stmt = stmt.limit(limit)
+                result = await session.execute(stmt)
+                capsules = [_capsule_to_dict(c) for c in result.scalars().all()]
+
+            text = format_capsule_list({"capsules": capsules, "total": len(capsules)})
 
         elif name == "get_capsule":
             capsule_id = arguments.get("id", "")
-            data = await client.get_capsule(capsule_id)
-            text = format_capsule(data)
+            async with async_session() as session:
+                result = await session.execute(
+                    select(Capsule).where(
+                        Capsule.id == capsule_id, Capsule.sieve_id == sieve_id
+                    )
+                )
+                capsule = result.scalar_one_or_none()
+                if not capsule:
+                    text = f"Capsule {capsule_id} not found."
+                else:
+                    text = format_capsule(_capsule_to_dict(capsule))
 
         elif name == "get_pinned":
-            data = await client.get_pinned()
-            if not data.get("capsules"):
+            async with async_session() as session:
+                result = await session.execute(
+                    select(Capsule).where(
+                        Capsule.sieve_id == sieve_id, Capsule.pinned == True  # noqa: E712
+                    )
+                )
+                capsules = [_capsule_to_dict(c) for c in result.scalars().all()]
+
+            if not capsules:
                 text = "No pinned capsules found."
             else:
-                text = format_capsule_list(data)
+                text = format_capsule_list({"capsules": capsules, "total": len(capsules)})
 
         elif name == "get_index":
-            data = await client.get_index()
-            text = format_index(data)
+            async with async_session() as session:
+                result = await session.execute(
+                    select(Capsule)
+                    .where(Capsule.sieve_id == sieve_id)
+                    .order_by(Capsule.category, Capsule.created_at.desc())
+                )
+                capsules = [_capsule_to_dict(c) for c in result.scalars().all()]
+
+            text = format_index({"capsules": capsules})
+
+        elif name == "search_skills":
+            query = arguments.get("query", "")
+            limit = arguments.get("limit", 10)
+            api_client = _get_api_client()
+            data = await api_client.list_skills(search=query, limit=limit)
+            text = format_skill_list(data)
+
+        elif name == "get_skill":
+            skill_id = arguments.get("id", "")
+            api_client = _get_api_client()
+            data = await api_client.get_skill(skill_id)
+            text = format_skill(data)
 
         else:
             text = f"Unknown tool: {name}"

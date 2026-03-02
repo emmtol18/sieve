@@ -62,3 +62,24 @@ class SieveAPIClient:
     async def get_index(self) -> dict:
         """Get full knowledge index (all capsules)."""
         return await self.list_capsules(limit=200)
+
+    async def list_skills(self, **params) -> dict:
+        """List skills with optional filters."""
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{self.api_url}/api/skills/",
+                params=params,
+                headers=self._headers(),
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+    async def get_skill(self, skill_id: str) -> dict:
+        """Get a specific skill by ID."""
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{self.api_url}/api/skills/{skill_id}",
+                headers=self._headers(),
+            )
+            resp.raise_for_status()
+            return resp.json()

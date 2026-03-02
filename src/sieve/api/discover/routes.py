@@ -10,6 +10,7 @@ from sieve.api.sieves.routes import _get_sieve_counts, _sieve_to_profile
 from sieve.api.sieves.schemas import SieveProfileResponse
 from sieve.db.database import get_db
 from sieve.db.models import Capsule, Sieve, User
+from sieve.utils import escape_like
 
 router = APIRouter(prefix="/api/discover", tags=["discover"])
 
@@ -34,7 +35,7 @@ async def discover_sieves(
     )
 
     if search:
-        search_term = f"%{search}%"
+        search_term = f"%{escape_like(search)}%"
         query = query.where(
             or_(
                 Sieve.name.ilike(search_term),
@@ -80,13 +81,13 @@ async def discover_capsules(
     if tag:
         # Use cast to String + ILIKE for SQLite compatibility
         # (PostgreSQL ARRAY .any() won't work with SQLite test patches)
-        query = query.where(Capsule.tags.cast(String).ilike(f"%{tag}%"))
+        query = query.where(Capsule.tags.cast(String).ilike(f"%{escape_like(tag)}%"))
 
     if category:
-        query = query.where(Capsule.category.ilike(f"%{category}%"))
+        query = query.where(Capsule.category.ilike(f"%{escape_like(category)}%"))
 
     if search:
-        search_term = f"%{search}%"
+        search_term = f"%{escape_like(search)}%"
         query = query.where(
             or_(
                 Capsule.title.ilike(search_term),

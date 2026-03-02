@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sieve.api.auth.deps import get_current_user, verify_token
 from sieve.db.database import get_db
 from sieve.db.models import Capsule, Follow, Sieve, User
+from sieve.utils import extract_domain
 
 router = APIRouter(tags=["dashboard"])
 templates = Jinja2Templates(directory="src/sieve/dashboard/templates")
@@ -81,18 +82,6 @@ async def capsule_detail(request: Request, capsule_id: str):
     )
 
 
-def _extract_domain(url: str | None) -> str:
-    if not url:
-        return ""
-    try:
-        from urllib.parse import urlparse
-
-        parsed = urlparse(url)
-        return parsed.netloc or ""
-    except Exception:
-        return ""
-
-
 @router.get("/sieve/@{username}", response_class=HTMLResponse)
 async def sieve_profile(request: Request, username: str, db: AsyncSession = Depends(get_db)):
     if not _is_authenticated(request):
@@ -128,7 +117,7 @@ async def sieve_profile(request: Request, username: str, db: AsyncSession = Depe
     ).scalar() or 0
 
     capsule_count = (
-        await db.execute(select(func.count()).where(Capsule.sieve_id == target_sieve.id))
+        await db.execute(select(func.count()).where(Capsule.sieve_id == target_sieve.id, Capsule.status == "active"))
     ).scalar() or 0
 
     # Follow status
@@ -162,7 +151,7 @@ async def sieve_profile(request: Request, username: str, db: AsyncSession = Depe
                     "core_insight": c.core_insight,
                     "tags": c.tags or [],
                     "source_url": c.source_url,
-                    "source_domain": _extract_domain(c.source_url),
+                    "source_domain": extract_domain(c.source_url),
                     "created_at": c.created_at.strftime("%Y-%m-%d") if c.created_at else "",
                     "author_username": target_user.username,
                 }

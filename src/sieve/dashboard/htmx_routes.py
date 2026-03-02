@@ -3,7 +3,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sieve.api.auth.deps import create_access_token, get_current_user, hash_password, verify_password
@@ -14,6 +14,7 @@ from sieve.api.capture.pipeline import CapturePipeline
 from sieve.config import settings
 from sieve.db.database import get_db
 from sieve.db.models import Capsule, Follow, Sieve, User
+from sieve.utils import escape_like, extract_domain
 
 router = APIRouter(prefix="/htmx", tags=["htmx"])
 templates = Jinja2Templates(directory="src/sieve/dashboard/templates")
@@ -151,7 +152,7 @@ async def htmx_list_capsules(
     query = select(Capsule).where(Capsule.sieve_id == sieve.id)
 
     if search:
-        term = f"%{search}%"
+        term = f"%{escape_like(search)}%"
         query = query.where(
             or_(
                 Capsule.title.ilike(term),
@@ -161,9 +162,9 @@ async def htmx_list_capsules(
             )
         )
     if category:
-        query = query.where(Capsule.category.ilike(f"%{category}%"))
+        query = query.where(Capsule.category.ilike(f"%{escape_like(category)}%"))
     if domain:
-        query = query.where(Capsule.domain.ilike(f"%{domain}%"))
+        query = query.where(Capsule.domain.ilike(f"%{escape_like(domain)}%"))
 
     query = query.order_by(Capsule.created_at.desc()).limit(50)
     result = await db.execute(query)
@@ -266,19 +267,6 @@ async def htmx_delete_capsule(
 # ---------------------------------------------------------------------------
 
 
-def _extract_domain(url: str | None) -> str:
-    """Extract domain from a URL, e.g. 'https://example.com/path' -> 'example.com'."""
-    if not url:
-        return ""
-    try:
-        from urllib.parse import urlparse
-
-        parsed = urlparse(url)
-        return parsed.netloc or ""
-    except Exception:
-        return ""
-
-
 async def _capsule_to_feed_dict(capsule: Capsule, db: AsyncSession) -> dict:
     """Convert a Capsule ORM object to a dict suitable for feed_card.html."""
     # Eagerly load the sieve -> user for author info
@@ -297,7 +285,7 @@ async def _capsule_to_feed_dict(capsule: Capsule, db: AsyncSession) -> dict:
         "core_insight": capsule.core_insight,
         "tags": capsule.tags or [],
         "source_url": capsule.source_url,
-        "source_domain": _extract_domain(capsule.source_url),
+        "source_domain": extract_domain(capsule.source_url),
         "created_at": capsule.created_at.strftime("%Y-%m-%d") if capsule.created_at else "",
         "author_username": author_username,
     }
@@ -383,7 +371,7 @@ async def htmx_discover_sieves(
     query = select(Sieve, User).join(User, Sieve.user_id == User.id).where(Sieve.is_public == True)  # noqa: E712
 
     if search:
-        term = f"%{search}%"
+        term = f"%{escape_like(search)}%"
         query = query.where(
             or_(
                 User.display_name.ilike(term),
@@ -405,8 +393,6 @@ async def htmx_discover_sieves(
     html_parts = []
     for sieve_obj, user_obj in rows:
         # Get follower and capsule counts
-        from sqlalchemy import func
-
         follower_count_result = await db.execute(
             select(func.count()).where(Follow.followed_sieve_id == sieve_obj.id)
         )

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sieve.api.auth.deps import get_current_user, verify_token
@@ -47,13 +47,35 @@ async def home(request: Request):
 
 
 @router.get("/sieve", response_class=HTMLResponse)
-async def sieve_page(request: Request):
-    return _protected(request, "sieve.html", {"capsules": [], "categories": [], "domains": []})
+async def sieve_page(request: Request, db: AsyncSession = Depends(get_db)):
+    if not _is_authenticated(request):
+        return LOGIN_REDIRECT
 
+    categories = []
+    domains = []
+    try:
+        user_id = verify_token(request.cookies.get("sieve_token"))
+        result = await db.execute(select(Sieve).where(Sieve.user_id == user_id))
+        sieve = result.scalar_one_or_none()
 
-@router.get("/capture", response_class=HTMLResponse)
-async def capture_page(request: Request):
-    return _protected(request, "capture.html")
+        if sieve:
+            cat_result = await db.execute(
+                select(Capsule.category)
+                .where(Capsule.sieve_id == sieve.id, Capsule.category.isnot(None))
+                .distinct()
+            )
+            categories = sorted([row[0] for row in cat_result.all() if row[0]])
+
+            dom_result = await db.execute(
+                select(Capsule.domain)
+                .where(Capsule.sieve_id == sieve.id, Capsule.domain.isnot(None))
+                .distinct()
+            )
+            domains = sorted([row[0] for row in dom_result.all() if row[0]])
+    except Exception:
+        pass
+
+    return _render(request, "sieve.html", {"capsules": [], "categories": categories, "domains": domains})
 
 
 @router.get("/discover", response_class=HTMLResponse)

@@ -1,3 +1,4 @@
+import pytest
 from click.testing import CliRunner
 
 from sieve.compiler.compiler import SkillCompiler, _slugify
@@ -61,13 +62,23 @@ def test_slugify():
     assert _slugify("special@chars#here") == "specialcharshere"
 
 
+def test_compiler_init_no_args():
+    compiler = SkillCompiler()
+    assert compiler.api_client is None
+
+
+def test_compiler_init_with_args():
+    compiler = SkillCompiler(api_url="http://localhost:8421", api_key="test")
+    assert compiler.api_client is not None
+
+
 def test_compiler_group_by_author():
     capsules = [
         {"author": "karpathy", "title": "A", "tags": ["ai"]},
         {"author": "karpathy", "title": "B", "tags": ["ml"]},
         {"author": "personal", "title": "C", "tags": ["dev"]},
     ]
-    compiler = SkillCompiler(api_url="http://localhost:8421", api_key="test")
+    compiler = SkillCompiler()
     groups = compiler.group_capsules(capsules, by="author")
     assert "karpathy" in groups
     assert len(groups["karpathy"]) == 2
@@ -81,7 +92,7 @@ def test_compiler_group_by_category():
         {"category": "AI", "title": "B"},
         {"category": "Business", "title": "C"},
     ]
-    compiler = SkillCompiler(api_url="http://localhost:8421", api_key="test")
+    compiler = SkillCompiler()
     groups = compiler.group_capsules(capsules, by="category")
     assert len(groups["AI"]) == 2
     assert len(groups["Business"]) == 1
@@ -89,10 +100,20 @@ def test_compiler_group_by_category():
 
 def test_compiler_group_unknown_key():
     capsules = [{"title": "A"}, {"title": "B"}]
-    compiler = SkillCompiler(api_url="http://localhost:8421", api_key="test")
+    compiler = SkillCompiler()
     groups = compiler.group_capsules(capsules, by="author")
     assert "unknown" in groups
     assert len(groups["unknown"]) == 2
+
+
+def test_compile_to_skills_no_capsules_no_client():
+    """compile_to_skills should raise when no capsules and no API client."""
+    import asyncio
+    from pathlib import Path
+
+    compiler = SkillCompiler()
+    with pytest.raises(RuntimeError, match="No capsules provided"):
+        asyncio.run(compiler.compile_to_skills(output_dir=Path("/tmp/test")))
 
 
 def test_cli_compile_missing_openai_key(monkeypatch):
@@ -100,7 +121,7 @@ def test_cli_compile_missing_openai_key(monkeypatch):
     from sieve.config import settings
 
     monkeypatch.setattr(settings, "openai_api_key", "")
-    monkeypatch.setattr(settings, "sieve_api_key", "some-key")
+    monkeypatch.setattr(settings, "user_email", "test@example.com")
 
     from sieve.cli import cli
 
@@ -110,16 +131,16 @@ def test_cli_compile_missing_openai_key(monkeypatch):
     assert "SIEVE_OPENAI_API_KEY" in result.output
 
 
-def test_cli_compile_missing_sieve_key(monkeypatch):
-    """Compile should fail with clear error when SIEVE_SIEVE_API_KEY is not set."""
+def test_cli_compile_missing_email(monkeypatch):
+    """Compile should fail with clear error when no user email is provided."""
     from sieve.config import settings
 
     monkeypatch.setattr(settings, "openai_api_key", "some-key")
-    monkeypatch.setattr(settings, "sieve_api_key", "")
+    monkeypatch.setattr(settings, "user_email", "")
 
     from sieve.cli import cli
 
     runner = CliRunner()
     result = runner.invoke(cli, ["compile"])
     assert result.exit_code != 0
-    assert "SIEVE_SIEVE_API_KEY" in result.output
+    assert "email" in result.output.lower()

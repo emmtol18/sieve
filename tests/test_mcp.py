@@ -1,23 +1,4 @@
-from sieve.mcp.api_client import SieveAPIClient
 from sieve.mcp.server import format_capsule, format_capsule_list, format_index
-
-
-def test_api_client_init():
-    client = SieveAPIClient(api_url="http://localhost:8421", api_key="test-key")
-    assert client.api_url == "http://localhost:8421"
-    assert client.api_key == "test-key"
-
-
-def test_api_client_init_strips_trailing_slash():
-    client = SieveAPIClient(api_url="http://localhost:8421/", api_key="test-key")
-    assert client.api_url == "http://localhost:8421"
-
-
-def test_api_client_headers():
-    client = SieveAPIClient(api_url="http://localhost:8421", api_key="my-key")
-    headers = client._headers()
-    assert headers["Authorization"] == "Bearer my-key"
-    assert headers["Content-Type"] == "application/json"
 
 
 def test_format_capsule():

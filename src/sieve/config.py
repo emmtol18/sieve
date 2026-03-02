@@ -12,8 +12,7 @@ class Settings(BaseSettings):
     search_model: str = "openai/gpt-oss-120b:eu"
     host: str = "localhost"
     port: int = 8421
-    sieve_api_url: str = "http://localhost:8421"
-    sieve_api_key: str = ""
+    user_email: str = ""
     google_client_id: str = ""
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8421/auth/google/callback"

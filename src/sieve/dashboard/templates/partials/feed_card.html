@@ -6,7 +6,7 @@
     {% if capsule.tags %}
     <div class="tag-list">
         {% for tag in capsule.tags[:4] %}
-        <a href="/discover?tag={{ tag }}" class="tag-pill">{{ tag }}</a>
+        <a href="/discover?tag={{ tag }}" class="tag-chip">{{ tag }}</a>
         {% endfor %}
     </div>
     {% endif %}

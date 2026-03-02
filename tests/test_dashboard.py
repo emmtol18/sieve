@@ -7,7 +7,6 @@ def test_dashboard_routes_exist():
     paths = [r.path for r in router.routes]
     assert "/" in paths
     assert "/sieve" in paths
-    assert "/capture" in paths
     assert "/discover" in paths
     assert "/compile" in paths
     assert "/login" in paths
@@ -26,7 +25,7 @@ def test_static_directory_exists():
 
 def test_all_templates_exist():
     templates_dir = Path("src/sieve/dashboard/templates")
-    expected = ["base.html", "sieve.html", "capture.html", "discover.html",
+    expected = ["base.html", "sieve.html", "discover.html",
                 "compile.html", "capsule_detail.html", "login.html"]
     for name in expected:
         assert (templates_dir / name).exists(), f"Template {name} is missing"
@@ -45,16 +44,16 @@ def test_manifest_json_valid():
     data = json.loads(manifest_path.read_text())
     assert data["name"] == "Neural Sieve"
     assert data["short_name"] == "Sieve"
-    assert data["theme_color"] == "#6366f1"
-    assert data["background_color"] == "#f8f7f4"
+    assert data["theme_color"] == "#000000"
+    assert data["background_color"] == "#000000"
 
 
 def test_style_css_has_theme():
     css = Path("src/sieve/dashboard/static/style.css").read_text()
-    assert "#f8f7f4" in css  # Background
-    assert "#ffffff" in css  # Card background
-    assert "#6366f1" in css  # Accent
-    assert "#1a1816" in css  # Text color
+    assert "#000" in css  # Background
+    assert "#111" in css  # Card background
+    assert "#d4d4d4" in css  # Neutral accent
+    assert "#f5f5f5" in css  # Text color
 
 
 def test_base_template_has_htmx():
@@ -71,13 +70,6 @@ def test_sieve_template_has_search():
     assert "delay:" in html  # debounced search
 
 
-def test_capture_template_has_form():
-    html = Path("src/sieve/dashboard/templates/capture.html").read_text()
-    assert "hx-post" in html
-    assert "hx-target" in html
-    assert "textarea" in html.lower()
-
-
 def test_login_template_has_tabs():
     html = Path("src/sieve/dashboard/templates/login.html").read_text()
     assert "Sign In" in html
@@ -88,9 +80,9 @@ def test_login_template_has_tabs():
 def test_protected_routes_have_auth_check():
     """Protected dashboard routes use the _protected auth guard."""
     import inspect
-    from sieve.dashboard.routes import sieve_page, capture_page, discover_page, compile_page, capsule_detail, skills_page, skill_detail
+    from sieve.dashboard.routes import sieve_page, discover_page, compile_page, capsule_detail, skills_page, skill_detail
 
-    for fn in [sieve_page, capture_page, discover_page, compile_page, capsule_detail, skills_page, skill_detail]:
+    for fn in [sieve_page, discover_page, compile_page, capsule_detail, skills_page, skill_detail]:
         source = inspect.getsource(fn)
         assert "_protected" in source or "_is_authenticated" in source, f"{fn.__name__} missing auth check"
 
@@ -135,7 +127,6 @@ def test_base_template_has_feed_nav():
         content = f.read()
     assert 'href="/"' in content or '/' in content
     assert '/discover' in content
-    assert '/capture' in content
 
 
 def test_css_has_feed_filters():

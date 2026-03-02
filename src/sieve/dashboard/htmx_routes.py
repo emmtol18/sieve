@@ -221,6 +221,42 @@ async def htmx_capture(
     return _render_partial("partials/capture_result.html", capsule=resp.model_dump())
 
 
+@router.post("/compile/", response_class=HTMLResponse)
+async def htmx_compile(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    from pathlib import Path
+
+    from sieve.compiler.compiler import SkillCompiler
+
+    form = await request.form()
+    by = form.get("by", "capsule")
+    if by not in ("capsule", "category", "author", "pack"):
+        return _render_partial("partials/compile_result.html", error=f"Invalid grouping: {by}")
+
+    if not settings.openai_api_key:
+        return _render_partial("partials/compile_result.html", error="SIEVE_OPENAI_API_KEY is not set.")
+    if not settings.sieve_api_key:
+        return _render_partial("partials/compile_result.html", error="SIEVE_SIEVE_API_KEY is not set.")
+
+    output_dir = Path(".claude/skills")
+    compiler = SkillCompiler(api_url=settings.sieve_api_url, api_key=settings.sieve_api_key)
+
+    try:
+        paths = await compiler.compile_to_skills(output_dir=output_dir, by=by, all_capsules=True)
+    except Exception as e:
+        return _render_partial("partials/compile_result.html", error=str(e))
+
+    path_strs = [str(p) for p in paths]
+    return _render_partial(
+        "partials/compile_result.html",
+        paths=path_strs,
+        count=len(paths),
+        output_dir=str(output_dir),
+    )
+
+
 @router.put("/capsules/{capsule_id}", response_class=HTMLResponse)
 async def htmx_update_capsule(
     request: Request,

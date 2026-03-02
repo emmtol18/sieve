@@ -214,8 +214,11 @@ Restart Claude Code. You should see "neural-sieve" in your MCP connections.
 export SIEVE_API_URL=https://neural-sieve.fly.dev
 export SIEVE_API_KEY=your-api-key
 
-# Compile all your capsules into Claude Code skills
+# Compile all capsules into Claude Code skills (one per capsule)
 uv run sieve compile --all --output ~/.claude/skills
+
+# Or group by author/category/pack
+uv run sieve compile --by author --all --output ~/.claude/skills
 
 # Or compile into a specific project
 uv run sieve compile --all --output /path/to/project/.claude/skills

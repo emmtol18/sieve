@@ -8,3 +8,5 @@ __pycache__/
 dist/
 build/
 .ruff_cache/
+.DS_Store
+.claude/

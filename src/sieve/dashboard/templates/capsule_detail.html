@@ -33,6 +33,21 @@
             {% if capsule.pinned %}<span class="meta-item pin-indicator">Pinned &#9733;</span>{% endif %}
         </div>
         <h1 class="capsule-title">{{ capsule.title }}</h1>
+
+        {% if capsule.source_url %}
+        <a href="{{ capsule.source_url }}" class="source-link" target="_blank" rel="noopener">{{ capsule.source_url }}</a>
+        {% endif %}
+
+        {% if capsule.tags or capsule.keywords %}
+        <div class="tag-list" style="margin-top: 0.75rem;">
+            {% for tag in capsule.tags %}
+            <span class="tag-chip">{{ tag }}</span>
+            {% endfor %}
+            {% for kw in capsule.keywords %}
+            <span class="tag-chip tag-chip--secondary">{{ kw }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
     </header>
 
     <section class="capsule-section">
@@ -44,40 +59,6 @@
         <h2 class="section-heading">Core Insight</h2>
         <p>{{ capsule.core_insight }}</p>
     </section>
-
-    <section class="capsule-section">
-        <h2 class="section-heading">Full Content</h2>
-        <div class="capsule-content">{{ capsule.full_content }}</div>
-    </section>
-
-    {% if capsule.tags %}
-    <section class="capsule-section">
-        <h2 class="section-heading">Tags</h2>
-        <div class="tag-list">
-            {% for tag in capsule.tags %}
-            <span class="tag-chip">{{ tag }}</span>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    {% if capsule.keywords %}
-    <section class="capsule-section">
-        <h2 class="section-heading">Keywords</h2>
-        <div class="tag-list">
-            {% for kw in capsule.keywords %}
-            <span class="tag-chip tag-chip--secondary">{{ kw }}</span>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    {% if capsule.source_url %}
-    <section class="capsule-section">
-        <h2 class="section-heading">Source</h2>
-        <a href="{{ capsule.source_url }}" class="source-link" target="_blank" rel="noopener">{{ capsule.source_url }}</a>
-    </section>
-    {% endif %}
 
     <footer class="capsule-footer">
         <span>Captured: {{ capsule.created_at[:10] if capsule.created_at else "Unknown" }}</span>

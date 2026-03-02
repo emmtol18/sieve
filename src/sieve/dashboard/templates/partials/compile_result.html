@@ -1,0 +1,14 @@
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% else %}
+<div class="alert alert-success">
+    Compiled {{ count }} skill(s) to <code>{{ output_dir }}</code>
+</div>
+<div class="compile-results">
+    {% for path in paths %}
+    <div class="card" style="margin-bottom: 0.5rem;">
+        <code>{{ path }}</code>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}

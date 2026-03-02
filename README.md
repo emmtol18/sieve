@@ -96,10 +96,11 @@ A dedicated Neural Sieve Obsidian plugin is planned for Phase 3, which will prov
 uv run sieve version          # Show version
 uv run sieve serve             # Start API server (default port 8421)
 uv run sieve mcp               # Start MCP server for Claude Code
-uv run sieve compile           # Compile capsules into Claude skills
-uv run sieve compile --pack karpathy   # Compile one leader pack
-uv run sieve compile --personal        # Compile personal capsules
-uv run sieve compile --all             # Compile everything
+uv run sieve compile                   # Compile one skill per capsule (default)
+uv run sieve compile --by category     # Group by category
+uv run sieve compile --by author       # Group by author
+uv run sieve compile --by pack         # Group by leader pack
+uv run sieve compile --all             # Include all capsules (not just skill-eligible)
 ```
 
 ## Connect to Claude Code
@@ -132,8 +133,11 @@ After capturing knowledge, compile it into Claude Code skills:
 export SIEVE_API_URL=https://your-app.fly.dev
 export SIEVE_API_KEY=your-api-key
 
-# Compile all capsules into skills
+# Compile all capsules into skills (one per capsule)
 uv run sieve compile --all --output .claude/skills
+
+# Or group by author/category
+uv run sieve compile --by author --all --output .claude/skills
 
 # Skills are now loaded automatically in Claude Code sessions
 ```

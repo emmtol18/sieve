@@ -72,10 +72,18 @@ pre {
 }
 
 .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 1.125rem;
     font-weight: 700;
     color: #2d2a26;
     letter-spacing: -0.02em;
+}
+
+.nav-logo {
+    width: auto;
+    height: 1.5rem;
 }
 
 .nav-brand:hover {

@@ -240,6 +240,7 @@ async def htmx_capture(
 async def htmx_compile(
     request: Request,
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     from pathlib import Path
 
@@ -252,14 +253,41 @@ async def htmx_compile(
 
     if not settings.openai_api_key:
         return _render_partial("partials/compile_result.html", error="SIEVE_OPENAI_API_KEY is not set.")
-    if not settings.sieve_api_key:
-        return _render_partial("partials/compile_result.html", error="SIEVE_SIEVE_API_KEY is not set.")
+
+    # Fetch capsules from DB directly
+    result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
+    sieve = result.scalar_one_or_none()
+    if not sieve:
+        return _render_partial("partials/compile_result.html", error="No sieve found for user.")
+
+    capsule_result = await db.execute(
+        select(Capsule).where(Capsule.sieve_id == sieve.id)
+    )
+    capsule_rows = capsule_result.scalars().all()
+    capsules = [
+        {
+            "id": str(c.id),
+            "title": c.title,
+            "executive_summary": c.executive_summary,
+            "core_insight": c.core_insight,
+            "full_content": c.full_content,
+            "tags": c.tags or [],
+            "category": c.category or "",
+            "domain": c.domain or "",
+            "author": c.author or "personal",
+            "pack_id": str(c.pack_id) if c.pack_id else None,
+            "skill_eligible": c.skill_eligible,
+        }
+        for c in capsule_rows
+    ]
 
     output_dir = Path(".claude/skills")
-    compiler = SkillCompiler(api_url=settings.sieve_api_url, api_key=settings.sieve_api_key)
+    compiler = SkillCompiler()
 
     try:
-        paths = await compiler.compile_to_skills(output_dir=output_dir, by=by, all_capsules=True)
+        paths = await compiler.compile_to_skills(
+            output_dir=output_dir, by=by, all_capsules=True, capsules=capsules
+        )
     except Exception as e:
         return _render_partial("partials/compile_result.html", error=str(e))
 
@@ -632,6 +660,295 @@ async def htmx_update_my_sieve(
     return HTMLResponse(
         content='<div class="alert alert-success">Settings saved successfully.</div>'
     )
+
+
+# ---------------------------------------------------------------------------
+# Import routes
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Skill routes
+# ---------------------------------------------------------------------------
+
+
+@router.get("/skills/", response_class=HTMLResponse)
+async def htmx_list_skills(
+    request: Request,
+    search: str | None = Query(None),
+    sieve: Sieve = Depends(get_user_sieve),
+    db: AsyncSession = Depends(get_db),
+):
+    from sieve.db.models import Skill
+
+    query = select(Skill).where(Skill.sieve_id == sieve.id)
+
+    if search:
+        term = f"%{escape_like(search)}%"
+        query = query.where(
+            or_(
+                Skill.title.ilike(term),
+                Skill.description.ilike(term),
+                Skill.name.ilike(term),
+            )
+        )
+
+    query = query.order_by(Skill.created_at.desc()).limit(50)
+    result = await db.execute(query)
+    skills = result.scalars().all()
+
+    from sieve.api.skills.routes import skill_to_response
+
+    skill_dicts = [skill_to_response(s).model_dump() for s in skills]
+
+    return _render_partial(
+        "partials/skill_grid.html",
+        skills=skill_dicts,
+        count=len(skill_dicts),
+        search_term=search or "",
+    )
+
+
+@router.post("/skills/compile", response_class=HTMLResponse)
+async def htmx_compile_skill(
+    request: Request,
+    sieve: Sieve = Depends(get_user_sieve),
+    db: AsyncSession = Depends(get_db),
+):
+    from sieve.compiler.compiler import SkillCompiler
+    from sieve.db.models import Skill, SkillCapsule
+
+    form = await request.form()
+    primary_capsule_id = form.get("primary_capsule_id")
+    context_capsule_ids = form.getlist("context_capsule_ids")
+
+    if not primary_capsule_id:
+        return _render_partial(
+            "partials/compile_result.html", error="Primary capsule is required."
+        )
+
+    if not settings.openai_api_key:
+        return _render_partial(
+            "partials/compile_result.html", error="SIEVE_OPENAI_API_KEY is not set."
+        )
+
+    # Load primary capsule
+    primary = await _get_capsule_or_404(primary_capsule_id, sieve, db)
+    primary_dict = {
+        "title": primary.title,
+        "executive_summary": primary.executive_summary,
+        "core_insight": primary.core_insight,
+        "full_content": primary.full_content,
+        "tags": primary.tags or [],
+    }
+
+    # Load context capsules
+    context_dicts = []
+    context_capsules = []
+    for cid in context_capsule_ids:
+        if cid and cid != primary_capsule_id:
+            c = await _get_capsule_or_404(cid, sieve, db)
+            context_capsules.append(c)
+            context_dicts.append({
+                "title": c.title,
+                "executive_summary": c.executive_summary,
+                "core_insight": c.core_insight,
+                "full_content": c.full_content,
+                "tags": c.tags or [],
+            })
+
+    compiler = SkillCompiler()
+    try:
+        skill_data = await compiler.compile_capsules(
+            primary=primary_dict,
+            context_capsules=context_dicts if context_dicts else None,
+        )
+    except Exception as e:
+        return _render_partial("partials/compile_result.html", error=str(e))
+
+    # Save skill to DB
+    skill = Skill(
+        sieve_id=sieve.id,
+        name=skill_data["name"],
+        title=skill_data["title"],
+        description=skill_data["description"],
+        body=skill_data["body"],
+    )
+    db.add(skill)
+    await db.flush()
+
+    # Save capsule associations
+    db.add(SkillCapsule(skill_id=skill.id, capsule_id=primary.id, role="primary"))
+    for c in context_capsules:
+        db.add(SkillCapsule(skill_id=skill.id, capsule_id=c.id, role="context"))
+
+    await db.commit()
+
+    response = HTMLResponse(content="")
+    response.headers["HX-Redirect"] = f"/skills/{skill.id}"
+    return response
+
+
+@router.put("/skills/{skill_id}", response_class=HTMLResponse)
+async def htmx_update_skill(
+    request: Request,
+    skill_id: str,
+    sieve: Sieve = Depends(get_user_sieve),
+    db: AsyncSession = Depends(get_db),
+):
+    from sieve.db.models import Skill
+
+    result = await db.execute(
+        select(Skill).where(Skill.id == skill_id, Skill.sieve_id == sieve.id)
+    )
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found")
+
+    form = await request.form()
+    for field in ["title", "description", "body"]:
+        value = form.get(field)
+        if value is not None:
+            setattr(skill, field, value)
+
+    await db.commit()
+
+    response = HTMLResponse(content="")
+    response.headers["HX-Redirect"] = f"/skills/{skill_id}"
+    return response
+
+
+@router.delete("/skills/{skill_id}", response_class=HTMLResponse)
+async def htmx_delete_skill(
+    skill_id: str,
+    sieve: Sieve = Depends(get_user_sieve),
+    db: AsyncSession = Depends(get_db),
+):
+    from sieve.db.models import Skill
+
+    result = await db.execute(
+        select(Skill).where(Skill.id == skill_id, Skill.sieve_id == sieve.id)
+    )
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found")
+
+    await db.delete(skill)
+    await db.commit()
+
+    response = HTMLResponse(content="")
+    response.headers["HX-Redirect"] = "/skills"
+    return response
+
+
+@router.post("/skills/{skill_id}/export", response_class=HTMLResponse)
+async def htmx_export_skill(
+    skill_id: str,
+    sieve: Sieve = Depends(get_user_sieve),
+    db: AsyncSession = Depends(get_db),
+):
+    from pathlib import Path
+
+    from sieve.compiler.templates import SKILL_TEMPLATE
+    from sieve.db.models import Skill
+
+    result = await db.execute(
+        select(Skill).where(Skill.id == skill_id, Skill.sieve_id == sieve.id)
+    )
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found")
+
+    output_dir = Path(".claude/skills")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    skill_content = SKILL_TEMPLATE.format(
+        name=skill.name, description=skill.description, body=skill.body
+    )
+    path = output_dir / f"{skill.name}.md"
+    path.write_text(skill_content)
+
+    return HTMLResponse(
+        content=f'<div class="alert alert-success">Exported to <code>{path}</code></div>'
+    )
+
+
+@router.post("/skills/{skill_id}/recompile", response_class=HTMLResponse)
+async def htmx_recompile_skill(
+    skill_id: str,
+    sieve: Sieve = Depends(get_user_sieve),
+    db: AsyncSession = Depends(get_db),
+):
+    from sieve.compiler.compiler import SkillCompiler
+    from sieve.db.models import Skill, SkillCapsule
+
+    result = await db.execute(
+        select(Skill).where(Skill.id == skill_id, Skill.sieve_id == sieve.id)
+    )
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found")
+
+    if not settings.openai_api_key:
+        return HTMLResponse(
+            content='<div class="alert alert-error">SIEVE_OPENAI_API_KEY is not set.</div>'
+        )
+
+    # Load linked capsules
+    link_result = await db.execute(
+        select(SkillCapsule).where(SkillCapsule.skill_id == skill.id)
+    )
+    links = link_result.scalars().all()
+
+    if not links:
+        return HTMLResponse(
+            content='<div class="alert alert-error">No linked capsules found for recompilation.</div>'
+        )
+
+    primary = None
+    context_dicts = []
+    for link in links:
+        capsule_result = await db.execute(
+            select(Capsule).where(Capsule.id == link.capsule_id)
+        )
+        capsule = capsule_result.scalar_one_or_none()
+        if not capsule:
+            continue
+        capsule_dict = {
+            "title": capsule.title,
+            "executive_summary": capsule.executive_summary,
+            "core_insight": capsule.core_insight,
+            "full_content": capsule.full_content,
+            "tags": capsule.tags or [],
+        }
+        if link.role == "primary" and primary is None:
+            primary = capsule_dict
+        else:
+            context_dicts.append(capsule_dict)
+
+    if not primary:
+        return HTMLResponse(
+            content='<div class="alert alert-error">Primary capsule not found.</div>'
+        )
+
+    compiler = SkillCompiler()
+    try:
+        skill_data = await compiler.compile_capsules(
+            primary=primary,
+            context_capsules=context_dicts if context_dicts else None,
+        )
+    except Exception as e:
+        return HTMLResponse(
+            content=f'<div class="alert alert-error">{e}</div>'
+        )
+
+    skill.body = skill_data["body"]
+    skill.description = skill_data["description"]
+    await db.commit()
+
+    response = HTMLResponse(content="")
+    response.headers["HX-Redirect"] = f"/skills/{skill_id}"
+    return response
 
 
 # ---------------------------------------------------------------------------

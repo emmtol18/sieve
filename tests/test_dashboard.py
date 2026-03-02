@@ -294,3 +294,19 @@ def test_skills_templates_exist():
     assert (templates_dir / "skill_detail.html").exists()
     assert (templates_dir / "partials" / "skill_card.html").exists()
     assert (templates_dir / "partials" / "skill_grid.html").exists()
+
+
+# ---------------------------------------------------------------------------
+# Skill HTMX route tests (Task 7)
+# ---------------------------------------------------------------------------
+
+
+def test_htmx_skill_routes_exist():
+    from sieve.dashboard.htmx_routes import router
+
+    paths = [r.path for r in router.routes]
+    assert "/htmx/skills/" in paths
+    assert "/htmx/skills/compile" in paths
+    assert "/htmx/skills/{skill_id}" in paths  # PUT and DELETE
+    assert "/htmx/skills/{skill_id}/export" in paths
+    assert "/htmx/skills/{skill_id}/recompile" in paths

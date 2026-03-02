@@ -411,9 +411,100 @@ declare global {
 					sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
 				});
 			return true;
+		} else if (request.action === "showSieveToast") {
+			showSieveToast(request.title, request.capsuleId, request.serverUrl);
+			sendResponse({ success: true });
+		} else if (request.action === "showSieveErrorToast") {
+			showSieveErrorToast(request.message);
+			sendResponse({ success: true });
 		}
 		return true;
 	});
+
+	function showSieveToast(title: string, capsuleId: string, serverUrl: string): void {
+		const existing = document.getElementById('sieve-toast');
+		if (existing) existing.remove();
+
+		const toast = document.createElement('div');
+		toast.id = 'sieve-toast';
+		toast.style.cssText = `
+			position: fixed; bottom: 24px; right: 24px; z-index: 2147483647;
+			background: #1a1a2e; color: #e0e0e0; border: 1px solid #333;
+			border-radius: 12px; padding: 16px 20px; max-width: 360px;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			font-size: 14px; line-height: 1.4; cursor: pointer;
+			transition: opacity 0.3s, transform 0.3s;
+			opacity: 0; transform: translateY(10px);
+		`;
+
+		const headerEl = document.createElement('div');
+		headerEl.style.cssText = 'font-weight: 600; margin-bottom: 4px; color: #7c6bf5;';
+		headerEl.textContent = 'Saved to your Sieve';
+
+		const titleEl = document.createElement('div');
+		titleEl.style.cssText = 'color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+		titleEl.textContent = title;
+
+		toast.appendChild(headerEl);
+		toast.appendChild(titleEl);
+
+		toast.addEventListener('click', () => {
+			window.open(`${serverUrl}/capsule/${encodeURIComponent(capsuleId)}`, '_blank');
+			toast.remove();
+		});
+
+		document.body.appendChild(toast);
+		requestAnimationFrame(() => {
+			toast.style.opacity = '1';
+			toast.style.transform = 'translateY(0)';
+		});
+		setTimeout(() => {
+			toast.style.opacity = '0';
+			toast.style.transform = 'translateY(10px)';
+			setTimeout(() => toast.remove(), 300);
+		}, 4000);
+	}
+
+	function showSieveErrorToast(message: string): void {
+		const existing = document.getElementById('sieve-toast');
+		if (existing) existing.remove();
+
+		const toast = document.createElement('div');
+		toast.id = 'sieve-toast';
+		toast.style.cssText = `
+			position: fixed; bottom: 24px; right: 24px; z-index: 2147483647;
+			background: #2e1a1a; color: #e0e0e0; border: 1px solid #4a2020;
+			border-radius: 12px; padding: 16px 20px; max-width: 360px;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			font-size: 14px; line-height: 1.4;
+			transition: opacity 0.3s, transform 0.3s;
+			opacity: 0; transform: translateY(10px);
+		`;
+
+		const headerEl = document.createElement('div');
+		headerEl.style.cssText = 'font-weight: 600; margin-bottom: 4px; color: #f55;';
+		headerEl.textContent = 'Capture failed';
+
+		const messageEl = document.createElement('div');
+		messageEl.style.cssText = 'color: #ccc;';
+		messageEl.textContent = message;
+
+		toast.appendChild(headerEl);
+		toast.appendChild(messageEl);
+
+		document.body.appendChild(toast);
+		requestAnimationFrame(() => {
+			toast.style.opacity = '1';
+			toast.style.transform = 'translateY(0)';
+		});
+		setTimeout(() => {
+			toast.style.opacity = '0';
+			toast.style.transform = 'translateY(10px)';
+			setTimeout(() => toast.remove(), 300);
+		}, 5000);
+	}
 
 	function extractContentBySelector(selector: string, attribute?: string, extractHtml: boolean = false): string | string[] {
 		try {

@@ -10,6 +10,45 @@ let hasHighlights = false;
 let isContextMenuCreating = false;
 let popupPorts: { [tabId: number]: browser.Runtime.Port } = {};
 
+// Popup mode management: quick mode disables popup so onClicked fires
+async function updatePopupMode(): Promise<void> {
+	const stored = await browser.storage.sync.get('sieve_auth');
+	const settings = (stored as any).sieve_auth || {};
+	if (settings.captureMode === 'quick') {
+		browser.action.setPopup({ popup: '' });
+	} else {
+		browser.action.setPopup({ popup: 'popup.html' });
+	}
+}
+
+updatePopupMode();
+
+browser.storage.onChanged.addListener((changes) => {
+	if (changes.sieve_auth) {
+		updatePopupMode();
+	}
+});
+
+browser.action.onClicked.addListener(async (tab) => {
+	const stored = await browser.storage.sync.get('sieve_auth');
+	const settings = (stored as any).sieve_auth || {};
+	if (settings.authToken) {
+		browser.runtime.sendMessage({
+			action: 'capturePageToSieve',
+			authToken: settings.authToken,
+			serverUrl: settings.serverUrl || 'https://app.neuralsieve.com',
+		});
+	} else {
+		browser.action.setPopup({ popup: 'popup.html' });
+		browser.action.openPopup();
+		setTimeout(() => {
+			if (settings.captureMode === 'quick') {
+				browser.action.setPopup({ popup: '' });
+			}
+		}, 1000);
+	}
+});
+
 async function ensureContentScriptLoadedInBackground(tabId: number): Promise<void> {
 	try {
 		// First, get the tab information
@@ -368,8 +407,64 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			}
 		}
 
+		if (typedRequest.action === "capturePageToSieve") {
+			const { authToken, serverUrl } = typedRequest as any;
+			(async () => {
+				try {
+					const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+					const tab = tabs[0];
+					if (!tab?.id) throw new Error('No active tab');
+
+					await ensureContentScriptLoadedInBackground(tab.id);
+					const pageContent = await browser.tabs.sendMessage(tab.id, { action: 'getPageContent' }) as any;
+					const content = pageContent?.content || '';
+					const url = tab.url || '';
+
+					const response = await fetch(`${serverUrl}/api/capture/`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'Authorization': `Bearer ${authToken}`,
+						},
+						body: JSON.stringify({ content, url, source_url: url }),
+					});
+
+					if (!response.ok) {
+						const body = await response.json().catch(() => ({ detail: 'Unknown error' }));
+						await browser.tabs.sendMessage(tab.id, {
+							action: 'showSieveErrorToast',
+							message: response.status === 401 ? 'Session expired. Please sign in.' : (body.detail || 'Capture failed'),
+						});
+						sendResponse({ success: false, error: body.detail });
+						return;
+					}
+
+					const capsule = await response.json();
+					await browser.tabs.sendMessage(tab.id, {
+						action: 'showSieveToast',
+						title: capsule.title,
+						capsuleId: capsule.id,
+						serverUrl,
+					});
+					sendResponse({ success: true, capsule });
+				} catch (err: any) {
+					try {
+						const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+						if (tabs[0]?.id) {
+							await browser.tabs.sendMessage(tabs[0].id, {
+								action: 'showSieveErrorToast',
+								message: err.message || 'Capture failed',
+							});
+						}
+					} catch {}
+					sendResponse({ success: false, error: err.message });
+				}
+			})();
+			return true;
+		}
+
 		// For other actions that use sendResponse
-		if (typedRequest.action === "extractContent" || 
+		if (typedRequest.action === "extractContent" ||
 			typedRequest.action === "ensureContentScriptLoaded" ||
 			typedRequest.action === "getHighlighterMode" ||
 			typedRequest.action === "toggleHighlighterMode" ||
@@ -382,15 +477,17 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 
 browser.commands.onCommand.addListener(async (command, tab) => {
 	if (command === 'quick_clip') {
-		browser.tabs.query({active: true, currentWindow: true}).then((tabs) => {
-			if (tabs[0]?.id) {
-				browser.action.openPopup();
-				setTimeout(() => {
-					browser.runtime.sendMessage({action: "triggerQuickClip"})
-						.catch(error => console.error("Failed to send quick clip message:", error));
-				}, 500);
-			}
-		});
+		const stored = await browser.storage.sync.get('sieve_auth');
+		const settings = (stored as any).sieve_auth || {};
+		if (settings.authToken) {
+			browser.runtime.sendMessage({
+				action: 'capturePageToSieve',
+				authToken: settings.authToken,
+				serverUrl: settings.serverUrl || 'https://app.neuralsieve.com',
+			});
+		} else {
+			browser.action.openPopup();
+		}
 	}
 	if (command === "toggle_highlighter" && tab && tab.id) {
 		await ensureContentScriptLoadedInBackground(tab.id);
@@ -431,9 +528,14 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 			contexts: browser.Menus.ContextType[];
 		}[] = [
 				{
-					id: "open-sieve-clipper",
-					title: "Save this page",
-					contexts: ["page", "selection", "image", "video", "audio"]
+					id: "capture-page-to-sieve",
+					title: "Capture page to Sieve",
+					contexts: ["page", "image", "video", "audio"]
+				},
+				{
+					id: "capture-selection-to-sieve",
+					title: "Capture selection to Sieve",
+					contexts: ["selection"]
 				},
 				{
 					id: 'copy-markdown-to-clipboard',
@@ -487,8 +589,18 @@ const debouncedUpdateContextMenu = debounce(async (tabId: number) => {
 }, 100); // 100ms debounce time
 
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
-	if (info.menuItemId === "open-sieve-clipper") {
-		browser.action.openPopup();
+	if (info.menuItemId === "capture-page-to-sieve" || info.menuItemId === "capture-selection-to-sieve") {
+		const stored = await browser.storage.sync.get('sieve_auth');
+		const settings = (stored as any).sieve_auth || {};
+		if (settings.authToken) {
+			browser.runtime.sendMessage({
+				action: 'capturePageToSieve',
+				authToken: settings.authToken,
+				serverUrl: settings.serverUrl || 'https://app.neuralsieve.com',
+			});
+		} else {
+			browser.action.openPopup();
+		}
 	} else if (info.menuItemId === "enter-highlighter" && tab && tab.id) {
 		await setHighlighterMode(tab.id, true);
 	} else if (info.menuItemId === "exit-highlighter" && tab && tab.id) {

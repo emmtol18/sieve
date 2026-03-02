@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -84,18 +86,30 @@ async def htmx_signup(request: Request, db: AsyncSession = Depends(get_db)):
     email = form.get("email", "")
     password = form.get("password", "")
     display_name = form.get("display_name", "")
+    username = form.get("username", "").strip().lower()
 
-    if not email or not password or not display_name:
+    if not email or not password or not display_name or not username:
         return _render_partial("partials/auth_message.html", error="All fields are required")
+
+    if not re.match(r"^[a-z0-9_]{3,50}$", username):
+        return _render_partial(
+            "partials/auth_message.html",
+            error="Username must be 3-50 characters, lowercase alphanumeric and underscores only",
+        )
 
     result = await db.execute(select(User).where(User.email == email))
     if result.scalar_one_or_none():
         return _render_partial("partials/auth_message.html", error="Email already registered")
 
+    result = await db.execute(select(User).where(User.username == username))
+    if result.scalar_one_or_none():
+        return _render_partial("partials/auth_message.html", error="Username already taken")
+
     user = User(
         email=email,
         password_hash=hash_password(password),
         display_name=display_name,
+        username=username,
     )
     db.add(user)
     sieve = Sieve(user_id=user.id, name=f"{display_name}'s Sieve")

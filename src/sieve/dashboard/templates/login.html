@@ -41,6 +41,10 @@
                 <input type="text" id="signup-name" name="display_name" required class="input" placeholder="Your name" autocomplete="name">
             </div>
             <div class="form-group">
+                <label for="signup-username" class="form-label">Username</label>
+                <input type="text" id="signup-username" name="username" required class="input" placeholder="your_username" autocomplete="username" pattern="[a-z0-9_]{3,50}" title="3-50 characters, lowercase letters, numbers, and underscores only">
+            </div>
+            <div class="form-group">
                 <label for="signup-email" class="form-label">Email</label>
                 <input type="email" id="signup-email" name="email" required class="input" placeholder="you@example.com" autocomplete="email">
             </div>

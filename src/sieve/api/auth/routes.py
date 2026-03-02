@@ -37,10 +37,18 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
             detail="Email already registered",
         )
 
+    result = await db.execute(select(User).where(User.username == body.username))
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already taken",
+        )
+
     user = User(
         email=body.email,
         password_hash=hash_password(body.password),
         display_name=body.display_name,
+        username=body.username,
     )
     db.add(user)
 

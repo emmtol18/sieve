@@ -128,7 +128,7 @@ async def google_callback(code: str, db: AsyncSession = Depends(get_db)):
         username = await _generate_unique_username(email, db)
         user = User(
             email=email,
-            password_hash="oauth:google",
+            password_hash=None,
             display_name=display_name,
             username=username,
         )

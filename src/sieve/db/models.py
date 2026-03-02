@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -100,7 +101,11 @@ class Sieve(Base):
 class Follow(Base):
     __tablename__ = "follows"
     __table_args__ = (
-        UniqueConstraint("follower_sieve_id", "followed_sieve_id"),
+        UniqueConstraint("follower_sieve_id", "followed_sieve_id", name="uq_follow_pair"),
+        CheckConstraint(
+            "follower_sieve_id != followed_sieve_id",
+            name="ck_follow_no_self_follow",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

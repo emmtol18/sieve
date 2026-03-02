@@ -8,7 +8,6 @@ from sieve.compiler.templates import (
     SKILL_TEMPLATE,
 )
 from sieve.llm.client import LLMClient
-from sieve.mcp.api_client import SieveAPIClient
 
 
 def _slugify(text: str) -> str:
@@ -21,8 +20,12 @@ def _slugify(text: str) -> str:
 
 
 class SkillCompiler:
-    def __init__(self, api_url: str, api_key: str) -> None:
-        self.api_client = SieveAPIClient(api_url=api_url, api_key=api_key)
+    def __init__(self, api_url: str = "", api_key: str = "") -> None:
+        self.api_client = None
+        if api_url and api_key:
+            from sieve.mcp.api_client import SieveAPIClient
+
+            self.api_client = SieveAPIClient(api_url=api_url, api_key=api_key)
         self.llm = LLMClient()
 
     def group_capsules(self, capsules: list[dict], by: str = "author") -> dict[str, list[dict]]:
@@ -78,11 +81,52 @@ class SkillCompiler:
         )
         return (response.choices[0].message.content or "").strip()
 
+    async def compile_capsule(self, capsule: dict) -> dict:
+        """Compile a single capsule into a skill data dict (not a file).
+
+        Returns dict with keys: name, title, description, body.
+        """
+        title = capsule.get("title", "Untitled")
+        slug = _slugify(title)
+        name = f"sieve-{slug}"
+
+        body = await self.compile_single(capsule)
+        summary = capsule.get("executive_summary", title)
+        description = await self._generate_description(title, summary)
+
+        return {"name": name, "title": title, "description": description, "body": body}
+
+    async def compile_capsules(
+        self, primary: dict, context_capsules: list[dict] | None = None
+    ) -> dict:
+        """Compile a primary capsule with optional context capsules into a skill data dict.
+
+        If context_capsules are provided, uses compile_group to synthesize all capsules.
+        Otherwise, uses compile_single on the primary capsule alone.
+
+        Returns dict with keys: name, title, description, body.
+        """
+        title = primary.get("title", "Untitled")
+        slug = _slugify(title)
+        name = f"sieve-{slug}"
+
+        if context_capsules:
+            all_capsules = [primary] + context_capsules
+            body = await self.compile_group(title, all_capsules)
+        else:
+            body = await self.compile_single(primary)
+
+        summary = primary.get("executive_summary", title)
+        description = await self._generate_description(title, summary)
+
+        return {"name": name, "title": title, "description": description, "body": body}
+
     async def compile_to_skills(
         self,
         output_dir: Path,
         by: str = "capsule",
         all_capsules: bool = False,
+        capsules: list[dict] | None = None,
     ) -> list[Path]:
         """Compile capsules into Claude Code skill files.
 
@@ -90,9 +134,16 @@ class SkillCompiler:
             output_dir: Directory to write skill files to.
             by: Grouping strategy — 'capsule', 'category', 'author', or 'pack'.
             all_capsules: If True, include all capsules. Otherwise only skill_eligible.
+            capsules: Pre-fetched capsules. If None, fetches via API client.
         """
-        data = await self.api_client.list_capsules(limit=200)
-        capsules = data.get("capsules", [])
+        if capsules is None:
+            if not self.api_client:
+                raise RuntimeError(
+                    "No capsules provided and no API client configured. "
+                    "Pass capsules directly or provide api_url and api_key."
+                )
+            data = await self.api_client.list_capsules(limit=200)
+            capsules = data.get("capsules", [])
 
         if not all_capsules:
             capsules = [c for c in capsules if c.get("skill_eligible", True)]

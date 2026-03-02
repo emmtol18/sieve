@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Feed — Neural Sieve{% endblock %}
+{% block content %}
+<section class="page-header">
+    <h1>Feed</h1>
+    <p class="page-subtitle">Your knowledge stream</p>
+</section>
+
+<form class="quick-capture" hx-post="/htmx/capture/" hx-target="#capture-result" hx-swap="innerHTML" hx-indicator="#feed-capture-spinner">
+    <input type="url" name="url" placeholder="Paste a URL to capture..." class="input" autocomplete="off">
+    <button type="submit" class="btn btn-primary">
+        <span class="btn-text">Capture</span>
+        <span id="feed-capture-spinner" class="spinner htmx-indicator"></span>
+    </button>
+</form>
+<div id="capture-result"></div>
+
+<div class="feed-filters">
+    <button
+        class="feed-filter-tab feed-filter-tab--active"
+        hx-get="/htmx/feed/?filter=all"
+        hx-target="#feed-list"
+        hx-swap="innerHTML"
+        onclick="document.querySelectorAll('.feed-filter-tab').forEach(t=>t.classList.remove('feed-filter-tab--active'));this.classList.add('feed-filter-tab--active')"
+    >All</button>
+    <button
+        class="feed-filter-tab"
+        hx-get="/htmx/feed/?filter=mine"
+        hx-target="#feed-list"
+        hx-swap="innerHTML"
+        onclick="document.querySelectorAll('.feed-filter-tab').forEach(t=>t.classList.remove('feed-filter-tab--active'));this.classList.add('feed-filter-tab--active')"
+    >My Capsules</button>
+    <button
+        class="feed-filter-tab"
+        hx-get="/htmx/feed/?filter=following"
+        hx-target="#feed-list"
+        hx-swap="innerHTML"
+        onclick="document.querySelectorAll('.feed-filter-tab').forEach(t=>t.classList.remove('feed-filter-tab--active'));this.classList.add('feed-filter-tab--active')"
+    >Following</button>
+</div>
+
+<div id="feed-list" class="feed-container" hx-get="/htmx/feed/" hx-trigger="load" hx-swap="innerHTML">
+    <div style="text-align:center;padding:2rem"><span class="spinner spinner--lg"></span></div>
+</div>
+{% endblock %}

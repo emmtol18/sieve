@@ -13,7 +13,7 @@ from sieve.api.capsules.schemas import CaptureRequest
 from sieve.api.capture.pipeline import CapturePipeline
 from sieve.config import settings
 from sieve.db.database import get_db
-from sieve.db.models import Capsule, Sieve, User
+from sieve.db.models import Capsule, Follow, Sieve, User
 
 router = APIRouter(prefix="/htmx", tags=["htmx"])
 templates = Jinja2Templates(directory="src/sieve/dashboard/templates")
@@ -259,3 +259,338 @@ async def htmx_delete_capsule(
     response = HTMLResponse(content="")
     response.headers["HX-Redirect"] = "/sieve"
     return response
+
+
+# ---------------------------------------------------------------------------
+# Feed routes
+# ---------------------------------------------------------------------------
+
+
+def _extract_domain(url: str | None) -> str:
+    """Extract domain from a URL, e.g. 'https://example.com/path' -> 'example.com'."""
+    if not url:
+        return ""
+    try:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+        return parsed.netloc or ""
+    except Exception:
+        return ""
+
+
+async def _capsule_to_feed_dict(capsule: Capsule, db: AsyncSession) -> dict:
+    """Convert a Capsule ORM object to a dict suitable for feed_card.html."""
+    # Eagerly load the sieve -> user for author info
+    result = await db.execute(
+        select(Sieve, User)
+        .join(User, Sieve.user_id == User.id)
+        .where(Sieve.id == capsule.sieve_id)
+    )
+    row = result.one_or_none()
+    author_username = row[1].username if row else None
+
+    return {
+        "id": str(capsule.id),
+        "title": capsule.title,
+        "executive_summary": capsule.executive_summary,
+        "core_insight": capsule.core_insight,
+        "tags": capsule.tags or [],
+        "source_url": capsule.source_url,
+        "source_domain": _extract_domain(capsule.source_url),
+        "created_at": capsule.created_at.strftime("%Y-%m-%d") if capsule.created_at else "",
+        "author_username": author_username,
+    }
+
+
+@router.get("/feed/", response_class=HTMLResponse)
+async def htmx_feed(
+    filter: str = Query("all"),
+    limit: int = Query(50, le=100),
+    offset: int = Query(0, ge=0),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Get the user's sieve
+    result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
+    sieve = result.scalar_one_or_none()
+    if not sieve:
+        return HTMLResponse(content='<div class="empty-state"><h3>No sieve found</h3></div>')
+
+    if filter == "mine":
+        query = select(Capsule).where(Capsule.sieve_id == sieve.id)
+    elif filter == "following":
+        # Get IDs of sieves we follow
+        follow_result = await db.execute(
+            select(Follow.followed_sieve_id).where(Follow.follower_sieve_id == sieve.id)
+        )
+        followed_ids = [row[0] for row in follow_result.all()]
+        if not followed_ids:
+            return _render_partial(
+                "partials/feed_empty.html",
+                message="You're not following anyone yet.",
+                cta_url="/discover",
+                cta_text="Discover sieves to follow",
+            )
+        query = select(Capsule).where(Capsule.sieve_id.in_(followed_ids))
+    else:  # "all" — own + followed
+        follow_result = await db.execute(
+            select(Follow.followed_sieve_id).where(Follow.follower_sieve_id == sieve.id)
+        )
+        followed_ids = [row[0] for row in follow_result.all()]
+        all_sieve_ids = [sieve.id] + followed_ids
+        query = select(Capsule).where(Capsule.sieve_id.in_(all_sieve_ids))
+
+    query = query.order_by(Capsule.created_at.desc()).offset(offset).limit(limit)
+    result = await db.execute(query)
+    capsules = result.scalars().all()
+
+    if not capsules:
+        empty_html = templates.get_template("partials/feed_empty.html").render(
+            message="No capsules yet.",
+            cta_url="/capture",
+            cta_text="Capture your first knowledge",
+        )
+        return HTMLResponse(content=empty_html)
+
+    # Build feed card dicts with author info
+    feed_items = []
+    for c in capsules:
+        feed_items.append(await _capsule_to_feed_dict(c, db))
+
+    html_parts = []
+    for item in feed_items:
+        html_parts.append(templates.get_template("partials/feed_card.html").render(capsule=item))
+
+    return HTMLResponse(content="".join(html_parts))
+
+
+# ---------------------------------------------------------------------------
+# Discover routes
+# ---------------------------------------------------------------------------
+
+
+@router.get("/discover/sieves", response_class=HTMLResponse)
+async def htmx_discover_sieves(
+    search: str | None = Query(None),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Get the current user's sieve for follow status
+    result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
+    my_sieve = result.scalar_one_or_none()
+
+    query = select(Sieve, User).join(User, Sieve.user_id == User.id).where(Sieve.is_public == True)  # noqa: E712
+
+    if search:
+        term = f"%{search}%"
+        query = query.where(
+            or_(
+                User.display_name.ilike(term),
+                User.username.ilike(term),
+                Sieve.bio.ilike(term),
+                Sieve.name.ilike(term),
+            )
+        )
+
+    query = query.order_by(Sieve.created_at.desc()).limit(50)
+    result = await db.execute(query)
+    rows = result.all()
+
+    if not rows:
+        return HTMLResponse(
+            content='<div class="empty-state"><h3>No public sieves found</h3><p>Check back later as more users share their knowledge.</p></div>'
+        )
+
+    html_parts = []
+    for sieve_obj, user_obj in rows:
+        # Get follower and capsule counts
+        from sqlalchemy import func
+
+        follower_count_result = await db.execute(
+            select(func.count()).where(Follow.followed_sieve_id == sieve_obj.id)
+        )
+        follower_count = follower_count_result.scalar() or 0
+
+        capsule_count_result = await db.execute(
+            select(func.count()).where(Capsule.sieve_id == sieve_obj.id)
+        )
+        capsule_count = capsule_count_result.scalar() or 0
+
+        # Check if we follow this sieve
+        is_following = False
+        if my_sieve:
+            follow_check = await db.execute(
+                select(Follow).where(
+                    Follow.follower_sieve_id == my_sieve.id,
+                    Follow.followed_sieve_id == sieve_obj.id,
+                )
+            )
+            is_following = follow_check.scalar_one_or_none() is not None
+
+        is_own = my_sieve and sieve_obj.id == my_sieve.id
+
+        card_data = {
+            "display_name": user_obj.display_name,
+            "username": user_obj.username,
+            "bio": sieve_obj.bio or "",
+            "follower_count": follower_count,
+            "capsule_count": capsule_count,
+            "is_following": is_following,
+            "is_own": is_own,
+        }
+        html_parts.append(templates.get_template("partials/sieve_card.html").render(sieve=card_data))
+
+    return HTMLResponse(content="".join(html_parts))
+
+
+@router.get("/discover/capsules", response_class=HTMLResponse)
+async def htmx_discover_capsules(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Recent capsules from public sieves
+    query = (
+        select(Capsule)
+        .join(Sieve, Capsule.sieve_id == Sieve.id)
+        .where(Sieve.is_public == True)  # noqa: E712
+        .order_by(Capsule.created_at.desc())
+        .limit(20)
+    )
+    result = await db.execute(query)
+    capsules = result.scalars().all()
+
+    if not capsules:
+        return HTMLResponse(
+            content='<div class="empty-state"><h3>No trending capsules yet</h3><p>Be the first to share knowledge publicly.</p></div>'
+        )
+
+    html_parts = []
+    for c in capsules:
+        item = await _capsule_to_feed_dict(c, db)
+        html_parts.append(templates.get_template("partials/feed_card.html").render(capsule=item))
+
+    return HTMLResponse(content="".join(html_parts))
+
+
+# ---------------------------------------------------------------------------
+# Follow / Unfollow routes
+# ---------------------------------------------------------------------------
+
+
+@router.post("/sieves/@{username}/follow", response_class=HTMLResponse)
+async def htmx_follow_sieve(
+    username: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Get my sieve
+    result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
+    my_sieve = result.scalar_one_or_none()
+    if not my_sieve:
+        raise HTTPException(status_code=404, detail="Your sieve not found")
+
+    # Get target sieve
+    result = await db.execute(
+        select(Sieve).join(User, Sieve.user_id == User.id).where(User.username == username)
+    )
+    target_sieve = result.scalar_one_or_none()
+    if not target_sieve:
+        raise HTTPException(status_code=404, detail="Sieve not found")
+
+    if my_sieve.id == target_sieve.id:
+        raise HTTPException(status_code=400, detail="Cannot follow yourself")
+
+    # Check existing follow
+    existing = await db.execute(
+        select(Follow).where(
+            Follow.follower_sieve_id == my_sieve.id,
+            Follow.followed_sieve_id == target_sieve.id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        # Already following — return "Following" button
+        return HTMLResponse(
+            content=f'<button class="follow-btn follow-btn--following" hx-delete="/htmx/sieves/@{username}/follow" hx-swap="outerHTML">Following</button>'
+        )
+
+    follow = Follow(follower_sieve_id=my_sieve.id, followed_sieve_id=target_sieve.id)
+    db.add(follow)
+    await db.commit()
+
+    return HTMLResponse(
+        content=f'<button class="follow-btn follow-btn--following" hx-delete="/htmx/sieves/@{username}/follow" hx-swap="outerHTML">Following</button>'
+    )
+
+
+@router.delete("/sieves/@{username}/follow", response_class=HTMLResponse)
+async def htmx_unfollow_sieve(
+    username: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Get my sieve
+    result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
+    my_sieve = result.scalar_one_or_none()
+    if not my_sieve:
+        raise HTTPException(status_code=404, detail="Your sieve not found")
+
+    # Get target sieve
+    result = await db.execute(
+        select(Sieve).join(User, Sieve.user_id == User.id).where(User.username == username)
+    )
+    target_sieve = result.scalar_one_or_none()
+    if not target_sieve:
+        raise HTTPException(status_code=404, detail="Sieve not found")
+
+    # Remove follow
+    existing = await db.execute(
+        select(Follow).where(
+            Follow.follower_sieve_id == my_sieve.id,
+            Follow.followed_sieve_id == target_sieve.id,
+        )
+    )
+    follow = existing.scalar_one_or_none()
+    if follow:
+        await db.delete(follow)
+        await db.commit()
+
+    return HTMLResponse(
+        content=f'<button class="follow-btn follow-btn--follow" hx-post="/htmx/sieves/@{username}/follow" hx-swap="outerHTML">Follow</button>'
+    )
+
+
+# ---------------------------------------------------------------------------
+# Settings routes
+# ---------------------------------------------------------------------------
+
+
+@router.put("/sieves/me", response_class=HTMLResponse)
+async def htmx_update_my_sieve(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
+    sieve = result.scalar_one_or_none()
+    if not sieve:
+        raise HTTPException(status_code=404, detail="Sieve not found")
+
+    form = await request.form()
+
+    bio = form.get("bio")
+    if bio is not None:
+        sieve.bio = bio[:500]
+
+    avatar_url = form.get("avatar_url")
+    if avatar_url is not None:
+        sieve.avatar_url = avatar_url[:2000] if avatar_url else None
+
+    is_public = form.get("is_public")
+    sieve.is_public = is_public in ("true", "True", "on", True)
+
+    await db.commit()
+
+    return HTMLResponse(
+        content='<div class="alert alert-success">Settings saved successfully.</div>'
+    )

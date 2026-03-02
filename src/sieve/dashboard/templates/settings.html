@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Settings — Neural Sieve{% endblock %}
+{% block content %}
+<section class="page-header">
+    <h1>Settings</h1>
+    <p class="page-subtitle">Manage your profile and preferences</p>
+</section>
+
+<form hx-put="/htmx/sieves/me" hx-target="#settings-message" hx-swap="innerHTML">
+    <section class="settings-section">
+        <h2>Profile</h2>
+        <div class="form-group">
+            <label for="display_name" class="form-label">Display Name</label>
+            <input
+                type="text"
+                id="display_name"
+                name="display_name"
+                value="{{ user.display_name }}"
+                class="input"
+                readonly
+            >
+        </div>
+        <div class="form-group">
+            <label for="bio" class="form-label">Bio</label>
+            <textarea
+                id="bio"
+                name="bio"
+                rows="3"
+                placeholder="Tell others about yourself..."
+                class="input textarea"
+                maxlength="500"
+            >{{ sieve.bio if sieve and sieve.bio else '' }}</textarea>
+        </div>
+        <div class="form-group">
+            <label for="avatar_url" class="form-label">Avatar URL</label>
+            <input
+                type="url"
+                id="avatar_url"
+                name="avatar_url"
+                value="{{ sieve.avatar_url if sieve and sieve.avatar_url else '' }}"
+                placeholder="https://example.com/avatar.jpg"
+                class="input"
+            >
+        </div>
+    </section>
+
+    <section class="settings-section">
+        <h2>Privacy</h2>
+        <div class="form-group">
+            <div class="toggle-group">
+                <div>
+                    <div class="form-label" style="margin-bottom:0">Public Sieve</div>
+                    <p style="font-size:0.8125rem;color:#888;margin-top:0.25rem">Allow others to discover and follow your sieve</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" name="is_public" value="true" {% if sieve and sieve.is_public %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+    </section>
+
+    <section class="settings-section">
+        <h2>API Key</h2>
+        <div class="form-group">
+            <label class="form-label">Your API Key</label>
+            <div class="api-key-group">
+                <input
+                    type="text"
+                    id="api-key-input"
+                    value="{{ user.api_key }}"
+                    class="input"
+                    readonly
+                >
+                <button type="button" class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('api-key-input').value);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)">Copy</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="settings-section settings-disabled">
+        <h2>Obsidian Sync <span class="coming-soon-badge">Coming Soon</span></h2>
+        <div class="form-group">
+            <label class="form-label">Obsidian Vault Path</label>
+            <input type="text" class="input" placeholder="/path/to/vault" disabled>
+        </div>
+    </section>
+
+    <div id="settings-message"></div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+    </div>
+</form>
+{% endblock %}

@@ -93,3 +93,136 @@ def test_protected_routes_have_auth_check():
     for fn in [sieve_page, capture_page, discover_page, compile_page, capsule_detail]:
         source = inspect.getsource(fn)
         assert "_protected" in source, f"{fn.__name__} missing auth check"
+
+
+# ---------------------------------------------------------------------------
+# Social dashboard template tests (Tasks 8-12)
+# ---------------------------------------------------------------------------
+
+
+def test_feed_template_exists():
+    import os
+    assert os.path.exists("src/sieve/dashboard/templates/feed.html")
+
+
+def test_feed_card_partial_exists():
+    import os
+    assert os.path.exists("src/sieve/dashboard/templates/partials/feed_card.html")
+
+
+def test_discover_template_exists():
+    import os
+    assert os.path.exists("src/sieve/dashboard/templates/discover.html")
+
+
+def test_sieve_card_partial_exists():
+    import os
+    assert os.path.exists("src/sieve/dashboard/templates/partials/sieve_card.html")
+
+
+def test_profile_template_exists():
+    import os
+    assert os.path.exists("src/sieve/dashboard/templates/profile.html")
+
+
+def test_settings_template_exists():
+    import os
+    assert os.path.exists("src/sieve/dashboard/templates/settings.html")
+
+
+def test_base_template_has_feed_nav():
+    with open("src/sieve/dashboard/templates/base.html") as f:
+        content = f.read()
+    assert 'href="/"' in content or '/' in content
+    assert '/discover' in content
+    assert '/capture' in content
+
+
+def test_css_has_bottom_nav():
+    with open("src/sieve/dashboard/static/style.css") as f:
+        content = f.read()
+    assert ".bottom-nav" in content
+
+
+def test_css_has_feed_card():
+    with open("src/sieve/dashboard/static/style.css") as f:
+        content = f.read()
+    assert ".feed-card" in content
+
+
+def test_css_has_sieve_card():
+    with open("src/sieve/dashboard/static/style.css") as f:
+        content = f.read()
+    assert ".sieve-card" in content
+
+
+def test_css_has_follow_btn():
+    with open("src/sieve/dashboard/static/style.css") as f:
+        content = f.read()
+    assert ".follow-btn" in content
+
+
+def test_css_has_profile_header():
+    with open("src/sieve/dashboard/static/style.css") as f:
+        content = f.read()
+    assert ".profile-header" in content
+
+
+def test_css_has_tag_pill():
+    with open("src/sieve/dashboard/static/style.css") as f:
+        content = f.read()
+    assert ".tag-pill" in content
+
+
+def test_css_has_feed_filters():
+    with open("src/sieve/dashboard/static/style.css") as f:
+        content = f.read()
+    assert ".feed-filters" in content
+
+
+def test_css_has_quick_capture():
+    with open("src/sieve/dashboard/static/style.css") as f:
+        content = f.read()
+    assert ".quick-capture" in content
+
+
+def test_feed_template_has_htmx():
+    html = Path("src/sieve/dashboard/templates/feed.html").read_text()
+    assert "hx-get" in html
+    assert "hx-post" in html
+    assert "/htmx/feed/" in html
+    assert "/htmx/capture/" in html
+
+
+def test_discover_template_has_htmx():
+    html = Path("src/sieve/dashboard/templates/discover.html").read_text()
+    assert "hx-get" in html
+    assert "/htmx/discover/sieves" in html
+    assert "/htmx/discover/capsules" in html
+
+
+def test_settings_template_has_form():
+    html = Path("src/sieve/dashboard/templates/settings.html").read_text()
+    assert "hx-put" in html
+    assert "/htmx/sieves/me" in html
+    assert "api-key-input" in html
+
+
+def test_profile_template_has_stats():
+    html = Path("src/sieve/dashboard/templates/profile.html").read_text()
+    assert "profile-stats" in html
+    assert "follow-btn" in html
+
+
+def test_base_template_has_bottom_nav():
+    html = Path("src/sieve/dashboard/templates/base.html").read_text()
+    assert "bottom-nav" in html
+    assert "/settings" in html
+
+
+def test_dashboard_routes_include_new_pages():
+    from sieve.dashboard.routes import router
+
+    paths = [r.path for r in router.routes]
+    assert "/settings" in paths
+    assert "/sieve/@{username}" in paths

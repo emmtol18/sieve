@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.display_name }} — Neural Sieve{% endblock %}
+{% block content %}
+<div class="profile-header">
+    <div class="profile-header-top">
+        <div class="profile-info">
+            <h1>{{ profile.display_name }}</h1>
+            <div class="profile-username">@{{ profile.username }}</div>
+        </div>
+        {% if not profile.is_own %}
+            {% if profile.is_following %}
+            <button class="follow-btn follow-btn--following" hx-delete="/htmx/sieves/@{{ profile.username }}/follow" hx-swap="outerHTML">Following</button>
+            {% else %}
+            <button class="follow-btn follow-btn--follow" hx-post="/htmx/sieves/@{{ profile.username }}/follow" hx-swap="outerHTML">Follow</button>
+            {% endif %}
+        {% else %}
+            <a href="/settings" class="btn btn-secondary btn-sm">Edit Profile</a>
+        {% endif %}
+    </div>
+    {% if profile.bio %}
+    <p class="profile-bio">{{ profile.bio }}</p>
+    {% endif %}
+    <div class="profile-stats">
+        <div class="profile-stat">
+            <span class="profile-stat-value">{{ profile.capsule_count }}</span>
+            <span class="profile-stat-label">Capsules</span>
+        </div>
+        <div class="profile-stat">
+            <span class="profile-stat-value">{{ profile.follower_count }}</span>
+            <span class="profile-stat-label">Followers</span>
+        </div>
+        <div class="profile-stat">
+            <span class="profile-stat-value">{{ profile.following_count }}</span>
+            <span class="profile-stat-label">Following</span>
+        </div>
+    </div>
+</div>
+
+<div class="feed-container">
+    {% if capsules %}
+        {% for capsule in capsules %}
+        {% include "partials/feed_card.html" %}
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">&#9670;</div>
+            <h3>No capsules yet</h3>
+            {% if profile.is_own %}
+            <p><a href="/capture">Capture your first knowledge</a></p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

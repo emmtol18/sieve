@@ -16,14 +16,34 @@
             <span></span><span></span><span></span>
         </button>
         <div class="nav-links">
-            <a href="/sieve" hx-boost="true">My Sieve</a>
-            <a href="/capture" hx-boost="true">Capture</a>
+            <a href="/" hx-boost="true">Feed</a>
             <a href="/discover" hx-boost="true">Discover</a>
-            <a href="/compile" hx-boost="true">Compile</a>
+            <a href="/capture" hx-boost="true">Capture</a>
+            <a href="/settings" hx-boost="true">Profile</a>
             <button class="btn btn-secondary btn-sm nav-logout" hx-post="/htmx/auth/logout" hx-swap="none">Logout</button>
         </div>
     </nav>
     <main class="container">{% block content %}{% endblock %}</main>
+
+    <nav class="bottom-nav">
+        <a href="/" class="bottom-nav-item" hx-boost="true">
+            <span class="bottom-nav-icon">&#9776;</span>
+            <span class="bottom-nav-label">Feed</span>
+        </a>
+        <a href="/discover" class="bottom-nav-item" hx-boost="true">
+            <span class="bottom-nav-icon">&#9734;</span>
+            <span class="bottom-nav-label">Discover</span>
+        </a>
+        <a href="/capture" class="bottom-nav-item" hx-boost="true">
+            <span class="bottom-nav-icon">&#43;</span>
+            <span class="bottom-nav-label">Capture</span>
+        </a>
+        <a href="/settings" class="bottom-nav-item" hx-boost="true">
+            <span class="bottom-nav-icon">&#9881;</span>
+            <span class="bottom-nav-label">Profile</span>
+        </a>
+    </nav>
+
     <div id="status-bar" class="status-bar" style="display:none"></div>
 </body>
 </html>

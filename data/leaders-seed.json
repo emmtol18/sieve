@@ -1,0 +1,13 @@
+[
+  {
+    "name": "Andrej Karpathy",
+    "slug": "karpathy",
+    "description": "AI researcher and educator. Former Director of AI at Tesla, founding member of OpenAI.",
+    "bio": "Former Director of AI at Tesla, founding member of OpenAI",
+    "expertise_domain": "AI/ML",
+    "twitter_url": "https://x.com/karpathy",
+    "author_url": "https://karpathy.ai",
+    "topics": ["deep-learning", "neural-networks", "AI-education", "autonomous-driving"],
+    "is_featured": true
+  }
+]

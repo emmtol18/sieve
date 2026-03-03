@@ -196,3 +196,54 @@ def mcp():
     from sieve.mcp.server import run_server
 
     asyncio.run(run_server())
+
+
+@cli.command("seed-leaders")
+@click.option("--file", "filepath", type=click.Path(exists=True), required=True, help="JSON file with leader data")
+def seed_leaders(filepath):
+    """Seed the database with leaders from a JSON file."""
+    import asyncio
+    import json
+
+    with open(filepath) as f:
+        leaders_data = json.load(f)
+
+    click.echo(f"Seeding {len(leaders_data)} leaders...")
+    count = asyncio.run(_seed_leaders(leaders_data))
+    click.echo(f"Done. {count} leader(s) seeded.")
+
+
+async def _seed_leaders(leaders_data: list[dict]) -> int:
+    from sqlalchemy import select
+
+    from sieve.db.database import async_session
+    from sieve.db.models import Leader
+
+    count = 0
+    async with async_session() as session:
+        for data in leaders_data:
+            slug = data.get("slug", data["name"].lower().replace(" ", "-"))
+            result = await session.execute(select(Leader).where(Leader.slug == slug))
+            if result.scalar_one_or_none():
+                click.echo(f"  Skipping {data['name']} (slug '{slug}' exists)")
+                continue
+
+            leader = Leader(
+                name=data["name"],
+                slug=slug,
+                description=data.get("description", ""),
+                bio=data.get("bio", ""),
+                expertise_domain=data.get("expertise_domain", ""),
+                avatar_url=data.get("avatar_url"),
+                twitter_url=data.get("twitter_url"),
+                linkedin_url=data.get("linkedin_url"),
+                author_url=data.get("author_url"),
+                topics=data.get("topics", []),
+                is_featured=data.get("is_featured", False),
+            )
+            session.add(leader)
+            count += 1
+            click.echo(f"  Added {data['name']} ({slug})")
+
+        await session.commit()
+    return count

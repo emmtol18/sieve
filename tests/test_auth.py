@@ -97,3 +97,29 @@ def test_set_auth_cookie_creates_response_with_cookie():
     assert "httponly" in set_cookie.lower()
     assert "samesite=lax" in set_cookie.lower()
     assert "path=/" in set_cookie.lower()
+
+
+@pytest.mark.asyncio
+async def test_verify_key_returns_user(client, test_user):
+    """GET /api/auth/verify-key with valid X-Api-Key returns user info."""
+    user, _ = test_user
+    response = await client.get(
+        "/api/auth/verify-key",
+        headers={"X-Api-Key": str(user.api_key)},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == "test@example.com"
+    assert data["display_name"] == "Test User"
+    assert data["api_key"] == str(user.api_key)
+    assert "is_admin" in data
+
+
+@pytest.mark.asyncio
+async def test_verify_key_invalid_returns_401(client):
+    """GET /api/auth/verify-key with invalid key returns 401."""
+    response = await client.get(
+        "/api/auth/verify-key",
+        headers={"X-Api-Key": "00000000-0000-0000-0000-000000000000"},
+    )
+    assert response.status_code == 401

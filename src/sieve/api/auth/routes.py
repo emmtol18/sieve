@@ -102,3 +102,18 @@ async def me(user: User = Depends(get_current_user)):
         api_key=str(user.api_key),
         is_admin=user.is_admin,
     )
+
+
+@router.get("/verify-key", response_model=UserResponse)
+async def verify_key(user: User = Depends(get_current_user)):
+    """Verify an API key and return user info.
+
+    The extension sends X-Api-Key header, which get_current_user now handles.
+    """
+    return UserResponse(
+        id=str(user.id),
+        email=user.email,
+        display_name=user.display_name,
+        api_key=str(user.api_key),
+        is_admin=user.is_admin,
+    )

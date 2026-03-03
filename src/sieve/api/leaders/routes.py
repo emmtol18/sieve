@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sieve.api.auth.deps import require_admin
+from sieve.api.capsules.routes import capsule_to_response
+from sieve.api.capsules.schemas import CapsuleListResponse
 from sieve.api.leaders.schemas import (
     LeaderCreate,
     LeaderListResponse,
@@ -10,7 +12,7 @@ from sieve.api.leaders.schemas import (
     LeaderUpdate,
 )
 from sieve.db.database import get_db
-from sieve.db.models import Leader, User
+from sieve.db.models import Capsule, Leader, User
 
 router = APIRouter(prefix="/api/leaders", tags=["leaders"])
 
@@ -72,6 +74,36 @@ async def get_leader(
             status_code=status.HTTP_404_NOT_FOUND, detail="Leader not found"
         )
     return leader_to_response(leader)
+
+
+@router.get("/{slug}/capsules", response_model=CapsuleListResponse)
+async def get_leader_capsules(
+    slug: str,
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get capsules for a leader. Public endpoint."""
+    result = await db.execute(select(Leader).where(Leader.slug == slug))
+    leader = result.scalar_one_or_none()
+    if not leader:
+        raise HTTPException(status_code=404, detail="Leader not found")
+
+    query = (
+        select(Capsule)
+        .where(Capsule.pack_id == leader.id)
+        .order_by(Capsule.created_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    capsules = result.scalars().all()
+
+    count_q = select(func.count()).where(Capsule.pack_id == leader.id)
+    total = (await db.execute(count_q)).scalar() or 0
+
+    return CapsuleListResponse(
+        capsules=[capsule_to_response(c) for c in capsules],
+        total=total,
+    )
 
 
 @router.post("/", response_model=LeaderResponse, status_code=status.HTTP_201_CREATED)

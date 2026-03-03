@@ -4,6 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from sieve.api.auth.deps import create_access_token, hash_password
+from sieve.api.capsules.schemas import CaptureRequest
 from sieve.api.leaders.schemas import (
     LeaderCreate,
     LeaderListResponse,
@@ -406,3 +407,53 @@ async def test_list_leaders_domain_filter(app, admin_cookies):
     assert resp.status_code == 200
     body = resp.json()
     assert all(l["expertise_domain"] == "Robotics" for l in body["leaders"])
+
+
+# ---------------------------------------------------------------------------
+# Task 5 & 6: CaptureRequest leader_id + leader capsules endpoint
+# ---------------------------------------------------------------------------
+
+
+def test_capture_request_accepts_leader_id():
+    """CaptureRequest schema accepts optional leader_id field."""
+    req = CaptureRequest(content="some content", leader_id="abc-123")
+    assert req.leader_id == "abc-123"
+
+
+def test_capture_request_leader_id_defaults_none():
+    """CaptureRequest.leader_id defaults to None for backward compatibility."""
+    req = CaptureRequest(content="some content")
+    assert req.leader_id is None
+
+
+@pytest.mark.asyncio
+async def test_get_leader_capsules_empty(app, admin_cookies):
+    """GET /api/leaders/{slug}/capsules returns empty list for leader with no capsules."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        # Create a leader
+        await ac.post(
+            "/api/leaders/",
+            json={
+                "name": "Empty Leader",
+                "slug": "empty-leader",
+                "description": "Leader with no capsules",
+            },
+            cookies=admin_cookies,
+        )
+        # Get capsules (public, no auth needed)
+        resp = await ac.get("/api/leaders/empty-leader/capsules")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["capsules"] == []
+    assert body["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_leader_capsules_not_found(app):
+    """GET /api/leaders/nonexistent/capsules returns 404."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/api/leaders/nonexistent/capsules")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Leader not found"

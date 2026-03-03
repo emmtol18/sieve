@@ -29,9 +29,41 @@ export class SieveApiError extends Error {
 	}
 }
 
+function apiHeaders(apiKey: string): Record<string, string> {
+	return {
+		'Content-Type': 'application/json',
+		'X-Api-Key': apiKey,
+	};
+}
+
+export async function verifyApiKey(
+	serverUrl: string,
+	apiKey: string
+): Promise<{ id: string; email: string; display_name: string; api_key: string; is_admin: boolean }> {
+	let response: Response;
+
+	try {
+		response = await fetch(`${serverUrl}/api/auth/verify-key`, {
+			method: 'GET',
+			headers: { 'X-Api-Key': apiKey },
+		});
+	} catch {
+		throw new SieveApiError('network_error', 'Failed to connect to Neural Sieve');
+	}
+
+	if (!response.ok) {
+		if (response.status === 401) {
+			throw new SieveApiError('auth_expired', 'Invalid API key', 401);
+		}
+		throw new SieveApiError('server_error', 'Failed to verify API key');
+	}
+
+	return await response.json();
+}
+
 export async function captureToSieve(
 	serverUrl: string,
-	authToken: string,
+	apiKey: string,
 	request: CaptureRequest
 ): Promise<CaptureResponse> {
 	let response: Response;
@@ -39,10 +71,7 @@ export async function captureToSieve(
 	try {
 		response = await fetch(`${serverUrl}/api/capture/`, {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'Authorization': `Bearer ${authToken}`,
-			},
+			headers: apiHeaders(apiKey),
 			body: JSON.stringify(request),
 		});
 	} catch {
@@ -52,7 +81,7 @@ export async function captureToSieve(
 	if (!response.ok) {
 		const body = await response.json().catch(() => ({ detail: 'Unknown error' }));
 		if (response.status === 401) {
-			throw new SieveApiError('auth_expired', body.detail || 'Session expired', 401);
+			throw new SieveApiError('auth_expired', body.detail || 'Invalid API key', 401);
 		}
 		throw new SieveApiError(
 			'server_error',
@@ -64,64 +93,7 @@ export async function captureToSieve(
 	return await response.json();
 }
 
-export async function loginToSieve(
-	serverUrl: string,
-	email: string,
-	password: string
-): Promise<{ access_token: string; api_key: string }> {
-	let response: Response;
-
-	try {
-		response = await fetch(`${serverUrl}/api/auth/login`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ email, password }),
-		});
-	} catch {
-		throw new SieveApiError('network_error', 'Failed to connect to Neural Sieve');
-	}
-
-	if (!response.ok) {
-		const body = await response.json().catch(() => ({ detail: 'Unknown error' }));
-		if (response.status === 401) {
-			throw new SieveApiError('auth_expired', 'Invalid email or password', 401);
-		}
-		throw new SieveApiError(
-			'server_error',
-			body.detail || `Server error (${response.status})`,
-			response.status
-		);
-	}
-
-	return await response.json();
-}
-
-export async function fetchCurrentUser(
-	serverUrl: string,
-	authToken: string
-): Promise<{ id: string; email: string; display_name: string; api_key: string; is_admin: boolean }> {
-	let response: Response;
-
-	try {
-		response = await fetch(`${serverUrl}/api/auth/me`, {
-			method: 'GET',
-			headers: { 'Authorization': `Bearer ${authToken}` },
-		});
-	} catch {
-		throw new SieveApiError('network_error', 'Failed to connect to Neural Sieve');
-	}
-
-	if (!response.ok) {
-		if (response.status === 401) {
-			throw new SieveApiError('auth_expired', 'Session expired', 401);
-		}
-		throw new SieveApiError('server_error', 'Failed to fetch user info');
-	}
-
-	return await response.json();
-}
-
-export async function createLeader(serverUrl: string, authToken: string, data: {
+export async function createLeader(serverUrl: string, apiKey: string, data: {
 	name: string;
 	slug: string;
 	description: string;
@@ -134,19 +106,16 @@ export async function createLeader(serverUrl: string, authToken: string, data: {
 }): Promise<any> {
 	const response = await fetch(`${serverUrl}/api/leaders/`, {
 		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'Authorization': `Bearer ${authToken}`,
-		},
+		headers: apiHeaders(apiKey),
 		body: JSON.stringify(data),
 	});
 	if (!response.ok) throw new Error(`Failed to create leader: ${response.status}`);
 	return response.json();
 }
 
-export async function listLeaders(serverUrl: string, authToken: string): Promise<any[]> {
+export async function listLeaders(serverUrl: string, apiKey: string): Promise<any[]> {
 	const response = await fetch(`${serverUrl}/api/leaders/`, {
-		headers: { 'Authorization': `Bearer ${authToken}` },
+		headers: { 'X-Api-Key': apiKey },
 	});
 	if (!response.ok) return [];
 	const data = await response.json();

@@ -22,6 +22,7 @@ import { debounce } from '../utils/debounce';
 import { sanitizeFileName } from '../utils/string-utils';
 import { saveFile } from '../utils/file-utils';
 import { translatePage, getMessage, setupLanguageAndDirection } from '../utils/i18n';
+import { initializeAdminSection, getSelectedLeaderId } from './admin-leaders';
 
 interface ReaderModeResponse {
 	success: boolean;
@@ -308,6 +309,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 				// Initialize auth UI
 				await initializeAuth();
 				setupAuthListeners();
+
+				// Initialize admin section (leaders UI) for admin users
+				await initializeAdminSection(currentTabId);
 
 				// Initial content load
 				await refreshFields(currentTabId);
@@ -1170,10 +1174,18 @@ async function handleCaptureToSieve(): Promise<void> {
 		const tabInfo = await getCurrentTabInfo();
 		const pageUrl = tabInfo?.url || '';
 
+		const captureRequest: { content: string; url: string; source_url: string; leader_id?: string } = {
+			content, url: pageUrl, source_url: pageUrl
+		};
+		const selectedLeaderId = getSelectedLeaderId();
+		if (selectedLeaderId) {
+			captureRequest.leader_id = selectedLeaderId;
+		}
+
 		const response = await captureToSieve(
 			generalSettings.serverUrl,
 			generalSettings.authToken,
-			{ content, url: pageUrl, source_url: pageUrl }
+			captureRequest
 		);
 
 		// Show toast via content script

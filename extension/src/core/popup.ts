@@ -885,15 +885,43 @@ async function getReplacedTemplate(template: Template, variables: { [key: string
 async function initializeAuth(): Promise<void> {
 	const loginSection = document.getElementById('auth-login')!;
 	const userSection = document.getElementById('auth-user')!;
+	const popupHeader = document.getElementById('popup-header');
+	const clipperContent = document.querySelector('.clipper') as HTMLElement | null;
+	const actionButtons = document.getElementById('action-buttons');
+	const metaHeader = document.querySelector('.metadata-properties-header') as HTMLElement | null;
+	const metaProps = document.querySelector('.metadata-properties') as HTMLElement | null;
+	const noteContainer = document.getElementById('note-content-container');
+	const adminSection = document.getElementById('admin-section');
 
-	if (generalSettings.apiKey && generalSettings.authUser) {
+	const isConnected = !!(generalSettings.apiKey && generalSettings.authUser);
+
+	if (isConnected) {
 		loginSection.style.display = 'none';
 		userSection.style.display = 'flex';
 		const usernameEl = document.getElementById('auth-username')!;
-		usernameEl.textContent = generalSettings.authUser.displayName || generalSettings.authUser.email;
+		usernameEl.textContent = generalSettings.authUser!.displayName || generalSettings.authUser!.email;
+
+		// Show full clipper UI
+		if (popupHeader) popupHeader.style.display = '';
+		if (metaHeader) metaHeader.style.display = '';
+		if (metaProps) metaProps.style.display = '';
+		if (noteContainer) noteContainer.style.display = '';
+		if (actionButtons) actionButtons.style.display = '';
 	} else {
 		loginSection.style.display = 'block';
 		userSection.style.display = 'none';
+
+		// Pre-fill server URL field
+		const serverUrlInput = document.getElementById('login-server-url') as HTMLInputElement | null;
+		if (serverUrlInput) serverUrlInput.value = generalSettings.serverUrl;
+
+		// Hide clipper UI — only show auth form and settings gear
+		if (popupHeader) popupHeader.style.display = 'none';
+		if (metaHeader) metaHeader.style.display = 'none';
+		if (metaProps) metaProps.style.display = 'none';
+		if (noteContainer) noteContainer.style.display = 'none';
+		if (actionButtons) actionButtons.style.display = 'none';
+		if (adminSection) adminSection.style.display = 'none';
 	}
 }
 
@@ -909,10 +937,17 @@ function setupAuthListeners(): void {
 }
 
 async function handleLogin(): Promise<void> {
+	const serverUrlInput = document.getElementById('login-server-url') as HTMLInputElement;
 	const keyInput = document.getElementById('login-api-key') as HTMLInputElement;
 	const errorEl = document.getElementById('login-error')!;
 	const loginBtn = document.getElementById('login-btn') as HTMLButtonElement;
 	const apiKey = keyInput.value.trim();
+
+	// Save server URL if provided
+	if (serverUrlInput?.value.trim()) {
+		generalSettings.serverUrl = serverUrlInput.value.trim().replace(/\/+$/, '');
+		await saveSettings();
+	}
 
 	if (!apiKey) {
 		errorEl.textContent = 'Please paste your API key';

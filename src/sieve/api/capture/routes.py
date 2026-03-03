@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sieve.api.auth.deps import get_current_user
@@ -65,6 +65,7 @@ async def capture(
     )
 
     # Assign to leader if leader_id is provided
+    leader = None
     if body.leader_id:
         result = await db.execute(select(Leader).where(Leader.id == body.leader_id))
         leader = result.scalar_one_or_none()
@@ -79,16 +80,11 @@ async def capture(
     await db.refresh(capsule)
 
     # Update leader's capsule_count after commit
-    if body.leader_id:
-        from sqlalchemy import func
-
+    if body.leader_id and leader:
         count_result = await db.execute(
             select(func.count()).where(Capsule.pack_id == body.leader_id)
         )
-        result2 = await db.execute(select(Leader).where(Leader.id == body.leader_id))
-        leader = result2.scalar_one_or_none()
-        if leader:
-            leader.capsule_count = count_result.scalar() or 0
-            await db.commit()
+        leader.capsule_count = count_result.scalar() or 0
+        await db.commit()
 
     return capsule_to_response(capsule)

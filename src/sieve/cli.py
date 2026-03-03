@@ -221,10 +221,13 @@ async def _seed_leaders(leaders_data: list[dict]) -> int:
 
     count = 0
     async with async_session() as session:
+        # Pre-fetch all existing slugs to avoid N+1 queries
+        result = await session.execute(select(Leader.slug))
+        existing_slugs = {row[0] for row in result.all()}
+
         for data in leaders_data:
             slug = data.get("slug", data["name"].lower().replace(" ", "-"))
-            result = await session.execute(select(Leader).where(Leader.slug == slug))
-            if result.scalar_one_or_none():
+            if slug in existing_slugs:
                 click.echo(f"  Skipping {data['name']} (slug '{slug}' exists)")
                 continue
 

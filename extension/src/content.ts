@@ -4,6 +4,7 @@ import { loadSettings, generalSettings } from './utils/storage-utils';
 import Defuddle from 'defuddle';
 import { getDomain } from './utils/string-utils';
 import { createMarkdownContent } from './utils/markdown-converter';
+import { extractTwitterProfile } from './utils/twitter-extractor';
 
 declare global {
 	interface Window {
@@ -418,40 +419,11 @@ declare global {
 			showSieveErrorToast(request.message);
 			sendResponse({ success: true });
 		} else if (request.action === "extractTwitterProfile") {
-			const profile = extractTwitterProfileFromPage();
+			const profile = extractTwitterProfile();
 			sendResponse(profile);
 		}
 		return true;
 	});
-
-	function extractTwitterProfileFromPage(): any {
-		try {
-			const nameEl = document.querySelector('[data-testid="UserName"] span');
-			const name = nameEl?.textContent?.trim() || '';
-
-			const handle = window.location.pathname.split('/').filter(Boolean)[0] || '';
-
-			const bioEl = document.querySelector('[data-testid="UserDescription"]');
-			const bio = bioEl?.textContent?.trim() || '';
-
-			const avatarEl = document.querySelector('[data-testid="UserAvatar"] img') as HTMLImageElement;
-			let avatarUrl = avatarEl?.src || null;
-			if (avatarUrl) {
-				avatarUrl = avatarUrl.replace(/_normal\.|_bigger\./, '_400x400.');
-			}
-
-			const websiteEl = document.querySelector('[data-testid="UserUrl"] a') as HTMLAnchorElement;
-			const websiteUrl = websiteEl?.href || null;
-
-			const locationEl = document.querySelector('[data-testid="UserLocation"]');
-			const location = locationEl?.textContent?.trim() || null;
-
-			if (!name && !handle) return null;
-			return { name, handle, bio, avatarUrl, websiteUrl, location };
-		} catch {
-			return null;
-		}
-	}
 
 	function showSieveToast(title: string, capsuleId: string, serverUrl: string): void {
 		const existing = document.getElementById('sieve-toast');

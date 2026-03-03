@@ -14,7 +14,7 @@
 				</select>
 			</div>
 			<div class="popup-actions">
-				<a href="#" id="show-variables" class="clickable-icon" 
+				<a href="#" id="show-variables" class="clickable-icon"
 					data-i18n-title="showPageVariables">
 					<i data-lucide="ellipsis"></i>
 				</a>
@@ -22,18 +22,18 @@
 					data-i18n-title="reader">
 					<i data-lucide="book-open"></i>
 				</a>
-				<a href="#" id="highlighter-mode" class="clickable-icon" 
+				<a href="#" id="highlighter-mode" class="clickable-icon"
 					data-i18n-title="highlightPage">
 					<i data-lucide="highlighter"></i>
 				</a>
-				<a href="#" id="embedded-mode" class="clickable-icon" 
+				<a href="#" id="embedded-mode" class="clickable-icon"
 					data-i18n-title="openEmbedded">
 					<i data-lucide="picture-in-picture-2"></i>
 				</a>
-				<a href="#" id="open-settings" class="clickable-icon" 
+				<a href="#" id="open-settings" class="clickable-icon"
 					data-i18n-title="settings">
 					<i data-lucide="settings"></i>
-				</a>		
+				</a>
 			</div>
 		</div>
 		<p class="error-message" style="display: none;"></p>
@@ -47,25 +47,6 @@
 				<textarea id="note-content-field" rows="4" data-i18n="notesAboutPage"></textarea>
 			</div>
 			<div class="clipper-footer">
-				<div id="auth-section">
-					<div id="auth-login" style="display: none;">
-						<div class="auth-form">
-							<input id="login-server-url" type="url" placeholder="Server URL (e.g. http://localhost:8421)" class="auth-input" />
-						<input id="login-api-key" type="text" placeholder="Paste your API key" class="auth-input" />
-							<div class="auth-actions">
-								<button id="login-btn" class="mod-cta">Connect</button>
-								<a id="get-key-link" class="auth-link">Get your key from Settings &#8594;</a>
-							</div>
-							<p id="login-error" class="error-message" style="display: none;"></p>
-						</div>
-					</div>
-					<div id="auth-user" style="display: none;">
-						<div class="auth-user-info">
-							<span id="auth-username"></span>
-							<a id="logout-link" class="auth-link">Disconnect</a>
-						</div>
-					</div>
-				</div>
 				<div id="admin-section" style="display:none">
 					<div style="border-top:1px solid #e8e4df;margin:0.75rem 0;padding-top:0.75rem">
 						<div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:#8a857e;margin-bottom:0.5rem">Admin</div>
@@ -90,7 +71,7 @@
 						</div>
 					</div>
 				</div>
-					<div class="action-buttons" id="action-buttons">
+				<div class="action-buttons" id="action-buttons">
 					<button id="clip-btn" class="mod-cta"><!-- Text set by determineMainAction --></button>
 					<div class="menu-btn">
 						<button id="more-btn"><i data-lucide="chevron-down"></i></button>
@@ -102,6 +83,25 @@
 					</div>
 					<div class="share-btn">
 						<a class="share-content clickable-icon" data-i18n-title="share"><i data-lucide="share"></i></a>
+					</div>
+				</div>
+				<div id="auth-section">
+					<div id="auth-login" style="display: none;">
+						<div class="auth-form">
+							<input id="login-server-url" type="url" placeholder="Server URL" class="auth-input" />
+							<input id="login-api-key" type="text" placeholder="Paste your API key" class="auth-input" />
+							<div class="auth-actions">
+								<button id="login-btn" class="mod-cta">Connect</button>
+								<a id="get-key-link" class="auth-link">Get your key from Settings &#8594;</a>
+							</div>
+							<p id="login-error" class="error-message" style="display: none;"></p>
+						</div>
+					</div>
+					<div id="auth-user" style="display: none;">
+						<div class="auth-user-info">
+							<span id="auth-username"></span>
+							<a id="logout-link" class="auth-link">Disconnect</a>
+						</div>
 					</div>
 				</div>
 			</div>

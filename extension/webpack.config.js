@@ -164,7 +164,8 @@ module.exports = (env, argv) => {
 			},
 			new webpack.DefinePlugin({
 				'process.env.NODE_ENV': JSON.stringify(argv.mode),
-				'DEBUG_MODE': JSON.stringify(!isProduction)
+				'DEBUG_MODE': JSON.stringify(!isProduction),
+				'SIEVE_MODE': JSON.stringify(env.SIEVE_MODE || (isProduction ? 'cloud' : 'local'))
 			}),
 			...(isProduction ? [
 				new ZipPlugin({

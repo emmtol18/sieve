@@ -1,4 +1,7 @@
 {
+	"account": {
+		"message": "Account"
+	},
 	"activity": {
 		"message": "Activity"
 	},

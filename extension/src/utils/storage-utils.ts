@@ -1,14 +1,15 @@
 import browser from './browser-polyfill';
 import { Settings, SaveBehavior, PropertyType, HistoryEntry, Rating } from '../types/types';
 import { debugLog } from './debug';
+import { DEFAULT_SERVER_URL } from './config';
 
 export type { Settings, PropertyType, HistoryEntry, Rating };
 
 export let generalSettings: Settings = {
-	serverUrl: 'https://app.neuralsieve.com',
+	serverUrl: DEFAULT_SERVER_URL,
 	apiKey: null,
 	authUser: null,
-	captureMode: 'quick' as const,
+	captureMode: 'full' as const,
 	betaFeatures: false,
 	openBehavior: 'popup',
 	highlighterEnabled: true,
@@ -87,10 +88,10 @@ export async function loadSettings(): Promise<Settings> {
 
 	// Load default settings first
 	const defaultSettings: Settings = {
-		serverUrl: 'https://app.neuralsieve.com',
+		serverUrl: DEFAULT_SERVER_URL,
 		apiKey: null,
 		authUser: null,
-		captureMode: 'quick',
+		captureMode: 'full',
 		showMoreActionsButton: false,
 		betaFeatures: false,
 		openBehavior: 'popup',

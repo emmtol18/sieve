@@ -13,6 +13,7 @@ from sieve.api.leaders.schemas import (
 )
 from sieve.db.database import get_db
 from sieve.db.models import Capsule, Leader, User
+from sieve.utils import escape_like
 
 router = APIRouter(prefix="/api/leaders", tags=["leaders"])
 
@@ -47,9 +48,9 @@ async def list_leaders(
     if domain:
         stmt = stmt.where(Leader.expertise_domain == domain)
     if search:
-        pattern = f"%{search}%"
+        pattern = f"%{escape_like(search)}%"
         stmt = stmt.where(
-            Leader.name.ilike(pattern) | Leader.description.ilike(pattern)
+            Leader.name.ilike(pattern) | Leader.description.ilike(pattern) | Leader.bio.ilike(pattern)
         )
 
     stmt = stmt.order_by(Leader.is_featured.desc(), Leader.name.asc()).limit(200)

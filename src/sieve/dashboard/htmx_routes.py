@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sieve.api.auth.deps import create_access_token, get_current_user, hash_password, verify_password
 from sieve.api.auth.routes import COOKIE_NAME, set_auth_cookie
 from sieve.api.capsules.routes import capsule_to_response
+from sieve.api.leaders.routes import leader_to_response
 from sieve.api.capsules.schemas import CaptureRequest
 from sieve.api.capture.pipeline import CapturePipeline
 from sieve.config import settings
@@ -565,19 +566,7 @@ async def htmx_list_leaders(
     result = await db.execute(query)
     leaders = result.scalars().all()
 
-    leader_dicts = []
-    for l in leaders:
-        leader_dicts.append({
-            "id": str(l.id),
-            "name": l.name,
-            "slug": l.slug,
-            "description": l.description,
-            "bio": l.bio or "",
-            "expertise_domain": l.expertise_domain or "",
-            "avatar_url": l.avatar_url,
-            "capsule_count": l.capsule_count,
-            "is_featured": l.is_featured,
-        })
+    leader_dicts = [leader_to_response(l).model_dump() for l in leaders]
 
     return _render_partial("partials/leader_grid.html", leaders=leader_dicts)
 

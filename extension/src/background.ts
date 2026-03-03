@@ -3,6 +3,9 @@ import { detectBrowser } from './utils/browser-detection';
 import { updateCurrentActiveTab, isValidUrl, isBlankPage } from './utils/active-tab-manager';
 import { TextHighlightData } from './utils/highlighter';
 import { debounce } from './utils/debounce';
+import { DEFAULT_SERVER_URL } from './utils/config';
+import { listLeaders } from './utils/sieve-api-client';
+import { extractTwitterHandle } from './utils/twitter-extractor';
 
 let sidePanelOpenWindows: Set<number> = new Set();
 let highlighterModeState: { [tabId: number]: boolean } = {};
@@ -33,11 +36,7 @@ browser.action.onClicked.addListener(async (tab) => {
 	const stored = await browser.storage.sync.get('sieve_auth');
 	const settings = (stored as any).sieve_auth || {};
 	if (settings.apiKey) {
-		browser.runtime.sendMessage({
-			action: 'capturePageToSieve',
-			apiKey: settings.apiKey,
-			serverUrl: settings.serverUrl || 'https://app.neuralsieve.com',
-		});
+		quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL);
 	} else {
 		browser.action.setPopup({ popup: 'popup.html' });
 		browser.action.openPopup();
@@ -48,6 +47,72 @@ browser.action.onClicked.addListener(async (tab) => {
 		}, 1000);
 	}
 });
+
+async function quickCapture(apiKey: string, serverUrl: string): Promise<void> {
+	try {
+		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+		const tab = tabs[0];
+		if (!tab?.id) throw new Error('No active tab');
+
+		await ensureContentScriptLoadedInBackground(tab.id);
+		const pageContent = await browser.tabs.sendMessage(tab.id, { action: 'getPageContent' }) as any;
+		const content = pageContent?.selectedHtml || pageContent?.content || '';
+		const url = tab.url || '';
+
+		// Auto-assign leader by Twitter URL
+		let leader_id: string | undefined;
+		const handle = extractTwitterHandle(url);
+		if (handle) {
+			try {
+				const leaders = await listLeaders(serverUrl, apiKey);
+				const match = leaders.find((leader: any) => {
+					if (!leader.twitter_url) return false;
+					return extractTwitterHandle(leader.twitter_url) === handle;
+				});
+				if (match) leader_id = match.id;
+			} catch {}
+		}
+
+		const body: any = { content, url, source_url: url };
+		if (leader_id) body.leader_id = leader_id;
+
+		const response = await fetch(`${serverUrl}/api/capture/`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-Api-Key': apiKey,
+			},
+			body: JSON.stringify(body),
+		});
+
+		if (!response.ok) {
+			const body = await response.json().catch(() => ({ detail: 'Unknown error' }));
+			await browser.tabs.sendMessage(tab.id, {
+				action: 'showSieveErrorToast',
+				message: response.status === 401 ? 'API key invalid. Please reconnect.' : (body.detail || 'Capture failed'),
+			});
+			return;
+		}
+
+		const capsule = await response.json();
+		await browser.tabs.sendMessage(tab.id, {
+			action: 'showSieveToast',
+			title: capsule.title,
+			capsuleId: capsule.id,
+			serverUrl,
+		});
+	} catch (err: any) {
+		try {
+			const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+			if (tabs[0]?.id) {
+				await browser.tabs.sendMessage(tabs[0].id, {
+					action: 'showSieveErrorToast',
+					message: err.message || 'Capture failed',
+				});
+			}
+		} catch {}
+	}
+}
 
 async function ensureContentScriptLoadedInBackground(tabId: number): Promise<void> {
 	try {
@@ -409,57 +474,11 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 
 		if (typedRequest.action === "capturePageToSieve") {
 			const { apiKey, serverUrl } = typedRequest as any;
-			(async () => {
-				try {
-					const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-					const tab = tabs[0];
-					if (!tab?.id) throw new Error('No active tab');
-
-					await ensureContentScriptLoadedInBackground(tab.id);
-					const pageContent = await browser.tabs.sendMessage(tab.id, { action: 'getPageContent' }) as any;
-					const content = pageContent?.content || '';
-					const url = tab.url || '';
-
-					const response = await fetch(`${serverUrl}/api/capture/`, {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-Api-Key': apiKey,
-						},
-						body: JSON.stringify({ content, url, source_url: url }),
-					});
-
-					if (!response.ok) {
-						const body = await response.json().catch(() => ({ detail: 'Unknown error' }));
-						await browser.tabs.sendMessage(tab.id, {
-							action: 'showSieveErrorToast',
-							message: response.status === 401 ? 'API key invalid. Please reconnect.' : (body.detail || 'Capture failed'),
-						});
-						sendResponse({ success: false, error: body.detail });
-						return;
-					}
-
-					const capsule = await response.json();
-					await browser.tabs.sendMessage(tab.id, {
-						action: 'showSieveToast',
-						title: capsule.title,
-						capsuleId: capsule.id,
-						serverUrl,
-					});
-					sendResponse({ success: true, capsule });
-				} catch (err: any) {
-					try {
-						const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-						if (tabs[0]?.id) {
-							await browser.tabs.sendMessage(tabs[0].id, {
-								action: 'showSieveErrorToast',
-								message: err.message || 'Capture failed',
-							});
-						}
-					} catch {}
-					sendResponse({ success: false, error: err.message });
-				}
-			})();
+			quickCapture(apiKey, serverUrl).then(() => {
+				sendResponse({ success: true });
+			}).catch((err: any) => {
+				sendResponse({ success: false, error: err.message });
+			});
 			return true;
 		}
 
@@ -480,11 +499,7 @@ browser.commands.onCommand.addListener(async (command, tab) => {
 		const stored = await browser.storage.sync.get('sieve_auth');
 		const settings = (stored as any).sieve_auth || {};
 		if (settings.apiKey) {
-			browser.runtime.sendMessage({
-				action: 'capturePageToSieve',
-				apiKey: settings.apiKey,
-				serverUrl: settings.serverUrl || 'https://app.neuralsieve.com',
-			});
+			quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL);
 		} else {
 			browser.action.openPopup();
 		}
@@ -593,11 +608,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 		const stored = await browser.storage.sync.get('sieve_auth');
 		const settings = (stored as any).sieve_auth || {};
 		if (settings.apiKey) {
-			browser.runtime.sendMessage({
-				action: 'capturePageToSieve',
-				apiKey: settings.apiKey,
-				serverUrl: settings.serverUrl || 'https://app.neuralsieve.com',
-			});
+			quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL);
 		} else {
 			browser.action.openPopup();
 		}

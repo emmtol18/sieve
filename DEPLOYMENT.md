@@ -108,6 +108,9 @@ fly secrets set SIEVE_GOOGLE_CLIENT_ID=your-google-client-id
 fly secrets set SIEVE_GOOGLE_CLIENT_SECRET=your-google-client-secret
 fly secrets set SIEVE_GOOGLE_REDIRECT_URI=https://neural-sieve.fly.dev/auth/google/callback
 
+# CORS — allow your domain and the browser extension
+fly secrets set SIEVE_CORS_ORIGINS="https://neural-sieve.fly.dev,https://app.neuralsieve.com"
+
 # The DATABASE_URL is set automatically by Fly PostgreSQL
 # But our app expects SIEVE_DATABASE_URL, so set it:
 fly secrets set SIEVE_DATABASE_URL=$(fly postgres config show --app neural-sieve-db | grep DATABASE_URL | awk '{print $2}')
@@ -225,15 +228,42 @@ uv run sieve compile --all --output /path/to/project/.claude/skills
 
 Skills are regenerated each time you run `compile`. Run it after capturing new knowledge.
 
+## Step 10: Configure Sieve Clipper Extension
+
+The Sieve Clipper browser extension captures web content directly into Neural Sieve.
+
+### Production default
+
+The extension defaults to `https://app.neuralsieve.com`. If your Fly app uses a **custom domain**, users need to update the server URL either:
+
+- **In the popup** — when not connected, a "Server URL" field appears above the API key input
+- **In extension settings** — Account → Server URL
+
+### For self-hosted / dev
+
+If running locally or on a different host, set the server URL to your instance (e.g. `http://localhost:8421`).
+
+### Connecting
+
+1. Install the Sieve Clipper extension
+2. Click the extension icon — the popup shows the login form
+3. Set the server URL if not using the default
+4. Paste your API key (from dashboard Settings page)
+5. Click **Connect**
+
+The extension verifies the key against your server and displays the clipper UI on success.
+
 ## User Setup Guide (Non-Technical)
 
 ### For users who just want to use Neural Sieve:
 
 1. **Sign up** at `https://your-app.fly.dev/login`
-2. **Capture knowledge** using the Capture page — paste a URL or text
-3. **Browse your sieve** on the My Sieve page
-4. **Discover packs** — subscribe to curated leader packs on the Discover page
-5. **Access from phone** — the dashboard works on mobile browsers. Add to home screen for app-like experience.
+2. **Install Sieve Clipper** — the browser extension for capturing web content
+3. **Connect the extension** — paste your API key from the Settings page
+4. **Capture knowledge** — use the extension on any page, or the Capture page to paste a URL
+5. **Browse your sieve** on the My Sieve page
+6. **Discover packs** — subscribe to curated leader packs on the Discover page
+7. **Access from phone** — the dashboard works on mobile browsers. Add to home screen for app-like experience.
 
 ### For users who also use Claude Code:
 
@@ -307,6 +337,10 @@ fly secrets list  # Verify all secrets are set
 - Verify `SIEVE_API_URL` points to your Fly app (with `https://`)
 - Verify `SIEVE_API_KEY` matches the key from signup
 - Check the app is running: `curl https://your-app.fly.dev/api/auth/me -H "Authorization: Bearer your-key"`
+
+**Extension gets CORS errors:**
+- Ensure `SIEVE_CORS_ORIGINS` includes your app domain: `fly secrets set SIEVE_CORS_ORIGINS="https://your-app.fly.dev"`
+- Multiple origins: separate with commas (no spaces)
 
 **Migrations fail:**
 ```bash

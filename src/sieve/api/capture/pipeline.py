@@ -30,7 +30,10 @@ class CapturePipeline:
         """
         content = req.content
 
-        if req.url:
+        # Only fetch URL if no content was provided by the client.
+        # The extension sends pre-rendered page content; re-fetching
+        # server-side fails for JS-heavy sites (x.com, SPAs, etc.).
+        if not content and req.url:
             html = await fetch_url(req.url)
             content = extract_text_from_html(html)
 

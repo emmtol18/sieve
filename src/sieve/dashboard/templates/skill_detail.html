@@ -41,8 +41,11 @@
     </section>
 
     <section class="capsule-section">
-        <h2 class="section-heading">Skill Body</h2>
-        <div class="capsule-content skill-body">{{ skill.body }}</div>
+        <div class="section-heading-row">
+            <h2 class="section-heading">Skill Body</h2>
+            <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('skill-body-content').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)})">Copy</button>
+        </div>
+        <div id="skill-body-content" class="capsule-content skill-body">{{ skill.body }}</div>
     </section>
 
     {% if source_capsules %}

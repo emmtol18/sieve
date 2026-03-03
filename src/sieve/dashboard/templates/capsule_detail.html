@@ -61,6 +61,17 @@
         <p>{{ capsule.core_insight }}</p>
     </section>
 
+    {% if capsule.full_content %}
+    <section class="capsule-section">
+        <div class="section-heading-row">
+            <h2 class="section-heading">Full Content</h2>
+            <button class="btn btn-secondary" onclick="var el=document.getElementById('full-content-body');el.classList.toggle('hidden');this.textContent=el.classList.contains('hidden')?'Show':'Hide'">Show</button>
+            <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('full-content-body').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)})">Copy</button>
+        </div>
+        <div id="full-content-body" class="capsule-content hidden" style="white-space: pre-wrap;">{{ capsule.full_content }}</div>
+    </section>
+    {% endif %}
+
     <footer class="capsule-footer">
         <span>Captured: {{ capsule.created_at[:10] if capsule.created_at else "Unknown" }}</span>
         <span>Method: {{ capsule.capture_method }}</span>

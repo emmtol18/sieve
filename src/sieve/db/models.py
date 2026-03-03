@@ -156,7 +156,7 @@ class Capsule(Base):
     author: Mapped[str] = mapped_column(String(200), default="personal")
     pack_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("leader_packs.id", ondelete="SET NULL"),
+        ForeignKey("leaders.id", ondelete="SET NULL"),
         nullable=True,
     )
     source_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
@@ -174,7 +174,7 @@ class Capsule(Base):
 
     # Relationships
     sieve: Mapped["Sieve"] = relationship(back_populates="capsules")
-    pack: Mapped["LeaderPack | None"] = relationship(back_populates="capsules")
+    pack: Mapped["Leader | None"] = relationship(back_populates="capsules")
 
 
 class Skill(Base):
@@ -221,8 +221,8 @@ class SkillCapsule(Base):
     capsule: Mapped["Capsule"] = relationship()
 
 
-class LeaderPack(Base):
-    __tablename__ = "leader_packs"
+class Leader(Base):
+    __tablename__ = "leaders"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -234,6 +234,15 @@ class LeaderPack(Base):
     rating_avg: Mapped[float] = mapped_column(Float, default=0.0)
     review_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    # New profile fields
+    avatar_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    expertise_domain: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    twitter_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
+    capsule_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationships
     capsules: Mapped[list["Capsule"]] = relationship(back_populates="pack")
@@ -256,14 +265,14 @@ class Subscription(Base):
     )
     pack_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("leader_packs.id", ondelete="CASCADE"),
+        ForeignKey("leaders.id", ondelete="CASCADE"),
         primary_key=True,
     )
     subscribed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     # Relationships
     user: Mapped["User"] = relationship()
-    pack: Mapped["LeaderPack"] = relationship(back_populates="subscriptions")
+    pack: Mapped["Leader"] = relationship(back_populates="subscriptions")
 
 
 class Review(Base):
@@ -278,7 +287,7 @@ class Review(Base):
     )
     pack_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("leader_packs.id", ondelete="CASCADE"),
+        ForeignKey("leaders.id", ondelete="CASCADE"),
         nullable=False,
     )
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -287,4 +296,4 @@ class Review(Base):
 
     # Relationships
     user: Mapped["User"] = relationship()
-    pack: Mapped["LeaderPack"] = relationship(back_populates="reviews")
+    pack: Mapped["Leader"] = relationship(back_populates="reviews")

@@ -7,7 +7,7 @@ import { compileTemplate } from '../utils/template-compiler';
 import { initializeIcons, getPropertyTypeIcon } from '../icons/icons';
 import { findMatchingTemplate, initializeTriggers } from '../utils/triggers';
 import { getLocalStorage, setLocalStorage, loadSettings, generalSettings, saveSettings, Settings } from '../utils/storage-utils';
-import { loginToSieve, fetchCurrentUser, captureToSieve, SieveApiError } from '../utils/sieve-api-client';
+import { verifyApiKey, captureToSieve, SieveApiError } from '../utils/sieve-api-client';
 import { escapeHtml, unescapeValue } from '../utils/string-utils';
 import { loadTemplates, createDefaultTemplate } from '../managers/template-manager';
 import browser from '../utils/browser-polyfill';
@@ -886,7 +886,7 @@ async function initializeAuth(): Promise<void> {
 	const loginSection = document.getElementById('auth-login')!;
 	const userSection = document.getElementById('auth-user')!;
 
-	if (generalSettings.authToken && generalSettings.authUser) {
+	if (generalSettings.apiKey && generalSettings.authUser) {
 		loginSection.style.display = 'none';
 		userSection.style.display = 'flex';
 		const usernameEl = document.getElementById('auth-username')!;
@@ -899,37 +899,34 @@ async function initializeAuth(): Promise<void> {
 
 function setupAuthListeners(): void {
 	document.getElementById('login-btn')?.addEventListener('click', handleLogin);
-	document.getElementById('login-password')?.addEventListener('keydown', (e) => {
+	document.getElementById('login-api-key')?.addEventListener('keydown', (e) => {
 		if (e.key === 'Enter') handleLogin();
 	});
 	document.getElementById('logout-link')?.addEventListener('click', handleLogout);
-	document.getElementById('signup-link')?.addEventListener('click', () => {
-		browser.tabs.create({ url: `${generalSettings.serverUrl}/login` });
+	document.getElementById('get-key-link')?.addEventListener('click', () => {
+		browser.tabs.create({ url: `${generalSettings.serverUrl}/settings` });
 	});
 }
 
 async function handleLogin(): Promise<void> {
-	const emailInput = document.getElementById('login-email') as HTMLInputElement;
-	const passwordInput = document.getElementById('login-password') as HTMLInputElement;
+	const keyInput = document.getElementById('login-api-key') as HTMLInputElement;
 	const errorEl = document.getElementById('login-error')!;
 	const loginBtn = document.getElementById('login-btn') as HTMLButtonElement;
-	const email = emailInput.value;
-	const password = passwordInput.value;
+	const apiKey = keyInput.value.trim();
 
-	if (!email || !password) {
-		errorEl.textContent = 'Please enter email and password';
+	if (!apiKey) {
+		errorEl.textContent = 'Please paste your API key';
 		errorEl.style.display = 'block';
 		return;
 	}
 
 	loginBtn.disabled = true;
-	loginBtn.textContent = 'Signing in...';
+	loginBtn.textContent = 'Connecting...';
 	errorEl.style.display = 'none';
 
 	try {
-		const { access_token } = await loginToSieve(generalSettings.serverUrl, email, password);
-		const user = await fetchCurrentUser(generalSettings.serverUrl, access_token);
-		generalSettings.authToken = access_token;
+		const user = await verifyApiKey(generalSettings.serverUrl, apiKey);
+		generalSettings.apiKey = apiKey;
 		generalSettings.authUser = {
 			email: user.email,
 			username: '',
@@ -948,12 +945,12 @@ async function handleLogin(): Promise<void> {
 		errorEl.style.display = 'block';
 	} finally {
 		loginBtn.disabled = false;
-		loginBtn.textContent = 'Sign In';
+		loginBtn.textContent = 'Connect';
 	}
 }
 
 async function handleLogout(): Promise<void> {
-	generalSettings.authToken = null;
+	generalSettings.apiKey = null;
 	generalSettings.authUser = null;
 	await saveSettings();
 	await initializeAuth();
@@ -1127,8 +1124,8 @@ function determineMainAction() {
 	// Clear existing secondary actions
 	secondaryActions.textContent = '';
 
-	if (!generalSettings.authToken) {
-		clipBtn.textContent = 'Sign in to capture';
+	if (!generalSettings.apiKey) {
+		clipBtn.textContent = 'Connect to capture';
 		clipBtn.disabled = true;
 		return;
 	}
@@ -1159,8 +1156,8 @@ function determineMainAction() {
 }
 
 async function handleCaptureToSieve(): Promise<void> {
-	if (!generalSettings.authToken) {
-		showError('Please sign in first');
+	if (!generalSettings.apiKey) {
+		showError('Please connect first');
 		return;
 	}
 
@@ -1184,7 +1181,7 @@ async function handleCaptureToSieve(): Promise<void> {
 
 		const response = await captureToSieve(
 			generalSettings.serverUrl,
-			generalSettings.authToken,
+			generalSettings.apiKey,
 			captureRequest
 		);
 
@@ -1217,11 +1214,11 @@ async function handleCaptureToSieve(): Promise<void> {
 		clipBtn.textContent = 'Capture to Sieve';
 		if (err instanceof SieveApiError) {
 			if (err.code === 'auth_expired') {
-				generalSettings.authToken = null;
+				generalSettings.apiKey = null;
 				generalSettings.authUser = null;
 				await saveSettings();
 				await initializeAuth();
-				showError('Session expired. Please sign in again.');
+				showError('API key invalid. Please reconnect.');
 			} else {
 				showError(err.message);
 			}

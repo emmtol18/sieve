@@ -973,8 +973,9 @@ async function handleLogin(): Promise<void> {
 			isAdmin: user.is_admin ?? false,
 		};
 		await saveSettings();
-		await initializeAuth();
-		determineMainAction();
+		// Reload popup so full init sequence runs with new auth state
+		window.location.reload();
+		return;
 	} catch (err) {
 		if (err instanceof SieveApiError) {
 			errorEl.textContent = err.message;
@@ -992,8 +993,7 @@ async function handleLogout(): Promise<void> {
 	generalSettings.apiKey = null;
 	generalSettings.authUser = null;
 	await saveSettings();
-	await initializeAuth();
-	determineMainAction();
+	window.location.reload();
 }
 
 function refreshPopup() {

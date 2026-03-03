@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from sieve.api.auth.deps import get_current_user
 from sieve.api.skills.schemas import (
@@ -43,7 +44,9 @@ async def _get_user_sieve(user: User, db: AsyncSession) -> Sieve:
 
 async def _get_skill_or_404(skill_id: str, sieve: Sieve, db: AsyncSession) -> Skill:
     result = await db.execute(
-        select(Skill).where(Skill.id == skill_id, Skill.sieve_id == sieve.id)
+        select(Skill)
+        .where(Skill.id == skill_id, Skill.sieve_id == sieve.id)
+        .options(selectinload(Skill.capsule_links))
     )
     skill = result.scalar_one_or_none()
     if not skill:
@@ -118,7 +121,13 @@ async def compile_skill(
         db.add(SkillCapsule(skill_id=skill.id, capsule_id=c.id, role="context"))
 
     await db.commit()
-    await db.refresh(skill)
+
+    result = await db.execute(
+        select(Skill)
+        .where(Skill.id == skill.id)
+        .options(selectinload(Skill.capsule_links))
+    )
+    skill = result.scalar_one()
 
     return skill_to_response(skill)
 
@@ -144,6 +153,7 @@ async def list_skills(
     total = (await db.execute(count_q)).scalar() or 0
 
     query = query.order_by(Skill.created_at.desc()).offset(offset).limit(limit)
+    query = query.options(selectinload(Skill.capsule_links))
     result = await db.execute(query)
     skills = result.scalars().all()
 
@@ -229,8 +239,8 @@ async def recompile_skill(
     if not links:
         raise HTTPException(status_code=400, detail="No linked capsules to recompile from")
 
-    primary_link = next((l for l in links if l.role == "primary"), links[0])
-    context_links = [l for l in links if l.capsule_id != primary_link.capsule_id]
+    primary_link = next((lnk for lnk in links if lnk.role == "primary"), links[0])
+    context_links = [lnk for lnk in links if lnk.capsule_id != primary_link.capsule_id]
 
     # Load capsule data
     result = await db.execute(select(Capsule).where(Capsule.id == primary_link.capsule_id))
@@ -248,7 +258,7 @@ async def recompile_skill(
 
     context_dicts = []
     if context_links:
-        ctx_ids = [l.capsule_id for l in context_links]
+        ctx_ids = [lnk.capsule_id for lnk in context_links]
         result = await db.execute(select(Capsule).where(Capsule.id.in_(ctx_ids)))
         for c in result.scalars().all():
             context_dicts.append({
@@ -265,6 +275,12 @@ async def recompile_skill(
     skill.body = skill_data["body"]
     skill.description = skill_data["description"]
     await db.commit()
-    await db.refresh(skill)
+
+    result = await db.execute(
+        select(Skill)
+        .where(Skill.id == skill.id)
+        .options(selectinload(Skill.capsule_links))
+    )
+    skill = result.scalar_one()
 
     return skill_to_response(skill)

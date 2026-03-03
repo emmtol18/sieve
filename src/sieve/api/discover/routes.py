@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from sqlalchemy import String, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sieve.api.auth.deps import get_current_user
 from sieve.api.capsules.routes import capsule_to_response
 from sieve.api.capsules.schemas import CapsuleListResponse
 from sieve.api.sieves.routes import _get_sieve_counts, _sieve_to_profile

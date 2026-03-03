@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import distinct, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from sieve.api.auth.deps import get_current_user, verify_token
 from sieve.api.capsules.routes import capsule_to_response
@@ -108,7 +109,9 @@ async def skill_detail(
     source_capsules = []
     if sieve:
         result = await db.execute(
-            select(Skill).where(Skill.id == skill_id, Skill.sieve_id == sieve.id)
+            select(Skill)
+            .where(Skill.id == skill_id, Skill.sieve_id == sieve.id)
+            .options(selectinload(Skill.capsule_links))
         )
         row = result.scalar_one_or_none()
         if row:

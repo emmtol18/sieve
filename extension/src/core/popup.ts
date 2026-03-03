@@ -900,7 +900,7 @@ function setupAuthListeners(): void {
 	});
 	document.getElementById('logout-link')?.addEventListener('click', handleLogout);
 	document.getElementById('signup-link')?.addEventListener('click', () => {
-		browser.tabs.create({ url: `${generalSettings.serverUrl}/signup` });
+		browser.tabs.create({ url: `${generalSettings.serverUrl}/login` });
 	});
 }
 

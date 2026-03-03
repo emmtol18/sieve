@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from sieve.config import settings
+
 from sieve.api.auth.google import router as google_auth_router
 from sieve.api.auth.routes import router as auth_router
 from sieve.api.capsules.routes import router as capsules_router
@@ -21,7 +23,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Neural Sieve v3", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

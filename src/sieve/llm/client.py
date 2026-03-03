@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 class LLMClient:
     def __init__(self) -> None:
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=settings.openai_api_base)
-        self.model = settings.openai_model
+        self.client = AsyncOpenAI(api_key=settings.fuel_api_key, base_url=settings.fuel_api_base)
+        self.model = settings.fuel_model
 
     async def extract_capsule(self, content: str) -> dict:
         """Extract structured capsule data from raw content using an LLM.
@@ -82,7 +82,7 @@ class LLMClient:
         )
 
         response = await self.client.chat.completions.create(
-            model=settings.search_model,
+            model=settings.fuel_search_model,
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.1,

@@ -1,6 +1,6 @@
 # Sieve Clipper + Leaders System — Design
 
-**Status:** Approved
+**Status:** Approved (Updated 2026-03-03)
 **Date:** 2026-03-02
 
 ## Goal
@@ -9,104 +9,43 @@ Build a curated library of ~100 thought leaders (Karpathy, Cursor team, Perplexi
 
 The Sieve Clipper browser extension is the primary tool for both capturing content AND populating the leader database.
 
-## Approach
+## Current State (as of 2026-03-03)
 
-- **Hybrid ingestion:** Manual curation first (admin seeds leaders + their best content via the Clipper), automated scraping later.
-- **Content types:** Both short-form (tweets, threads) and long-form (blogs, Substacks).
-- **Leader curation is admin-only.** Regular users browse and consume leader content. Adding/editing leaders requires `is_admin=True`.
-- **Leaders organized by expertise domain:** AI/ML, Developer Tools, Search & Retrieval, Startups & Indie Hacking, Product & Design, Engineering Leadership, Open Source, Security, Data & Infrastructure.
-- **Centrally curated initially** by the admin. Later phases open it to user submissions.
+### Phase 1: Sieve Clipper — COMPLETE
 
-## Build Order
+The extension is built and deployed (v1.0.2). All user-facing capture features work:
+- One-click capture of any web page via `POST /api/capture/`
+- Email/password + Google OAuth login in popup
+- JWT token storage in `browser.storage.sync`
+- Toast notifications ("Saved to your Sieve")
+- Context menu capture (page or selection)
+- Side panel, highlighter, reader mode
+- Keyboard shortcuts (Ctrl+Shift+O quick clip, etc.)
 
-**Phase 1: Sieve Clipper** (browser extension) — the tool for populating everything.
-**Phase 2: Leaders System** (backend + dashboard) — the data model and UI.
+**What's NOT yet built in the extension:**
+- Admin-only "Add as Leader" UI for Twitter profiles
+- "Capture to Leader" mode (linking captures to a specific leader)
+- Twitter DOM extraction (auto-extract name, bio, avatar from profile pages)
+- `is_admin` check on JWT to show/hide admin features
 
----
+### Other Completed Systems
 
-## Phase 1: Sieve Clipper (Browser Extension)
-
-### Overview
-
-Chrome extension forked from [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) (MIT license). Manifest V3, vanilla JS.
-
-Single extension for all users. Admin-only features (leader management) are hidden behind an `is_admin` check on the user's JWT.
-
-### Features
-
-**For all users:**
-- One-click capture of any web page → `POST /api/capture/` → creates a capsule
-- Auth via extension popup (email/password or Google OAuth)
-- Toast notification: "Captured: [title]"
-
-**For admins only (hidden when `is_admin=false`):**
-- **Add as Leader** — When on a Twitter profile (`x.com/{handle}`), auto-extracts name, bio, avatar URL, handle, website from the page DOM. Admin selects expertise domain from a dropdown. Sends `POST /api/leaders/`.
-- **Capture to Leader** — When viewing a tweet or article, links the captured capsule to a specific leader. Admin picks the leader from a dropdown of existing leaders. Sends `POST /api/capture/` with `leader_id`.
-
-### Extension Popup UI
-
-```
-┌──────────────────────────┐
-│  Neural Sieve Clipper     │
-│                           │
-│  [Capture This Page]      │  ← always visible
-│                           │
-│  ─── Admin ────────────── │  ← only if is_admin
-│                           │
-│  [Add as Leader]          │  ← on Twitter profiles
-│  Domain: [AI/ML      ▾]  │
-│                           │
-│  Leader: [Karpathy   ▾]  │  ← on any page
-│  [Capture to Leader]      │
-│                           │
-│  ─────────────────────── │
-│  lucas@...  [Logout]      │
-└──────────────────────────┘
-```
-
-### Twitter DOM Extraction
-
-When the extension detects a Twitter profile page (`x.com/{handle}`):
-
-- **Name:** Display name from profile header
-- **Bio:** Profile bio text
-- **Avatar:** Profile image `src` attribute (high-res variant)
-- **Handle:** From the URL or `@handle` element
-- **Website:** Link from the profile's website field
-- **Location:** Profile location (optional, stored as metadata)
-
-Twitter posts are extracted as:
-- **Content:** Tweet text (full thread if it's a thread)
-- **Source URL:** Permalink to the tweet
-- **Source type:** `tweet` or `thread`
-- **Author:** Linked to the leader's handle
-
-### Auth Flow
-
-1. User clicks extension icon → popup opens
-2. If not logged in: shows email/password form or "Sign in with Google" button
-3. Extension stores JWT in `chrome.storage.local`
-4. JWT includes `is_admin` claim → extension shows/hides admin features
-5. All API calls include `Authorization: Bearer <token>` header
-
-### Tech Stack
-
-- Manifest V3 (Chrome Extension)
-- Vanilla JS (no framework — keep it simple and fast)
-- `chrome.storage.local` for auth token
-- `content_script` for DOM extraction on Twitter pages
-- `popup.html` for the UI
-- Communicates with Neural Sieve API (`/api/capture/`, `/api/leaders/`)
+- Dashboard (warm cream theme, 10+ pages, HTMX-driven)
+- Social network (Follow model, feed, discover, profiles, follow/unfollow)
+- Skills (CRUD, compile, export to `.claude/skills/`, MCP access)
+- Auth (email/password + Google OAuth, JWT cookies)
+- MCP server (6 tools: search_capsules, get_capsule, get_pinned, get_index, search_skills, get_skill)
+- Vault import (basic ZIP upload + markdown parsing)
 
 ---
 
-## Phase 2: Leaders System (Backend + Dashboard)
+## What Remains to Build
 
-### Data Model
+### 1. Leaders Backend (evolve LeaderPack → Leader)
 
-Evolve `LeaderPack` → `Leader` by renaming the table and adding profile fields. Keep existing `Capsule.pack_id` FK (still points to the same table). Subscription and Review models stay unchanged.
+Evolve `LeaderPack` → `Leader` by renaming the table and adding profile fields. Keep existing `Capsule.pack_id` FK. Subscription and Review models stay unchanged.
 
-**New/changed columns on Leader (formerly leader_packs):**
+**New columns on Leader (formerly leader_packs):**
 
 | Column | Type | Note |
 |--------|------|------|
@@ -131,9 +70,7 @@ Evolve `LeaderPack` → `Leader` by renaming the table and adding profile fields
 - Security
 - Data & Infrastructure
 
-### API Endpoints
-
-**Leader CRUD (admin-only for mutations):**
+**API endpoints:**
 
 ```
 GET    /api/leaders/                    → list leaders (public, supports ?domain= filter)
@@ -150,16 +87,20 @@ DELETE /api/leaders/{slug}              → delete leader (admin only)
 POST   /api/capture/                    → existing endpoint, add optional leader_id param
 ```
 
-### Dashboard Pages
+**Migration:** Alembic migration to rename `leader_packs` → `leaders`, add new columns, update FK constraints.
 
-**`/discover` — Leaders Directory (reworked):**
+### 2. Leaders Dashboard (Discover page rework)
+
+**`/discover` — add Leaders tab:**
+
+The discover page already has sieves and capsules tabs. Add a "Leaders" tab (or make leaders the primary view).
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Discover Leaders                                │
-│  "Learn from the best minds in tech"             │
+│  Discover                                        │
+│  [Leaders] [Sieves] [Capsules]                   │
 │                                                  │
-│  [All] [AI/ML] [Dev Tools] [Search] [Startups]   │
+│  [All] [AI/ML] [Dev Tools] [Search] [Startups]   │  ← domain filter
 │                                                  │
 │  ┌─────────────┐ ┌─────────────┐ ┌────────────┐ │
 │  │  avatar      │ │  avatar      │ │  avatar     │ │
@@ -172,11 +113,11 @@ POST   /api/capture/                    → existing endpoint, add optional lead
 └─────────────────────────────────────────────────┘
 ```
 
-**`/leader/{slug}` — Leader Profile:**
+**`/leader/{slug}` — Leader Profile page (NEW):**
 
 - Header: avatar, name, bio, social links, expertise domain badge
 - Grid of their capsules (same card layout as My Sieve)
-- Subscribe button (wired up for future use)
+- Subscribe button (wired up via existing Subscription model)
 
 **HTMX endpoints:**
 
@@ -185,29 +126,41 @@ GET  /htmx/leaders/                     → leader card grid (supports ?domain= 
 GET  /htmx/leaders/{slug}/capsules/     → capsule grid for a leader
 ```
 
-### Admin CLI (fallback)
+### 3. Extension Admin Features
 
-`uv run sieve seed-leaders --file leaders.yaml` — bulk import from YAML for cases where using the Clipper one-by-one is impractical.
+Add admin-only UI to the existing Clipper extension:
 
-### Migration
+**Twitter profile detection + "Add as Leader":**
+- Content script detects `x.com/{handle}` pages
+- Extracts: display name, bio, avatar URL, handle, website from DOM
+- Popup shows "Add as Leader" button + domain dropdown (admin only)
+- Sends `POST /api/leaders/` with extracted data
 
-Alembic migration to:
-1. Rename `leader_packs` → `leaders` table
-2. Add new columns (avatar_url, bio, expertise_domain, twitter_url, linkedin_url, is_featured, capsule_count)
-3. Update FK references if table name changes affect constraints
+**"Capture to Leader" mode:**
+- On any page, admin can select a leader from a dropdown
+- Capture links the capsule to that leader via `leader_id`
+- Dropdown populated by `GET /api/leaders/` (cached)
+
+**Admin gating:**
+- JWT `is_admin` claim controls visibility
+- Auth storage already includes token — just decode and check
+
+### 4. Admin CLI (fallback)
+
+`uv run sieve seed-leaders --file leaders.yaml` — bulk import for when using the extension one-by-one is impractical.
 
 ---
 
-## Admin Workflow (How You'll Populate 100 Leaders)
+## Admin Workflow (How to Populate 100 Leaders)
 
-1. Install the Sieve Clipper in Chrome, log in as admin
+1. Log into the Sieve Clipper as admin
 2. Browse to `x.com/karpathy` → extension detects Twitter profile
 3. Click "Add as Leader" → name, bio, avatar auto-extracted
 4. Select "AI/ML" as expertise domain → click submit
 5. Scroll through Karpathy's best tweets/threads
 6. Click "Capture to Leader" on each great piece → capsules created and linked
 7. Repeat for all 100 leaders
-8. Users see the populated `/discover` page
+8. Users see the populated `/discover` page with Leaders tab
 
 ---
 

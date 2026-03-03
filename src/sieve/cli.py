@@ -42,9 +42,9 @@ def compile(group_by, all_capsules, output, email):
 
     from sieve.config import settings
 
-    if not settings.openai_api_key:
+    if not settings.fuel_api_key:
         raise click.ClickException(
-            "SIEVE_OPENAI_API_KEY is not set. Set it in .env or as an environment variable."
+            "SIEVE_FUEL_API_KEY is not set. Set it in .env or as an environment variable."
         )
 
     user_email = email or settings.user_email

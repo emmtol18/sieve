@@ -96,12 +96,11 @@ This creates the app and a PostgreSQL database. Fly automatically sets the `DATA
 # Generate a strong JWT secret
 fly secrets set SIEVE_JWT_SECRET=$(openssl rand -hex 32)
 
-# Set your OpenAI API key (or Fuel1 key if using Fuel1)
-fly secrets set SIEVE_OPENAI_API_KEY=sk-your-key-here
+# Set your BlackFuel API key
+fly secrets set SIEVE_FUEL_API_KEY=sk-your-key-here
 
-# Set custom LLM API base (default: https://api.openai.com/v1)
-# For Fuel1 deployment:
-fly secrets set SIEVE_OPENAI_API_BASE=https://api.fuel1.ai/v1
+# Set custom LLM API base (default: https://api.fuel1.ai/v1)
+fly secrets set SIEVE_FUEL_API_BASE=https://api.fuel1.ai/v1
 
 # Google OAuth (optional — sign-in with Google)
 # Create credentials at https://console.cloud.google.com/apis/credentials

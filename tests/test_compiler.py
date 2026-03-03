@@ -116,11 +116,11 @@ def test_compile_to_skills_no_capsules_no_client():
         asyncio.run(compiler.compile_to_skills(output_dir=Path("/tmp/test")))
 
 
-def test_cli_compile_missing_openai_key(monkeypatch):
-    """Compile should fail with clear error when SIEVE_OPENAI_API_KEY is not set."""
+def test_cli_compile_missing_fuel_key(monkeypatch):
+    """Compile should fail with clear error when SIEVE_FUEL_API_KEY is not set."""
     from sieve.config import settings
 
-    monkeypatch.setattr(settings, "openai_api_key", "")
+    monkeypatch.setattr(settings, "fuel_api_key", "")
     monkeypatch.setattr(settings, "user_email", "test@example.com")
 
     from sieve.cli import cli
@@ -128,14 +128,14 @@ def test_cli_compile_missing_openai_key(monkeypatch):
     runner = CliRunner()
     result = runner.invoke(cli, ["compile"])
     assert result.exit_code != 0
-    assert "SIEVE_OPENAI_API_KEY" in result.output
+    assert "SIEVE_FUEL_API_KEY" in result.output
 
 
 def test_cli_compile_missing_email(monkeypatch):
     """Compile should fail with clear error when no user email is provided."""
     from sieve.config import settings
 
-    monkeypatch.setattr(settings, "openai_api_key", "some-key")
+    monkeypatch.setattr(settings, "fuel_api_key", "some-key")
     monkeypatch.setattr(settings, "user_email", "")
 
     from sieve.cli import cli

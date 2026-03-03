@@ -251,8 +251,8 @@ async def htmx_compile(
     if by not in ("capsule", "category", "author", "pack"):
         return _render_partial("partials/compile_result.html", error=f"Invalid grouping: {by}")
 
-    if not settings.openai_api_key:
-        return _render_partial("partials/compile_result.html", error="SIEVE_OPENAI_API_KEY is not set.")
+    if not settings.fuel_api_key:
+        return _render_partial("partials/compile_result.html", error="SIEVE_FUEL_API_KEY is not set.")
 
     # Fetch capsules from DB directly
     result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
@@ -386,7 +386,7 @@ async def htmx_feed(
         return HTMLResponse(content='<div class="empty-state"><h3>No sieve found</h3></div>')
 
     if filter == "mine":
-        query = select(Capsule).where(Capsule.sieve_id == sieve.id)
+        query = select(Capsule).where(Capsule.sieve_id == sieve.id, Capsule.status == "active")
     elif filter == "following":
         # Get IDs of sieves we follow
         follow_result = await db.execute(
@@ -400,14 +400,14 @@ async def htmx_feed(
                 cta_url="/discover",
                 cta_text="Discover sieves to follow",
             )
-        query = select(Capsule).where(Capsule.sieve_id.in_(followed_ids))
+        query = select(Capsule).where(Capsule.sieve_id.in_(followed_ids), Capsule.status == "active")
     else:  # "all" — own + followed
         follow_result = await db.execute(
             select(Follow.followed_sieve_id).where(Follow.follower_sieve_id == sieve.id)
         )
         followed_ids = [row[0] for row in follow_result.all()]
         all_sieve_ids = [sieve.id] + followed_ids
-        query = select(Capsule).where(Capsule.sieve_id.in_(all_sieve_ids))
+        query = select(Capsule).where(Capsule.sieve_id.in_(all_sieve_ids), Capsule.status == "active")
 
     query = query.order_by(Capsule.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(query)
@@ -519,7 +519,7 @@ async def htmx_discover_capsules(
     query = (
         select(Capsule)
         .join(Sieve, Capsule.sieve_id == Sieve.id)
-        .where(Sieve.is_public == True)  # noqa: E712
+        .where(Sieve.is_public == True, Capsule.status == "active")  # noqa: E712
         .order_by(Capsule.created_at.desc())
         .limit(20)
     )
@@ -561,7 +561,7 @@ async def htmx_follow_sieve(
         select(Sieve).join(User, Sieve.user_id == User.id).where(User.username == username)
     )
     target_sieve = result.scalar_one_or_none()
-    if not target_sieve:
+    if not target_sieve or not target_sieve.is_public:
         raise HTTPException(status_code=404, detail="Sieve not found")
 
     if my_sieve.id == target_sieve.id:
@@ -729,9 +729,9 @@ async def htmx_compile_skill(
             "partials/compile_result.html", error="Primary capsule is required."
         )
 
-    if not settings.openai_api_key:
+    if not settings.fuel_api_key:
         return _render_partial(
-            "partials/compile_result.html", error="SIEVE_OPENAI_API_KEY is not set."
+            "partials/compile_result.html", error="SIEVE_FUEL_API_KEY is not set."
         )
 
     # Load primary capsule
@@ -891,9 +891,9 @@ async def htmx_recompile_skill(
     if not skill:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found")
 
-    if not settings.openai_api_key:
+    if not settings.fuel_api_key:
         return HTMLResponse(
-            content='<div class="alert alert-error">SIEVE_OPENAI_API_KEY is not set.</div>'
+            content='<div class="alert alert-error">SIEVE_FUEL_API_KEY is not set.</div>'
         )
 
     # Load linked capsules

@@ -45,8 +45,8 @@ cp .env.example .env
 # Edit .env with your values:
 #   SIEVE_DATABASE_URL=postgresql+asyncpg://localhost:5432/neural_sieve_v3
 #   SIEVE_JWT_SECRET=<generate-a-strong-secret>
-#   SIEVE_OPENAI_API_KEY=sk-...
-#   SIEVE_OPENAI_API_BASE=https://api.fuel1.ai/v1   # optional, default: OpenAI
+#   SIEVE_FUEL_API_KEY=sk-...
+#   SIEVE_FUEL_API_BASE=https://api.fuel1.ai/v1     # optional, default: BlackFuel
 #   SIEVE_GOOGLE_CLIENT_ID=...                       # optional, for Google sign-in
 #   SIEVE_GOOGLE_CLIENT_SECRET=...
 ```
@@ -126,15 +126,15 @@ Claude Code can now search your knowledge base, retrieve capsules, and access yo
 After capturing knowledge, compile it into Claude Code skills:
 
 ```bash
-# Set your API credentials
-export SIEVE_API_URL=https://your-app.fly.dev
-export SIEVE_API_KEY=your-api-key
+# Set your credentials (or add to .env)
+export SIEVE_FUEL_API_KEY=your-fuel-api-key
+export SIEVE_USER_EMAIL=you@example.com
 
 # Compile all capsules into skills (one per capsule)
 uv run sieve compile --all --output .claude/skills
 
-# Or group by author/category
-uv run sieve compile --by author --all --output .claude/skills
+# Or compile for a specific user
+uv run sieve compile --email you@example.com --all --output .claude/skills
 
 # Skills are now loaded automatically in Claude Code sessions
 ```

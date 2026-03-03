@@ -98,7 +98,7 @@ export async function loginToSieve(
 export async function fetchCurrentUser(
 	serverUrl: string,
 	authToken: string
-): Promise<{ id: string; email: string; display_name: string; api_key: string }> {
+): Promise<{ id: string; email: string; display_name: string; api_key: string; is_admin: boolean }> {
 	let response: Response;
 
 	try {

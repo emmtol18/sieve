@@ -57,6 +57,7 @@ export interface Settings {
 		email: string;
 		username: string;
 		displayName: string;
+		isAdmin: boolean;
 	} | null;
 	captureMode: 'quick' | 'full';
 	showMoreActionsButton: boolean;

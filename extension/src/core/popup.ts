@@ -930,6 +930,7 @@ async function handleLogin(): Promise<void> {
 			email: user.email,
 			username: '',
 			displayName: user.display_name,
+			isAdmin: user.is_admin ?? false,
 		};
 		await saveSettings();
 		await initializeAuth();

@@ -38,3 +38,4 @@ class UserResponse(BaseModel):
     email: str
     display_name: str
     api_key: str
+    is_admin: bool

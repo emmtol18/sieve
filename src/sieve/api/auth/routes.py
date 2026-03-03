@@ -100,4 +100,5 @@ async def me(user: User = Depends(get_current_user)):
         email=user.email,
         display_name=user.display_name,
         api_key=str(user.api_key),
+        is_admin=user.is_admin,
     )

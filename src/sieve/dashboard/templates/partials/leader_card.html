@@ -1,0 +1,14 @@
+<div class="card leader-card">
+    {% if leader.avatar_url %}
+    <img src="{{ leader.avatar_url }}" alt="{{ leader.name }}" class="leader-avatar">
+    {% else %}
+    <div class="leader-avatar leader-avatar--placeholder">{{ leader.name[0] }}</div>
+    {% endif %}
+    <h3 class="card-title">{{ leader.name }}</h3>
+    <span class="tag-chip tag-chip--domain">{{ leader.expertise_domain }}</span>
+    <p class="card-summary">{{ leader.bio or leader.description }}</p>
+    <div class="leader-stats">
+        <span>{{ leader.capsule_count }} capsule{{ "s" if leader.capsule_count != 1 }}</span>
+    </div>
+    <a href="/leader/{{ leader.slug }}" class="btn btn-secondary btn-block">View</a>
+</div>

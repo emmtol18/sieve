@@ -13,7 +13,7 @@ from sieve.api.capsules.schemas import CaptureRequest
 from sieve.api.capture.pipeline import CapturePipeline
 from sieve.config import settings
 from sieve.db.database import get_db
-from sieve.db.models import Capsule, Follow, Sieve, User
+from sieve.db.models import Capsule, Follow, Leader, Sieve, User
 from sieve.utils import escape_like, extract_domain
 
 router = APIRouter(prefix="/htmx", tags=["htmx"])
@@ -537,6 +537,73 @@ async def htmx_discover_capsules(
         html_parts.append(templates.get_template("partials/feed_card.html").render(capsule=item))
 
     return HTMLResponse(content="".join(html_parts))
+
+
+# ---------------------------------------------------------------------------
+# Leader routes
+# ---------------------------------------------------------------------------
+
+
+@router.get("/leaders/", response_class=HTMLResponse)
+async def htmx_list_leaders(
+    domain: str | None = Query(None),
+    search: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """HTMX partial: leader card grid with optional domain filter."""
+    query = select(Leader)
+
+    if domain:
+        query = query.where(Leader.expertise_domain == domain)
+    if search:
+        term = f"%{escape_like(search)}%"
+        query = query.where(
+            or_(Leader.name.ilike(term), Leader.description.ilike(term), Leader.bio.ilike(term))
+        )
+
+    query = query.order_by(Leader.is_featured.desc(), Leader.name.asc()).limit(200)
+    result = await db.execute(query)
+    leaders = result.scalars().all()
+
+    leader_dicts = []
+    for l in leaders:
+        leader_dicts.append({
+            "id": str(l.id),
+            "name": l.name,
+            "slug": l.slug,
+            "description": l.description,
+            "bio": l.bio or "",
+            "expertise_domain": l.expertise_domain or "",
+            "avatar_url": l.avatar_url,
+            "capsule_count": l.capsule_count,
+            "is_featured": l.is_featured,
+        })
+
+    return _render_partial("partials/leader_grid.html", leaders=leader_dicts)
+
+
+@router.get("/leaders/{slug}/capsules/", response_class=HTMLResponse)
+async def htmx_leader_capsules(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """HTMX partial: capsule grid for a specific leader."""
+    result = await db.execute(select(Leader).where(Leader.slug == slug))
+    leader = result.scalar_one_or_none()
+    if not leader:
+        return HTMLResponse(content='<div class="empty-state"><h3>Leader not found</h3></div>')
+
+    query = (
+        select(Capsule)
+        .where(Capsule.pack_id == leader.id)
+        .order_by(Capsule.created_at.desc())
+        .limit(50)
+    )
+    result = await db.execute(query)
+    capsules = result.scalars().all()
+    capsule_dicts = [capsule_to_response(c).model_dump() for c in capsules]
+
+    return _render_partial("partials/capsule_grid.html", capsules=capsule_dicts, grouped_capsules=None, count=len(capsule_dicts))
 
 
 # ---------------------------------------------------------------------------

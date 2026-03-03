@@ -32,10 +32,10 @@ browser.storage.onChanged.addListener((changes) => {
 browser.action.onClicked.addListener(async (tab) => {
 	const stored = await browser.storage.sync.get('sieve_auth');
 	const settings = (stored as any).sieve_auth || {};
-	if (settings.authToken) {
+	if (settings.apiKey) {
 		browser.runtime.sendMessage({
 			action: 'capturePageToSieve',
-			authToken: settings.authToken,
+			apiKey: settings.apiKey,
 			serverUrl: settings.serverUrl || 'https://app.neuralsieve.com',
 		});
 	} else {
@@ -408,7 +408,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "capturePageToSieve") {
-			const { authToken, serverUrl } = typedRequest as any;
+			const { apiKey, serverUrl } = typedRequest as any;
 			(async () => {
 				try {
 					const tabs = await browser.tabs.query({ active: true, currentWindow: true });
@@ -424,7 +424,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 						method: 'POST',
 						headers: {
 							'Content-Type': 'application/json',
-							'Authorization': `Bearer ${authToken}`,
+							'X-Api-Key': apiKey,
 						},
 						body: JSON.stringify({ content, url, source_url: url }),
 					});
@@ -433,7 +433,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 						const body = await response.json().catch(() => ({ detail: 'Unknown error' }));
 						await browser.tabs.sendMessage(tab.id, {
 							action: 'showSieveErrorToast',
-							message: response.status === 401 ? 'Session expired. Please sign in.' : (body.detail || 'Capture failed'),
+							message: response.status === 401 ? 'API key invalid. Please reconnect.' : (body.detail || 'Capture failed'),
 						});
 						sendResponse({ success: false, error: body.detail });
 						return;
@@ -479,10 +479,10 @@ browser.commands.onCommand.addListener(async (command, tab) => {
 	if (command === 'quick_clip') {
 		const stored = await browser.storage.sync.get('sieve_auth');
 		const settings = (stored as any).sieve_auth || {};
-		if (settings.authToken) {
+		if (settings.apiKey) {
 			browser.runtime.sendMessage({
 				action: 'capturePageToSieve',
-				authToken: settings.authToken,
+				apiKey: settings.apiKey,
 				serverUrl: settings.serverUrl || 'https://app.neuralsieve.com',
 			});
 		} else {
@@ -592,10 +592,10 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 	if (info.menuItemId === "capture-page-to-sieve" || info.menuItemId === "capture-selection-to-sieve") {
 		const stored = await browser.storage.sync.get('sieve_auth');
 		const settings = (stored as any).sieve_auth || {};
-		if (settings.authToken) {
+		if (settings.apiKey) {
 			browser.runtime.sendMessage({
 				action: 'capturePageToSieve',
-				authToken: settings.authToken,
+				apiKey: settings.apiKey,
 				serverUrl: settings.serverUrl || 'https://app.neuralsieve.com',
 			});
 		} else {

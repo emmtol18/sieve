@@ -75,24 +75,39 @@ def verify_token(token: str) -> str:
     return user_id
 
 
-def get_token_from_request(request: Request) -> str | None:
-    """Extract JWT token from cookie first, then Authorization header."""
+def get_token_from_request(request: Request) -> tuple[str | None, bool]:
+    """Extract auth credential from request.
+
+    Returns (token, is_api_key). Checks in order:
+    1. sieve_token cookie (JWT)
+    2. Authorization: Bearer header (JWT)
+    3. X-Api-Key header (API key)
+    """
     token = request.cookies.get("sieve_token")
     if token:
-        return token
+        return token, False
     auth_header = request.headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
-        return auth_header[7:]
-    return None
+        return auth_header[7:], False
+    api_key = request.headers.get("x-api-key")
+    if api_key:
+        return api_key, True
+    return None, False
 
 
 async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    token = get_token_from_request(request)
+    token, is_api_key = get_token_from_request(request)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    if is_api_key:
+        result = await db.execute(select(User).where(User.api_key == token))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        return user
     user_id = verify_token(token)
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()

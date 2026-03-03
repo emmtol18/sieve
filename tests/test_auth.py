@@ -39,7 +39,7 @@ def test_get_token_from_cookie():
     request = AsyncMock(spec=Request)
     request.cookies = {"sieve_token": "my-jwt-token"}
     request.headers = {}
-    assert get_token_from_request(request) == "my-jwt-token"
+    assert get_token_from_request(request) == ("my-jwt-token", False)
 
 
 def test_get_token_from_bearer_header():
@@ -47,7 +47,7 @@ def test_get_token_from_bearer_header():
     request = AsyncMock(spec=Request)
     request.cookies = {}
     request.headers = {"authorization": "Bearer my-jwt-token"}
-    assert get_token_from_request(request) == "my-jwt-token"
+    assert get_token_from_request(request) == ("my-jwt-token", False)
 
 
 def test_get_token_cookie_takes_precedence():
@@ -55,7 +55,7 @@ def test_get_token_cookie_takes_precedence():
     request = AsyncMock(spec=Request)
     request.cookies = {"sieve_token": "cookie-token"}
     request.headers = {"authorization": "Bearer header-token"}
-    assert get_token_from_request(request) == "cookie-token"
+    assert get_token_from_request(request) == ("cookie-token", False)
 
 
 def test_get_token_missing_returns_none():
@@ -63,7 +63,27 @@ def test_get_token_missing_returns_none():
     request = AsyncMock(spec=Request)
     request.cookies = {}
     request.headers = {}
-    assert get_token_from_request(request) is None
+    assert get_token_from_request(request) == (None, False)
+
+
+def test_get_api_key_from_header():
+    """X-Api-Key header is extracted when no JWT present."""
+    request = AsyncMock(spec=Request)
+    request.cookies = {}
+    request.headers = {"x-api-key": "some-uuid-key"}
+    token, is_api_key = get_token_from_request(request)
+    assert token == "some-uuid-key"
+    assert is_api_key is True
+
+
+def test_jwt_takes_precedence_over_api_key():
+    """JWT cookie wins over X-Api-Key header."""
+    request = AsyncMock(spec=Request)
+    request.cookies = {"sieve_token": "jwt-token"}
+    request.headers = {"x-api-key": "api-key"}
+    token, is_api_key = get_token_from_request(request)
+    assert token == "jwt-token"
+    assert is_api_key is False
 
 
 def test_set_auth_cookie_creates_response_with_cookie():

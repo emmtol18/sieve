@@ -1,6 +1,6 @@
 import { generalSettings } from '../utils/storage-utils';
 import { createLeader, listLeaders } from '../utils/sieve-api-client';
-import { isTwitterProfile } from '../utils/twitter-extractor';
+import { isTwitterProfile, extractTwitterHandle } from '../utils/twitter-extractor';
 import browser from '../utils/browser-polyfill';
 
 let currentTabUrl: string = '';
@@ -42,8 +42,9 @@ export async function initializeAdminSection(tabId: number): Promise<void> {
 		}
 	}
 
-	// Populate the leader select dropdown
+	// Populate the leader select dropdown and auto-select by Twitter handle
 	await populateLeaderSelect();
+	autoSelectLeaderByTwitterUrl();
 }
 
 function resetLeaderSelect(selectEl: HTMLSelectElement): void {
@@ -76,6 +77,23 @@ async function populateLeaderSelect(): Promise<void> {
 		}
 	} catch (err) {
 		console.error('Failed to load leaders:', err);
+	}
+}
+
+function autoSelectLeaderByTwitterUrl(): void {
+	if (!currentTabUrl) return;
+	const handle = extractTwitterHandle(currentTabUrl);
+	if (!handle) return;
+
+	const match = leadersCache.find((leader) => {
+		if (!leader.twitter_url) return false;
+		const leaderHandle = extractTwitterHandle(leader.twitter_url);
+		return leaderHandle === handle;
+	});
+
+	if (match) {
+		const leaderSelect = document.getElementById('leader-select') as HTMLSelectElement | null;
+		if (leaderSelect) leaderSelect.value = match.id;
 	}
 }
 

@@ -7,6 +7,24 @@ export interface TwitterProfile {
     location: string | null;
 }
 
+/**
+ * Extract the Twitter handle from any twitter.com/x.com URL.
+ * Works on profiles, tweets, and feeds (e.g. x.com/karpathy/status/123 -> "karpathy").
+ */
+export function extractTwitterHandle(url: string): string | null {
+    try {
+        const parsed = new URL(url);
+        if (!['twitter.com', 'x.com'].includes(parsed.hostname)) return null;
+        const segments = parsed.pathname.split('/').filter(Boolean);
+        if (segments.length === 0) return null;
+        const handle = segments[0].toLowerCase();
+        if (['home', 'explore', 'search', 'notifications', 'messages', 'settings', 'i', 'compose'].includes(handle)) return null;
+        return handle;
+    } catch {
+        return null;
+    }
+}
+
 export function isTwitterProfile(url: string): boolean {
     try {
         const parsed = new URL(url);

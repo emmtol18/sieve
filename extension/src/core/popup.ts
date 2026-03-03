@@ -945,7 +945,11 @@ async function handleLogin(): Promise<void> {
 
 	// Save server URL if provided
 	if (serverUrlInput?.value.trim()) {
-		generalSettings.serverUrl = serverUrlInput.value.trim().replace(/\/+$/, '');
+		let url = serverUrlInput.value.trim().replace(/\/+$/, '');
+		if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+			url = 'http://' + url;
+		}
+		generalSettings.serverUrl = url;
 		await saveSettings();
 	}
 

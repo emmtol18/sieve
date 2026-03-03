@@ -202,7 +202,11 @@ function initializeAccountSettings(): void {
 	}
 
 	serverUrlInput?.addEventListener('change', async () => {
-		generalSettings.serverUrl = serverUrlInput.value.replace(/\/+$/, '');
+		let url = serverUrlInput.value.replace(/\/+$/, '');
+		if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+			url = 'http://' + url;
+		}
+		generalSettings.serverUrl = url;
 		await saveSettings();
 	});
 

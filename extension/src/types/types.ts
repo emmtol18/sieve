@@ -52,7 +52,7 @@ export interface ReaderSettings {
 
 export interface Settings {
 	serverUrl: string;
-	authToken: string | null;
+	apiKey: string | null;
 	authUser: {
 		email: string;
 		username: string;

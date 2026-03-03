@@ -6,7 +6,7 @@ export type { Settings, PropertyType, HistoryEntry, Rating };
 
 export let generalSettings: Settings = {
 	serverUrl: 'https://app.neuralsieve.com',
-	authToken: null,
+	apiKey: null,
 	authUser: null,
 	captureMode: 'quick' as const,
 	betaFeatures: false,
@@ -51,7 +51,8 @@ interface StorageData {
 	};
 	sieve_auth?: {
 		serverUrl?: string;
-		authToken?: string | null;
+		apiKey?: string | null;
+		authToken?: string | null; // deprecated, kept for migration
 		authUser?: Settings['authUser'];
 		captureMode?: 'quick' | 'full';
 	};
@@ -87,7 +88,7 @@ export async function loadSettings(): Promise<Settings> {
 	// Load default settings first
 	const defaultSettings: Settings = {
 		serverUrl: 'https://app.neuralsieve.com',
-		authToken: null,
+		apiKey: null,
 		authUser: null,
 		captureMode: 'quick',
 		showMoreActionsButton: false,
@@ -124,7 +125,7 @@ export async function loadSettings(): Promise<Settings> {
 	// Load user settings
 	const loadedSettings: Settings = {
 		serverUrl: data.sieve_auth?.serverUrl ?? defaultSettings.serverUrl,
-		authToken: data.sieve_auth?.authToken ?? defaultSettings.authToken,
+		apiKey: data.sieve_auth?.apiKey ?? data.sieve_auth?.authToken ?? defaultSettings.apiKey,
 		authUser: data.sieve_auth?.authUser ?? defaultSettings.authUser,
 		captureMode: data.sieve_auth?.captureMode ?? defaultSettings.captureMode,
 		showMoreActionsButton: data.general_settings?.showMoreActionsButton ?? defaultSettings.showMoreActionsButton,
@@ -162,7 +163,7 @@ export async function saveSettings(settings?: Partial<Settings>): Promise<void> 
 	await browser.storage.sync.set({
 		sieve_auth: {
 			serverUrl: generalSettings.serverUrl,
-			authToken: generalSettings.authToken,
+			apiKey: generalSettings.apiKey,
 			authUser: generalSettings.authUser,
 			captureMode: generalSettings.captureMode,
 		},

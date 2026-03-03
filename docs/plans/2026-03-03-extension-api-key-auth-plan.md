@@ -48,7 +48,7 @@ Expected: FAIL — `get_token_from_request` returns `str | None`, not a tuple.
 
 **Step 3: Update `get_token_from_request` and `get_current_user`**
 
-In `src/sieve/api/auth/deps.py`, replace lines 78-101:
+In `src/sieve/api/auth/deps.py`, replace lines 78-101 (keep `require_admin` and `get_current_user_by_api_key` below unchanged):
 
 ```python
 def get_token_from_request(request: Request) -> tuple[str | None, bool]:
@@ -94,13 +94,11 @@ async def get_current_user(
 
 **Step 4: Fix the existing tests that call `get_token_from_request`**
 
-The existing tests return a single value. Update them to destructure tuples:
-
-In `tests/test_auth.py`, update:
-- `test_get_token_from_cookie`: `assert get_token_from_request(request) == ("my-jwt-token", False)`
-- `test_get_token_from_bearer_header`: `assert get_token_from_request(request) == ("my-jwt-token", False)`
-- `test_get_token_cookie_takes_precedence`: `assert get_token_from_request(request) == ("cookie-token", False)`
-- `test_get_token_missing_returns_none`: `assert get_token_from_request(request) == (None, False)`
+In `tests/test_auth.py`, update the four existing tests:
+- `test_get_token_from_cookie` (line 42): `assert get_token_from_request(request) == ("my-jwt-token", False)`
+- `test_get_token_from_bearer_header` (line 50): `assert get_token_from_request(request) == ("my-jwt-token", False)`
+- `test_get_token_cookie_takes_precedence` (line 58): `assert get_token_from_request(request) == ("cookie-token", False)`
+- `test_get_token_missing_returns_none` (line 66): `assert get_token_from_request(request) == (None, False)`
 
 **Step 5: Run all auth tests**
 
@@ -119,7 +117,7 @@ git commit -m "feat: support X-Api-Key header in auth"
 ### Task 2: Backend — Add `/api/auth/verify-key` endpoint
 
 **Files:**
-- Modify: `src/sieve/api/auth/routes.py:96-103`
+- Modify: `src/sieve/api/auth/routes.py` (after line 105)
 - Test: `tests/test_auth.py` (integration test)
 
 **Step 1: Write failing integration test**
@@ -140,6 +138,7 @@ async def test_verify_key_returns_user(client, test_user):
     assert data["email"] == "test@example.com"
     assert data["display_name"] == "Test User"
     assert data["api_key"] == str(user.api_key)
+    assert "is_admin" in data
 
 
 @pytest.mark.asyncio
@@ -152,12 +151,7 @@ async def test_verify_key_invalid_returns_401(client):
     assert response.status_code == 401
 ```
 
-These tests need the `client` and `test_user` fixtures from `conftest.py`. Add these imports at the top of `tests/test_auth.py`:
-
-```python
-import pytest
-# existing imports stay
-```
+These tests need the `client` and `test_user` fixtures from `conftest.py`. `pytest` import already exists.
 
 **Step 2: Run tests to verify they fail**
 
@@ -166,7 +160,7 @@ Expected: FAIL — 404 (endpoint doesn't exist)
 
 **Step 3: Add the endpoint**
 
-In `src/sieve/api/auth/routes.py`, add after the `/me` endpoint (after line 103):
+In `src/sieve/api/auth/routes.py`, add after the `/me` endpoint (after line 105):
 
 ```python
 @router.get("/verify-key", response_model=UserResponse)
@@ -180,8 +174,11 @@ async def verify_key(user: User = Depends(get_current_user)):
         email=user.email,
         display_name=user.display_name,
         api_key=str(user.api_key),
+        is_admin=user.is_admin,
     )
 ```
+
+Note: `UserResponse` already includes `is_admin: bool` (schemas.py line 41).
 
 **Step 4: Run tests**
 
@@ -205,7 +202,7 @@ git commit -m "feat: add /api/auth/verify-key endpoint for extension auth"
 ### Task 3: Extension — Retheme from Purple to Dashboard Colors
 
 **Files:**
-- Modify: `extension/src/styles/_variables.scss:1-11` (accent), `extension/src/styles/_variables.scss:196-209` (light base colors)
+- Modify: `extension/src/styles/_variables.scss:9-11` (accent), `extension/src/styles/_variables.scss:196-209` (light base colors)
 
 **Step 1: Update accent HSL values**
 
@@ -217,7 +214,7 @@ In `extension/src/styles/_variables.scss`, replace lines 9-11:
 	--accent-l: 41%;
 ```
 
-This produces `hsl(22, 78%, 41%)` which is approximately `#ba5a12`, close to the dashboard's `#c06014`.
+This produces `hsl(22, 78%, 41%)` ≈ `#ba5a12`, close to the dashboard's `#c06014`.
 
 **Step 2: Update light mode base colors**
 
@@ -242,8 +239,8 @@ In `extension/src/styles/_variables.scss`, replace lines 196-209:
 
 **Step 3: Build and visually verify**
 
-Run: `cd extension && npm run build` (or the project's build command)
-Load the extension in Chrome and verify the popup shows warm cream background with orange-brown buttons instead of purple.
+Run: `cd extension && npm run build`
+Load the extension in Chrome and verify warm cream background with orange-brown buttons.
 
 **Step 4: Commit**
 
@@ -257,17 +254,23 @@ git commit -m "style: retheme extension from purple to dashboard warm cream/oran
 ### Task 4: Extension — Update API Client for API Key Auth
 
 **Files:**
-- Modify: `extension/src/utils/sieve-api-client.ts` (full rewrite)
+- Modify: `extension/src/utils/sieve-api-client.ts`
 
-**Step 1: Replace API client**
+**Step 1: Rewrite the API client**
 
-Replace entire contents of `extension/src/utils/sieve-api-client.ts`:
+Replace entire contents of `extension/src/utils/sieve-api-client.ts`. Key changes:
+- Remove `loginToSieve` and `fetchCurrentUser`
+- Add `verifyApiKey` function
+- Change `captureToSieve` param from `authToken` to `apiKey`, use `X-Api-Key` header
+- Keep `leader_id` in `CaptureRequest`
+- Keep `createLeader` and `listLeaders` but update to use `X-Api-Key` header
 
 ```typescript
 export interface CaptureRequest {
 	content: string;
 	url?: string;
 	source_url?: string;
+	leader_id?: string;
 }
 
 export interface CaptureResponse {
@@ -304,7 +307,7 @@ function apiHeaders(apiKey: string): Record<string, string> {
 export async function verifyApiKey(
 	serverUrl: string,
 	apiKey: string
-): Promise<{ id: string; email: string; display_name: string; api_key: string }> {
+): Promise<{ id: string; email: string; display_name: string; api_key: string; is_admin: boolean }> {
 	let response: Response;
 
 	try {
@@ -357,6 +360,35 @@ export async function captureToSieve(
 
 	return await response.json();
 }
+
+export async function createLeader(serverUrl: string, apiKey: string, data: {
+	name: string;
+	slug: string;
+	description: string;
+	bio?: string;
+	expertise_domain?: string;
+	avatar_url?: string;
+	twitter_url?: string;
+	author_url?: string;
+	topics?: string[];
+}): Promise<any> {
+	const response = await fetch(`${serverUrl}/api/leaders/`, {
+		method: 'POST',
+		headers: apiHeaders(apiKey),
+		body: JSON.stringify(data),
+	});
+	if (!response.ok) throw new Error(`Failed to create leader: ${response.status}`);
+	return response.json();
+}
+
+export async function listLeaders(serverUrl: string, apiKey: string): Promise<any[]> {
+	const response = await fetch(`${serverUrl}/api/leaders/`, {
+		headers: { 'X-Api-Key': apiKey },
+	});
+	if (!response.ok) return [];
+	const data = await response.json();
+	return data.leaders || [];
+}
 ```
 
 **Step 2: Commit**
@@ -376,29 +408,28 @@ git commit -m "refactor: replace JWT auth with API key in extension API client"
 
 **Step 1: Update Settings interface**
 
-In `extension/src/types/types.ts`, replace line 55:
+In `extension/src/types/types.ts`, line 55, replace:
+
+```typescript
+	authToken: string | null;
+```
+
+with:
 
 ```typescript
 	apiKey: string | null;
 ```
 
-(was `authToken: string | null;`)
-
 **Step 2: Update storage-utils.ts**
 
-In `extension/src/utils/storage-utils.ts`, apply these changes:
+Apply these changes in `extension/src/utils/storage-utils.ts`:
 
-Line 9: `authToken: null,` → `apiKey: null,`
-
-Line 54: `authToken?: string | null;` → `apiKey?: string | null;`
-
-Line 90: `authToken: null,` → `apiKey: null,`
-
-Line 127: `authToken: data.sieve_auth?.authToken ?? defaultSettings.authToken,` → `apiKey: data.sieve_auth?.apiKey ?? data.sieve_auth?.authToken ?? defaultSettings.apiKey,`
-
-Note: The fallback to `authToken` on line 127 handles migration — existing users with the old key name still get loaded. On the next `saveSettings()`, it writes as `apiKey`.
-
-Line 165: `authToken: generalSettings.authToken,` → `apiKey: generalSettings.apiKey,`
+- Line 9: `authToken: null,` → `apiKey: null,`
+- Line 54: `authToken?: string | null;` → `apiKey?: string | null;`
+- Line 90: `authToken: null,` → `apiKey: null,`
+- Line 127: replace `authToken: data.sieve_auth?.authToken ?? defaultSettings.authToken,` with `apiKey: data.sieve_auth?.apiKey ?? data.sieve_auth?.authToken ?? defaultSettings.apiKey,`
+  (The fallback to `authToken` handles migration for existing users)
+- Line 165: `authToken: generalSettings.authToken,` → `apiKey: generalSettings.apiKey,`
 
 **Step 3: Commit**
 
@@ -413,11 +444,11 @@ git commit -m "refactor: rename authToken to apiKey in extension storage"
 
 **Files:**
 - Modify: `extension/src/popup.html:50-68`
-- Modify: `extension/src/core/popup.ts:10,881-956,1125-1127,1157,1174,1207`
+- Modify: `extension/src/core/popup.ts:10,885-961,1130-1131,1162-1163,1187,1220,1224`
 
 **Step 1: Replace popup auth form**
 
-In `extension/src/popup.html`, replace lines 50-68:
+In `extension/src/popup.html`, replace lines 50-68 (keep admin section at lines 69-92 untouched):
 
 ```html
 			<div id="auth-section">
@@ -448,11 +479,11 @@ In `extension/src/core/popup.ts`, line 10, replace:
 import { verifyApiKey, captureToSieve, SieveApiError } from '../utils/sieve-api-client';
 ```
 
-(removes `loginToSieve` and `fetchCurrentUser` imports)
+(removes `loginToSieve` and `fetchCurrentUser`)
 
-**Step 3: Update `initializeAuth` function**
+**Step 3: Update `initializeAuth`**
 
-In `extension/src/core/popup.ts`, replace `initializeAuth` (lines 881-894):
+In `extension/src/core/popup.ts`, replace lines 885-898:
 
 ```typescript
 async function initializeAuth(): Promise<void> {
@@ -473,7 +504,7 @@ async function initializeAuth(): Promise<void> {
 
 **Step 4: Update `setupAuthListeners`**
 
-In `extension/src/core/popup.ts`, replace `setupAuthListeners` (lines 896-905):
+In `extension/src/core/popup.ts`, replace lines 900-909:
 
 ```typescript
 function setupAuthListeners(): void {
@@ -490,7 +521,7 @@ function setupAuthListeners(): void {
 
 **Step 5: Rewrite `handleLogin`**
 
-In `extension/src/core/popup.ts`, replace `handleLogin` (lines 907-948):
+In `extension/src/core/popup.ts`, replace lines 911-953:
 
 ```typescript
 async function handleLogin(): Promise<void> {
@@ -516,6 +547,7 @@ async function handleLogin(): Promise<void> {
 			email: user.email,
 			username: '',
 			displayName: user.display_name,
+			isAdmin: user.is_admin ?? false,
 		};
 		await saveSettings();
 		await initializeAuth();
@@ -536,7 +568,7 @@ async function handleLogin(): Promise<void> {
 
 **Step 6: Update `handleLogout`**
 
-In `extension/src/core/popup.ts`, replace `handleLogout` (lines 950-956):
+In `extension/src/core/popup.ts`, replace lines 955-961:
 
 ```typescript
 async function handleLogout(): Promise<void> {
@@ -552,13 +584,13 @@ async function handleLogout(): Promise<void> {
 
 In `extension/src/core/popup.ts`:
 
-- Line 1125: `if (!generalSettings.authToken)` → `if (!generalSettings.apiKey)`
-- Line 1126: `'Sign in to capture'` → `'Connect to capture'`
-- Line 1157: `if (!generalSettings.authToken)` → `if (!generalSettings.apiKey)`
-- Line 1158: `'Please sign in first'` → `'Please connect first'`
-- Line 1174: `generalSettings.authToken,` → `generalSettings.apiKey,`
-- Line 1207: `generalSettings.authToken = null;` → `generalSettings.apiKey = null;`
-- Line 1211: `'Session expired. Please sign in again.'` → `'API key invalid. Please reconnect.'`
+- Line 1130: `if (!generalSettings.authToken)` → `if (!generalSettings.apiKey)`
+- Line 1131: `'Sign in to capture'` → `'Connect to capture'`
+- Line 1162: `if (!generalSettings.authToken)` → `if (!generalSettings.apiKey)`
+- Line 1163: `'Please sign in first'` → `'Please connect first'`
+- Line 1187: `generalSettings.authToken,` → `generalSettings.apiKey,`
+- Line 1220: `generalSettings.authToken = null;` → `generalSettings.apiKey = null;`
+- Line 1224: `'Session expired. Please sign in again.'` → `'API key invalid. Please reconnect.'`
 
 **Step 8: Commit**
 
@@ -572,7 +604,7 @@ git commit -m "feat: replace email/password login with API key paste in extensio
 ### Task 7: Extension — Update Background Script
 
 **Files:**
-- Modify: `extension/src/background.ts:35,38,411,427,482,485,595,598`
+- Modify: `extension/src/background.ts:35,38,411,427,436,482,485,595,598`
 
 **Step 1: Replace all `authToken` references with `apiKey`**
 
@@ -601,7 +633,7 @@ git commit -m "refactor: use apiKey instead of authToken in background script"
 
 **Files:**
 - Modify: `extension/src/settings.html:39-63`
-- Modify: `extension/src/managers/general-settings.ts:185-219`
+- Modify: `extension/src/managers/general-settings.ts:185-220`
 
 **Step 1: Replace account section HTML**
 
@@ -706,13 +738,14 @@ function initializeAccountSettings(): void {
 		errorEl.style.display = 'none';
 
 		try {
-			const { verifyApiKey, SieveApiError } = await import('../utils/sieve-api-client');
+			const { verifyApiKey } = await import('../utils/sieve-api-client');
 			const user = await verifyApiKey(generalSettings.serverUrl, apiKey);
 			generalSettings.apiKey = apiKey;
 			generalSettings.authUser = {
 				email: user.email,
 				username: '',
 				displayName: user.display_name,
+				isAdmin: user.is_admin ?? false,
 			};
 			await saveSettings();
 			initializeAccountSettings();
@@ -727,8 +760,6 @@ function initializeAccountSettings(): void {
 }
 ```
 
-Note: We dynamically import `sieve-api-client` since `general-settings.ts` may not already import it. Alternatively, add a static import at the top of the file.
-
 **Step 3: Commit**
 
 ```bash
@@ -738,18 +769,27 @@ git commit -m "feat: add API key connect flow to extension settings page"
 
 ---
 
-### Task 9: Build, Verify, Final Commit
+### Task 9: Extension — Check for other `authToken` references
 
-**Step 1: Build extension**
+**Step 1: Search for any remaining `authToken` references**
+
+Run: `grep -rn "authToken" extension/src/`
+
+Fix any remaining references. Known locations that may have been missed:
+- Any other files importing from `sieve-api-client.ts` that pass `authToken`
+- Content scripts or other managers
+
+**Step 2: Build extension**
 
 Run: `cd extension && npm run build`
 Expected: Build succeeds with no TypeScript errors
 
-**Step 2: Start backend**
+**Step 3: Run full backend test suite**
 
-Run: `uv run sieve serve`
+Run: `uv run pytest -v`
+Expected: ALL PASS
 
-**Step 3: Manual verification checklist**
+**Step 4: Manual verification checklist**
 
 - [ ] Load extension in Chrome
 - [ ] Popup shows warm cream/orange theme (not purple)
@@ -758,15 +798,13 @@ Run: `uv run sieve serve`
 - [ ] Copy API key from dashboard settings, paste into extension popup
 - [ ] Click "Connect" — shows username, button changes to "Capture to Sieve"
 - [ ] Capture a page — works correctly
+- [ ] Quick capture (keyboard shortcut) works
+- [ ] Context menu capture works
+- [ ] Admin section shows for admin users
 - [ ] Click "Disconnect" — returns to API key input
-- [ ] Extension settings page also shows connect/disconnect flow
+- [ ] Extension settings page connect/disconnect flow works
 
-**Step 4: Run full test suite**
-
-Run: `uv run pytest -v`
-Expected: ALL PASS
-
-**Step 5: Final commit (if any leftover changes)**
+**Step 5: Commit any remaining fixes**
 
 ```bash
 git add -A

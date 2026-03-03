@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ leader.name }} — Neural Sieve{% endblock %}
+{% block content %}
+<div class="leader-profile">
+    <div class="leader-header">
+        {% if leader.avatar_url %}
+        <img src="{{ leader.avatar_url }}" alt="{{ leader.name }}" class="leader-profile-avatar">
+        {% else %}
+        <div class="leader-profile-avatar leader-avatar--placeholder">{{ leader.name[0] }}</div>
+        {% endif %}
+        <div class="leader-info">
+            <h1>{{ leader.name }}</h1>
+            <span class="tag-chip tag-chip--domain">{{ leader.expertise_domain }}</span>
+            <p class="leader-bio">{{ leader.bio or leader.description }}</p>
+            <div class="leader-links">
+                {% if leader.twitter_url %}
+                <a href="{{ leader.twitter_url }}" target="_blank" rel="noopener" class="leader-link">X/Twitter</a>
+                {% endif %}
+                {% if leader.linkedin_url %}
+                <a href="{{ leader.linkedin_url }}" target="_blank" rel="noopener" class="leader-link">LinkedIn</a>
+                {% endif %}
+                {% if leader.author_url %}
+                <a href="{{ leader.author_url }}" target="_blank" rel="noopener" class="leader-link">Website</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 style="margin-top:2rem">Capsules ({{ leader.capsule_count }})</h2>
+<div id="leader-capsules" class="card-grid"
+     hx-get="/htmx/leaders/{{ leader.slug }}/capsules/"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    {% include "partials/skeleton_grid.html" %}
+</div>
+{% endblock %}

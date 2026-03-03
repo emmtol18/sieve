@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from sieve.api.auth.deps import get_current_user, verify_token
 from sieve.api.capsules.routes import capsule_to_response
 from sieve.db.database import get_db
-from sieve.db.models import Capsule, Follow, Sieve, Skill, SkillCapsule, User
+from sieve.db.models import Capsule, Follow, Leader, Sieve, Skill, SkillCapsule, User
 from sieve.utils import extract_domain
 
 router = APIRouter(tags=["dashboard"])
@@ -82,6 +82,29 @@ async def sieve_page(request: Request, db: AsyncSession = Depends(get_db)):
 @router.get("/discover", response_class=HTMLResponse)
 async def discover_page(request: Request):
     return _protected(request, "discover.html")
+
+
+@router.get("/leader/{slug}", response_class=HTMLResponse)
+async def leader_profile(request: Request, slug: str, db: AsyncSession = Depends(get_db)):
+    if not _is_authenticated(request):
+        return LOGIN_REDIRECT
+    result = await db.execute(select(Leader).where(Leader.slug == slug))
+    leader_obj = result.scalar_one_or_none()
+    if not leader_obj:
+        raise HTTPException(status_code=404, detail="Leader not found")
+    leader_dict = {
+        "name": leader_obj.name,
+        "slug": leader_obj.slug,
+        "description": leader_obj.description,
+        "bio": leader_obj.bio or "",
+        "expertise_domain": leader_obj.expertise_domain or "",
+        "avatar_url": leader_obj.avatar_url,
+        "twitter_url": leader_obj.twitter_url,
+        "linkedin_url": leader_obj.linkedin_url,
+        "author_url": leader_obj.author_url,
+        "capsule_count": leader_obj.capsule_count,
+    }
+    return _render(request, "leader.html", {"leader": leader_dict})
 
 
 @router.get("/compile", response_class=HTMLResponse)

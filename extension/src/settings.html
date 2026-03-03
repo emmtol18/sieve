@@ -44,13 +44,21 @@
 						</div>
 						<div id="account-logged-in" style="display: none;">
 							<div class="setting-item">
-								<label>Signed in as</label>
+								<label>Connected as</label>
 								<span id="settings-user-email"></span>
 							</div>
-							<button id="settings-logout-btn" class="mod-warning">Log out</button>
+							<button id="settings-logout-btn" class="mod-warning">Disconnect</button>
 						</div>
 						<div id="account-logged-out" style="display: none;">
-							<p>Not signed in. Use the extension popup to sign in.</p>
+							<div class="setting-item">
+								<label>API Key</label>
+								<input id="settings-api-key-input" type="text" class="setting-input" placeholder="Paste your API key" />
+							</div>
+							<div class="setting-item">
+								<a id="settings-get-key-link" href="#" style="font-size: var(--font-ui-smaller); color: var(--text-muted);">Get your key from Dashboard Settings &#8594;</a>
+							</div>
+							<button id="settings-connect-btn" class="mod-cta">Connect</button>
+							<p id="settings-connect-error" class="error-message" style="display: none;"></p>
 						</div>
 						<h3>Capture Mode</h3>
 						<div class="setting-item">

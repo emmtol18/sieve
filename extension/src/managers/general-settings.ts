@@ -212,10 +212,52 @@ function initializeAccountSettings(): void {
 	});
 
 	document.getElementById('settings-logout-btn')?.addEventListener('click', async () => {
-		generalSettings.authToken = null;
+		generalSettings.apiKey = null;
 		generalSettings.authUser = null;
 		await saveSettings();
 		initializeAccountSettings();
+	});
+
+	document.getElementById('settings-get-key-link')?.addEventListener('click', (e) => {
+		e.preventDefault();
+		browser.tabs.create({ url: `${generalSettings.serverUrl}/settings` });
+	});
+
+	document.getElementById('settings-connect-btn')?.addEventListener('click', async () => {
+		const keyInput = document.getElementById('settings-api-key-input') as HTMLInputElement;
+		const errorEl = document.getElementById('settings-connect-error')!;
+		const connectBtn = document.getElementById('settings-connect-btn') as HTMLButtonElement;
+		const apiKey = keyInput.value.trim();
+
+		if (!apiKey) {
+			errorEl.textContent = 'Please paste your API key';
+			errorEl.style.display = 'block';
+			return;
+		}
+
+		connectBtn.disabled = true;
+		connectBtn.textContent = 'Connecting...';
+		errorEl.style.display = 'none';
+
+		try {
+			const { verifyApiKey } = await import('../utils/sieve-api-client');
+			const user = await verifyApiKey(generalSettings.serverUrl, apiKey);
+			generalSettings.apiKey = apiKey;
+			generalSettings.authUser = {
+				email: user.email,
+				username: '',
+				displayName: user.display_name,
+				isAdmin: user.is_admin ?? false,
+			};
+			await saveSettings();
+			initializeAccountSettings();
+		} catch (err: any) {
+			errorEl.textContent = err.message || 'Connection failed';
+			errorEl.style.display = 'block';
+		} finally {
+			connectBtn.disabled = false;
+			connectBtn.textContent = 'Connect';
+		}
 	});
 }
 

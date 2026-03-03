@@ -6,9 +6,9 @@
 	--safe-area-inset-left: env(safe-area-inset-left);
 	--safe-area-inset-right: env(safe-area-inset-right);
 
-	--accent-h: 258;
-	--accent-s: 88%;
-	--accent-l: 66%;
+	--accent-h: 22;
+	--accent-s: 78%;
+	--accent-l: 41%;
 
 	--background-primary: var(--color-base-00);
 	--background-primary-alt: var(--color-base-10);
@@ -193,20 +193,20 @@
 				calc(var(--accent-s) * 0.96),
 				calc(var(--accent-l) * 0.85));
 
-		--color-base-00: #ffffff;
-		--color-base-05: #fcfcfc;
-		--color-base-10: #fafafa;
-		--color-base-20: #f6f6f6;
-		--color-base-25: #e3e3e3;
+		--color-base-00: #faf8f5;
+		--color-base-05: #f7f4f0;
+		--color-base-10: #f5f2ee;
+		--color-base-20: #f0ece7;
+		--color-base-25: #e8e4df;
 
-		--color-base-30: #e0e0e0;
-		--color-base-35: #d4d4d4;
-		--color-base-40: #bdbdbd;
+		--color-base-30: #e8e4df;
+		--color-base-35: #d5d0ca;
+		--color-base-40: #b5b0aa;
 
-		--color-base-50: #ababab;
-		--color-base-60: #707070;
-		--color-base-70: #5c5c5c;
-		--color-base-100: #222222;
+		--color-base-50: #b5b0aa;
+		--color-base-60: #8a857e;
+		--color-base-70: #8a857e;
+		--color-base-100: #2d2a26;
 
 		--color-orange-rgb: 236, 117, 0;
 		--color-red: #e93147;

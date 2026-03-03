@@ -15,7 +15,7 @@ export async function initializeAdminSection(tabId: number): Promise<void> {
 	if (!adminSection) return;
 
 	// Only show for authenticated admin users
-	if (!generalSettings.authToken || !generalSettings.authUser?.isAdmin) {
+	if (!generalSettings.apiKey || !generalSettings.authUser?.isAdmin) {
 		adminSection.style.display = 'none';
 		return;
 	}
@@ -60,10 +60,10 @@ function resetLeaderSelect(selectEl: HTMLSelectElement): void {
 
 async function populateLeaderSelect(): Promise<void> {
 	const leaderSelect = document.getElementById('leader-select') as HTMLSelectElement | null;
-	if (!leaderSelect || !generalSettings.authToken) return;
+	if (!leaderSelect || !generalSettings.apiKey) return;
 
 	try {
-		leadersCache = await listLeaders(generalSettings.serverUrl, generalSettings.authToken);
+		leadersCache = await listLeaders(generalSettings.serverUrl, generalSettings.apiKey);
 
 		// Clear existing options and add default
 		resetLeaderSelect(leaderSelect);
@@ -84,7 +84,7 @@ function setupAddLeaderButton(tabId: number): void {
 	if (!addLeaderBtn) return;
 
 	addLeaderBtn.addEventListener('click', async () => {
-		if (!generalSettings.authToken) return;
+		if (!generalSettings.apiKey) return;
 
 		const btn = addLeaderBtn as HTMLButtonElement;
 		btn.disabled = true;
@@ -108,7 +108,7 @@ function setupAddLeaderButton(tabId: number): void {
 
 			const slug = profileData.handle.toLowerCase().replace(/[^a-z0-9-]/g, '-');
 
-			await createLeader(generalSettings.serverUrl, generalSettings.authToken, {
+			await createLeader(generalSettings.serverUrl, generalSettings.apiKey, {
 				name: profileData.name || profileData.handle,
 				slug,
 				description: profileData.bio || `${profileData.name || profileData.handle} — ${domain} leader`,

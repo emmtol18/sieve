@@ -35,7 +35,7 @@ describe('captureToSieve', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': 'Bearer test-jwt-token',
+					'X-Api-Key': 'test-jwt-token',
 				},
 				body: JSON.stringify(request),
 			})

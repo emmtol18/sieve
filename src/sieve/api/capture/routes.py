@@ -7,7 +7,7 @@ from sieve.api.capsules.routes import capsule_to_response
 from sieve.api.capsules.schemas import CapsuleResponse, CaptureRequest
 from sieve.api.capture.pipeline import CapturePipeline
 from sieve.db.database import get_db
-from sieve.db.models import Capsule, Sieve, User
+from sieve.db.models import Capsule, Leader, Sieve, User
 
 router = APIRouter(prefix="/api/capture", tags=["capture"])
 
@@ -63,8 +63,32 @@ async def capture(
         capture_method=capsule_data.get("capture_method", "manual"),
         source_type=capsule_data.get("source_type", ""),
     )
+
+    # Assign to leader if leader_id is provided
+    if body.leader_id:
+        result = await db.execute(select(Leader).where(Leader.id == body.leader_id))
+        leader = result.scalar_one_or_none()
+        if not leader:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Leader not found"
+            )
+        capsule.pack_id = leader.id
+
     db.add(capsule)
     await db.commit()
     await db.refresh(capsule)
+
+    # Update leader's capsule_count after commit
+    if body.leader_id:
+        from sqlalchemy import func
+
+        count_result = await db.execute(
+            select(func.count()).where(Capsule.pack_id == body.leader_id)
+        )
+        result2 = await db.execute(select(Leader).where(Leader.id == body.leader_id))
+        leader = result2.scalar_one_or_none()
+        if leader:
+            leader.capsule_count = count_result.scalar() or 0
+            await db.commit()
 
     return capsule_to_response(capsule)

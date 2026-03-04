@@ -64,3 +64,31 @@ export function extractTwitterProfile(): TwitterProfile | null {
         return null;
     }
 }
+
+export interface TweetContent {
+    text: string;
+    url: string | null;
+}
+
+/**
+ * Extract text and URL from a tweet DOM element.
+ * Expects the element to be or contain [data-testid="tweet"].
+ */
+export function extractTweetContent(tweetEl: Element): TweetContent | null {
+    const textEl = tweetEl.querySelector('[data-testid="tweetText"]');
+    const text = textEl?.textContent?.trim() || '';
+    if (!text) return null;
+
+    // Tweet URL is in the timestamp link: <a href="/user/status/123"><time ...></a>
+    const timeLink = tweetEl.querySelector('time')?.closest('a') as HTMLAnchorElement | null;
+    let url: string | null = null;
+    if (timeLink?.href) {
+        try {
+            url = new URL(timeLink.href, window.location.origin).href;
+        } catch {
+            url = timeLink.href;
+        }
+    }
+
+    return { text, url };
+}

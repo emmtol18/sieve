@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class LeaderCreate(BaseModel):
+class CreatorCreate(BaseModel):
     name: str
     slug: str
     description: str
@@ -15,7 +15,7 @@ class LeaderCreate(BaseModel):
     is_featured: bool = False
 
 
-class LeaderUpdate(BaseModel):
+class CreatorUpdate(BaseModel):
     name: str | None = None
     slug: str | None = None
     description: str | None = None
@@ -29,7 +29,7 @@ class LeaderUpdate(BaseModel):
     is_featured: bool | None = None
 
 
-class LeaderResponse(BaseModel):
+class CreatorResponse(BaseModel):
     id: str
     name: str
     slug: str
@@ -46,6 +46,6 @@ class LeaderResponse(BaseModel):
     created_at: str
 
 
-class LeaderListResponse(BaseModel):
-    leaders: list[LeaderResponse]
+class CreatorListResponse(BaseModel):
+    creators: list[CreatorResponse]
     total: int

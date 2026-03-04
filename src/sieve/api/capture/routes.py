@@ -7,7 +7,7 @@ from sieve.api.capsules.routes import capsule_to_response
 from sieve.api.capsules.schemas import CapsuleResponse, CaptureRequest
 from sieve.api.capture.pipeline import CapturePipeline
 from sieve.db.database import get_db
-from sieve.db.models import Capsule, Leader, Sieve, User
+from sieve.db.models import Capsule, Creator, Sieve, User
 
 router = APIRouter(prefix="/api/capture", tags=["capture"])
 
@@ -64,27 +64,27 @@ async def capture(
         source_type=capsule_data.get("source_type", ""),
     )
 
-    # Assign to leader if leader_id is provided
-    leader = None
-    if body.leader_id:
-        result = await db.execute(select(Leader).where(Leader.id == body.leader_id))
-        leader = result.scalar_one_or_none()
-        if not leader:
+    # Assign to creator if creator_id is provided
+    creator = None
+    if body.creator_id:
+        result = await db.execute(select(Creator).where(Creator.id == body.creator_id))
+        creator = result.scalar_one_or_none()
+        if not creator:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Leader not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Creator not found"
             )
-        capsule.pack_id = leader.id
+        capsule.pack_id = creator.id
 
     db.add(capsule)
     await db.commit()
     await db.refresh(capsule)
 
-    # Update leader's capsule_count after commit
-    if body.leader_id and leader:
+    # Update creator's capsule_count after commit
+    if body.creator_id and creator:
         count_result = await db.execute(
-            select(func.count()).where(Capsule.pack_id == body.leader_id)
+            select(func.count()).where(Capsule.pack_id == body.creator_id)
         )
-        leader.capsule_count = count_result.scalar() or 0
+        creator.capsule_count = count_result.scalar() or 0
         await db.commit()
 
     return capsule_to_response(capsule)

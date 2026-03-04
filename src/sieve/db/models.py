@@ -131,10 +131,10 @@ class Capsule(Base):
     __tablename__ = "capsules"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    sieve_id: Mapped[uuid.UUID] = mapped_column(
+    sieve_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("sieves.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
 
     # Content fields
@@ -156,7 +156,7 @@ class Capsule(Base):
     author: Mapped[str] = mapped_column(String(200), default="personal")
     pack_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("leaders.id", ondelete="SET NULL"),
+        ForeignKey("creators.id", ondelete="SET NULL"),
         nullable=True,
     )
     source_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
@@ -174,7 +174,7 @@ class Capsule(Base):
 
     # Relationships
     sieve: Mapped["Sieve"] = relationship(back_populates="capsules")
-    pack: Mapped["Leader | None"] = relationship(back_populates="capsules")
+    pack: Mapped["Creator | None"] = relationship(back_populates="capsules")
 
 
 class Skill(Base):
@@ -221,8 +221,8 @@ class SkillCapsule(Base):
     capsule: Mapped["Capsule"] = relationship()
 
 
-class Leader(Base):
-    __tablename__ = "leaders"
+class Creator(Base):
+    __tablename__ = "creators"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -265,14 +265,14 @@ class Subscription(Base):
     )
     pack_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("leaders.id", ondelete="CASCADE"),
+        ForeignKey("creators.id", ondelete="CASCADE"),
         primary_key=True,
     )
     subscribed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     # Relationships
     user: Mapped["User"] = relationship()
-    pack: Mapped["Leader"] = relationship(back_populates="subscriptions")
+    pack: Mapped["Creator"] = relationship(back_populates="subscriptions")
 
 
 class Review(Base):
@@ -287,7 +287,7 @@ class Review(Base):
     )
     pack_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("leaders.id", ondelete="CASCADE"),
+        ForeignKey("creators.id", ondelete="CASCADE"),
         nullable=False,
     )
     rating: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -296,4 +296,4 @@ class Review(Base):
 
     # Relationships
     user: Mapped["User"] = relationship()
-    pack: Mapped["Leader"] = relationship(back_populates="reviews")
+    pack: Mapped["Creator"] = relationship(back_populates="reviews")

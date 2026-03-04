@@ -7,9 +7,9 @@ from sqlalchemy.orm import selectinload
 
 from sieve.api.auth.deps import get_current_user, verify_token
 from sieve.api.capsules.routes import capsule_to_response
-from sieve.api.leaders.routes import leader_to_response
+from sieve.api.creators.routes import creator_to_response
 from sieve.db.database import get_db
-from sieve.db.models import Capsule, Follow, Leader, Sieve, Skill, SkillCapsule, User
+from sieve.db.models import Capsule, Creator, Follow, Sieve, Skill, SkillCapsule, User
 from sieve.utils import extract_domain
 
 router = APIRouter(tags=["dashboard"])
@@ -85,16 +85,16 @@ async def discover_page(request: Request):
     return _protected(request, "discover.html")
 
 
-@router.get("/leader/{slug}", response_class=HTMLResponse)
-async def leader_profile(request: Request, slug: str, db: AsyncSession = Depends(get_db)):
+@router.get("/creator/{slug}", response_class=HTMLResponse)
+async def creator_profile(request: Request, slug: str, db: AsyncSession = Depends(get_db)):
     if not _is_authenticated(request):
         return LOGIN_REDIRECT
-    result = await db.execute(select(Leader).where(Leader.slug == slug))
-    leader_obj = result.scalar_one_or_none()
-    if not leader_obj:
-        raise HTTPException(status_code=404, detail="Leader not found")
-    leader_dict = leader_to_response(leader_obj).model_dump()
-    return _render(request, "leader.html", {"leader": leader_dict})
+    result = await db.execute(select(Creator).where(Creator.slug == slug))
+    creator_obj = result.scalar_one_or_none()
+    if not creator_obj:
+        raise HTTPException(status_code=404, detail="Creator not found")
+    creator_dict = creator_to_response(creator_obj).model_dump()
+    return _render(request, "creator.html", {"creator": creator_dict})
 
 
 @router.get("/compile", response_class=HTMLResponse)

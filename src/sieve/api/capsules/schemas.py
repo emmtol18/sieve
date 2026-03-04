@@ -71,7 +71,7 @@ class CaptureRequest(BaseModel):
     url: str | None = None
     source_url: str | None = None
     images: list[str] = []
-    leader_id: str | None = None
+    creator_id: str | None = None
 
 
 class SearchRequest(BaseModel):

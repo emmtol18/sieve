@@ -9,12 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sieve.api.auth.deps import create_access_token, get_current_user, hash_password, verify_password
 from sieve.api.auth.routes import COOKIE_NAME, set_auth_cookie
 from sieve.api.capsules.routes import capsule_to_response
-from sieve.api.leaders.routes import leader_to_response
+from sieve.api.creators.routes import creator_to_response
 from sieve.api.capsules.schemas import CaptureRequest
 from sieve.api.capture.pipeline import CapturePipeline
 from sieve.config import settings
 from sieve.db.database import get_db
-from sieve.db.models import Capsule, Follow, Leader, Sieve, User
+from sieve.db.models import Capsule, Creator, Follow, Sieve, User
 from sieve.utils import escape_like, extract_domain
 
 router = APIRouter(prefix="/htmx", tags=["htmx"])
@@ -541,50 +541,50 @@ async def htmx_discover_capsules(
 
 
 # ---------------------------------------------------------------------------
-# Leader routes
+# Creator routes
 # ---------------------------------------------------------------------------
 
 
-@router.get("/leaders/", response_class=HTMLResponse)
-async def htmx_list_leaders(
+@router.get("/creators/", response_class=HTMLResponse)
+async def htmx_list_creators(
     domain: str | None = Query(None),
     search: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """HTMX partial: leader card grid with optional domain filter."""
-    query = select(Leader)
+    """HTMX partial: creator card grid with optional domain filter."""
+    query = select(Creator)
 
     if domain:
-        query = query.where(Leader.expertise_domain == domain)
+        query = query.where(Creator.expertise_domain == domain)
     if search:
         term = f"%{escape_like(search)}%"
         query = query.where(
-            or_(Leader.name.ilike(term), Leader.description.ilike(term), Leader.bio.ilike(term))
+            or_(Creator.name.ilike(term), Creator.description.ilike(term), Creator.bio.ilike(term))
         )
 
-    query = query.order_by(Leader.is_featured.desc(), Leader.name.asc()).limit(200)
+    query = query.order_by(Creator.is_featured.desc(), Creator.name.asc()).limit(200)
     result = await db.execute(query)
-    leaders = result.scalars().all()
+    creators = result.scalars().all()
 
-    leader_dicts = [leader_to_response(l).model_dump() for l in leaders]
+    creator_dicts = [creator_to_response(c).model_dump() for c in creators]
 
-    return _render_partial("partials/leader_grid.html", leaders=leader_dicts)
+    return _render_partial("partials/creator_grid.html", creators=creator_dicts)
 
 
-@router.get("/leaders/{slug}/capsules/", response_class=HTMLResponse)
-async def htmx_leader_capsules(
+@router.get("/creators/{slug}/capsules/", response_class=HTMLResponse)
+async def htmx_creator_capsules(
     slug: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """HTMX partial: capsule grid for a specific leader."""
-    result = await db.execute(select(Leader).where(Leader.slug == slug))
-    leader = result.scalar_one_or_none()
-    if not leader:
-        return HTMLResponse(content='<div class="empty-state"><h3>Leader not found</h3></div>')
+    """HTMX partial: capsule grid for a specific creator."""
+    result = await db.execute(select(Creator).where(Creator.slug == slug))
+    creator = result.scalar_one_or_none()
+    if not creator:
+        return HTMLResponse(content='<div class="empty-state"><h3>Creator not found</h3></div>')
 
     query = (
         select(Capsule)
-        .where(Capsule.pack_id == leader.id)
+        .where(Capsule.pack_id == creator.id)
         .order_by(Capsule.created_at.desc())
         .limit(50)
     )

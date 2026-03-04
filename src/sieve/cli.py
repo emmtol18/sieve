@@ -198,40 +198,40 @@ def mcp():
     asyncio.run(run_server())
 
 
-@cli.command("seed-leaders")
-@click.option("--file", "filepath", type=click.Path(exists=True), required=True, help="JSON file with leader data")
-def seed_leaders(filepath):
-    """Seed the database with leaders from a JSON file."""
+@cli.command("seed-creators")
+@click.option("--file", "filepath", type=click.Path(exists=True), required=True, help="JSON file with creator data")
+def seed_creators(filepath):
+    """Seed the database with creators from a JSON file."""
     import asyncio
     import json
 
     with open(filepath) as f:
-        leaders_data = json.load(f)
+        creators_data = json.load(f)
 
-    click.echo(f"Seeding {len(leaders_data)} leaders...")
-    count = asyncio.run(_seed_leaders(leaders_data))
-    click.echo(f"Done. {count} leader(s) seeded.")
+    click.echo(f"Seeding {len(creators_data)} creators...")
+    count = asyncio.run(_seed_creators(creators_data))
+    click.echo(f"Done. {count} creator(s) seeded.")
 
 
-async def _seed_leaders(leaders_data: list[dict]) -> int:
+async def _seed_creators(creators_data: list[dict]) -> int:
     from sqlalchemy import select
 
     from sieve.db.database import async_session
-    from sieve.db.models import Leader
+    from sieve.db.models import Creator
 
     count = 0
     async with async_session() as session:
         # Pre-fetch all existing slugs to avoid N+1 queries
-        result = await session.execute(select(Leader.slug))
+        result = await session.execute(select(Creator.slug))
         existing_slugs = {row[0] for row in result.all()}
 
-        for data in leaders_data:
+        for data in creators_data:
             slug = data.get("slug", data["name"].lower().replace(" ", "-"))
             if slug in existing_slugs:
                 click.echo(f"  Skipping {data['name']} (slug '{slug}' exists)")
                 continue
 
-            leader = Leader(
+            creator = Creator(
                 name=data["name"],
                 slug=slug,
                 description=data.get("description", ""),
@@ -244,7 +244,7 @@ async def _seed_leaders(leaders_data: list[dict]) -> int:
                 topics=data.get("topics", []),
                 is_featured=data.get("is_featured", False),
             )
-            session.add(leader)
+            session.add(creator)
             count += 1
             click.echo(f"  Added {data['name']} ({slug})")
 

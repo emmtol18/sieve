@@ -25,15 +25,6 @@ async def capture(
     2. Send content to the LLM for structured extraction
     3. Create a new capsule in the user's sieve
     """
-    # Get user's sieve
-    result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
-    sieve = result.scalar_one_or_none()
-    if not sieve:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sieve not found for user",
-        )
-
     # Run the capture pipeline
     pipeline = CapturePipeline()
     try:
@@ -44,9 +35,32 @@ async def capture(
             detail=str(e),
         )
 
+    # Either/or: creator pack capsules don't belong to a personal sieve
+    creator = None
+    if body.creator_id:
+        result = await db.execute(select(Creator).where(Creator.id == body.creator_id))
+        creator = result.scalar_one_or_none()
+        if not creator:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Creator not found"
+            )
+        sieve_id = None
+        pack_id = creator.id
+    else:
+        result = await db.execute(select(Sieve).where(Sieve.user_id == user.id))
+        sieve = result.scalar_one_or_none()
+        if not sieve:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sieve not found for user",
+            )
+        sieve_id = sieve.id
+        pack_id = None
+
     # Create the capsule
     capsule = Capsule(
-        sieve_id=sieve.id,
+        sieve_id=sieve_id,
+        pack_id=pack_id,
         title=capsule_data.get("title", "Untitled"),
         executive_summary=capsule_data.get("executive_summary", ""),
         core_insight=capsule_data.get("core_insight", ""),
@@ -63,17 +77,6 @@ async def capture(
         capture_method=capsule_data.get("capture_method", "manual"),
         source_type=capsule_data.get("source_type", ""),
     )
-
-    # Assign to creator if creator_id is provided
-    creator = None
-    if body.creator_id:
-        result = await db.execute(select(Creator).where(Creator.id == body.creator_id))
-        creator = result.scalar_one_or_none()
-        if not creator:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Creator not found"
-            )
-        capsule.pack_id = creator.id
 
     db.add(capsule)
     await db.commit()

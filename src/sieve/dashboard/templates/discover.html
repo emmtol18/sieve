@@ -7,24 +7,24 @@
 </section>
 
 <div class="tab-bar">
-    <button class="tab-btn tab-btn--active" hx-get="/htmx/leaders/" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('tab-btn--active'));this.classList.add('tab-btn--active');document.getElementById('domain-filter').style.display='flex'">Leaders</button>
+    <button class="tab-btn tab-btn--active" hx-get="/htmx/creators/" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('tab-btn--active'));this.classList.add('tab-btn--active');document.getElementById('domain-filter').style.display='flex'">Creators</button>
     <button class="tab-btn" hx-get="/htmx/discover/sieves" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('tab-btn--active'));this.classList.add('tab-btn--active');document.getElementById('domain-filter').style.display='none'">Sieves</button>
     <button class="tab-btn" hx-get="/htmx/discover/capsules" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('tab-btn--active'));this.classList.add('tab-btn--active');document.getElementById('domain-filter').style.display='none'">Capsules</button>
 </div>
 
 <div id="domain-filter" class="filter-pills">
-    <button class="pill pill--active" hx-get="/htmx/leaders/" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">All</button>
-    <button class="pill" hx-get="/htmx/leaders/?domain=AI/ML" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">AI/ML</button>
-    <button class="pill" hx-get="/htmx/leaders/?domain=Developer+Tools" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Dev Tools</button>
-    <button class="pill" hx-get="/htmx/leaders/?domain=Search+%26+Retrieval" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Search</button>
-    <button class="pill" hx-get="/htmx/leaders/?domain=Startups+%26+Indie+Hacking" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Startups</button>
-    <button class="pill" hx-get="/htmx/leaders/?domain=Product+%26+Design" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Product</button>
-    <button class="pill" hx-get="/htmx/leaders/?domain=Engineering+Leadership" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Engineering</button>
-    <button class="pill" hx-get="/htmx/leaders/?domain=Open+Source" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Open Source</button>
+    <button class="pill pill--active" hx-get="/htmx/creators/" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">All</button>
+    <button class="pill" hx-get="/htmx/creators/?domain=AI/ML" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">AI/ML</button>
+    <button class="pill" hx-get="/htmx/creators/?domain=Developer+Tools" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Dev Tools</button>
+    <button class="pill" hx-get="/htmx/creators/?domain=Search+%26+Retrieval" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Search</button>
+    <button class="pill" hx-get="/htmx/creators/?domain=Startups+%26+Indie+Hacking" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Startups</button>
+    <button class="pill" hx-get="/htmx/creators/?domain=Product+%26+Design" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Product</button>
+    <button class="pill" hx-get="/htmx/creators/?domain=Engineering+Leadership" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Engineering</button>
+    <button class="pill" hx-get="/htmx/creators/?domain=Open+Source" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Open Source</button>
 </div>
 
 <div id="discover-content" class="card-grid"
-     hx-get="/htmx/leaders/"
+     hx-get="/htmx/creators/"
      hx-trigger="load"
      hx-swap="innerHTML">
     <div style="text-align:center;padding:2rem;grid-column:1/-1"><span class="spinner spinner--lg"></span></div>

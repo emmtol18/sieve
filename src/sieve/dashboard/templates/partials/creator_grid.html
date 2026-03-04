@@ -1,0 +1,10 @@
+{% if creators %}
+    {% for creator in creators %}
+        {% include "partials/creator_card.html" %}
+    {% endfor %}
+{% else %}
+    <div class="empty-state" style="grid-column: 1 / -1">
+        <h3>No creators found</h3>
+        <p>Creator profiles will appear here once added.</p>
+    </div>
+{% endif %}

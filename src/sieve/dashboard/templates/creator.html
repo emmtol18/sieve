@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ creator.name }} — Neural Sieve{% endblock %}
+{% block content %}
+<div class="creator-profile">
+    <div class="creator-header">
+        {% if creator.avatar_url %}
+        <img src="{{ creator.avatar_url }}" alt="{{ creator.name }}" class="creator-profile-avatar">
+        {% else %}
+        <div class="creator-profile-avatar creator-avatar--placeholder">{{ creator.name[0] }}</div>
+        {% endif %}
+        <div class="creator-info">
+            <h1>{{ creator.name }}</h1>
+            <span class="tag-chip tag-chip--domain">{{ creator.expertise_domain }}</span>
+            <p class="creator-bio">{{ creator.bio or creator.description }}</p>
+            <div class="creator-links">
+                {% if creator.twitter_url %}
+                <a href="{{ creator.twitter_url }}" target="_blank" rel="noopener" class="creator-link">X/Twitter</a>
+                {% endif %}
+                {% if creator.linkedin_url %}
+                <a href="{{ creator.linkedin_url }}" target="_blank" rel="noopener" class="creator-link">LinkedIn</a>
+                {% endif %}
+                {% if creator.author_url %}
+                <a href="{{ creator.author_url }}" target="_blank" rel="noopener" class="creator-link">Website</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 style="margin-top:2rem">Capsules ({{ creator.capsule_count }})</h2>
+<div id="creator-capsules" class="card-grid"
+     hx-get="/htmx/creators/{{ creator.slug }}/capsules/"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+    {% include "partials/skeleton_grid.html" %}
+</div>
+{% endblock %}

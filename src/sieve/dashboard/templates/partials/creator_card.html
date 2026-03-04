@@ -1,0 +1,14 @@
+<div class="card creator-card">
+    {% if creator.avatar_url %}
+    <img src="{{ creator.avatar_url }}" alt="{{ creator.name }}" class="creator-avatar">
+    {% else %}
+    <div class="creator-avatar creator-avatar--placeholder">{{ creator.name[0] }}</div>
+    {% endif %}
+    <h3 class="card-title">{{ creator.name }}</h3>
+    <span class="tag-chip tag-chip--domain">{{ creator.expertise_domain }}</span>
+    <p class="card-summary">{{ creator.bio or creator.description }}</p>
+    <div class="creator-stats">
+        <span>{{ creator.capsule_count }} capsule{{ "s" if creator.capsule_count != 1 }}</span>
+    </div>
+    <a href="/creator/{{ creator.slug }}" class="btn btn-secondary btn-block">View</a>
+</div>

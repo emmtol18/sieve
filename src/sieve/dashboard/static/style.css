@@ -1470,12 +1470,12 @@ textarea.textarea {
     color: #2d2a26;
 }
 
-/* --- Leader Cards ---------------------------------------------------- */
+/* --- Creator Cards --------------------------------------------------- */
 
-.leader-card { text-align: center; }
-.leader-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin: 0 auto 0.75rem; display: block; }
-.leader-avatar--placeholder { background: #c06014; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 0.75rem; }
-.leader-stats { font-size: 0.85rem; color: #8a857e; margin-bottom: 0.75rem; }
+.creator-card { text-align: center; }
+.creator-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin: 0 auto 0.75rem; display: block; }
+.creator-avatar--placeholder { background: #c06014; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 0.75rem; }
+.creator-stats { font-size: 0.85rem; color: #8a857e; margin-bottom: 0.75rem; }
 .tag-chip--domain { background: #c06014; color: #fff; font-size: 0.75rem; }
 
 /* --- Domain Filter Pills --------------------------------------------- */
@@ -1491,16 +1491,16 @@ textarea.textarea {
 .tab-btn:hover { color: #2d2a26; }
 .tab-btn--active { color: #c06014; border-bottom-color: #c06014; font-weight: 600; }
 
-/* --- Leader Profile Page --------------------------------------------- */
+/* --- Creator Profile Page -------------------------------------------- */
 
-.leader-profile { margin-bottom: 1.5rem; }
-.leader-header { display: flex; gap: 1.5rem; align-items: flex-start; }
-.leader-profile-avatar { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-.leader-info h1 { margin: 0 0 0.5rem; }
-.leader-bio { color: #8a857e; margin: 0.75rem 0; }
-.leader-links { display: flex; gap: 1rem; }
-.leader-link { color: #c06014; text-decoration: none; font-size: 0.85rem; }
-.leader-link:hover { text-decoration: underline; }
+.creator-profile { margin-bottom: 1.5rem; }
+.creator-header { display: flex; gap: 1.5rem; align-items: flex-start; }
+.creator-profile-avatar { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.creator-info h1 { margin: 0 0 0.5rem; }
+.creator-bio { color: #8a857e; margin: 0.75rem 0; }
+.creator-links { display: flex; gap: 1rem; }
+.creator-link { color: #c06014; text-decoration: none; font-size: 0.85rem; }
+.creator-link:hover { text-decoration: underline; }
 
 /* --- Selection & Scrollbar ------------------------------------------- */
 

@@ -421,6 +421,9 @@ declare global {
 		} else if (request.action === "extractTwitterProfile") {
 			const profile = extractTwitterProfile();
 			sendResponse(profile);
+		} else if (request.action === "enableTweetSelectionMode") {
+			enableTweetSelectionMode(request.creatorId, request.serverUrl, request.apiKey);
+			sendResponse({ success: true });
 		}
 		return true;
 	});
@@ -608,5 +611,171 @@ declare global {
 			});
 		}
 	});
+
+	let selectionModeActive = false;
+	const selectedTweets = new Set<Element>();
+
+	function enableTweetSelectionMode(creatorId: string, serverUrl: string, apiKey: string): void {
+		if (selectionModeActive) return;
+		selectionModeActive = true;
+		selectedTweets.clear();
+
+		// Inject selection styles
+		const style = document.createElement('style');
+		style.id = 'sieve-selection-style';
+		style.textContent = `
+			[data-testid="tweet"] {
+				cursor: pointer !important;
+				transition: border-left 0.15s, background 0.15s !important;
+			}
+			[data-testid="tweet"]:hover {
+				border-left: 3px solid #7c6bf5 !important;
+			}
+			[data-testid="tweet"].sieve-selected {
+				border-left: 3px solid #7c6bf5 !important;
+				background: rgba(124, 107, 245, 0.08) !important;
+			}
+		`;
+		document.head.appendChild(style);
+
+		// Add click handlers to tweets
+		document.addEventListener('click', tweetClickHandler, true);
+
+		// Create floating action bar
+		createSelectionBar(creatorId, serverUrl, apiKey);
+	}
+
+	function tweetClickHandler(e: MouseEvent): void {
+		if (!selectionModeActive) return;
+
+		const target = e.target as Element;
+		if (target.closest('a[href]') || target.closest('button') || target.closest('[role="button"]')) {
+			return;
+		}
+
+		const tweetEl = target.closest('[data-testid="tweet"]');
+		if (!tweetEl) return;
+
+		e.preventDefault();
+		e.stopPropagation();
+
+		if (selectedTweets.has(tweetEl)) {
+			selectedTweets.delete(tweetEl);
+			tweetEl.classList.remove('sieve-selected');
+		} else {
+			selectedTweets.add(tweetEl);
+			tweetEl.classList.add('sieve-selected');
+		}
+
+		updateSelectionCount();
+	}
+
+	function createSelectionBar(creatorId: string, serverUrl: string, apiKey: string): void {
+		const bar = document.createElement('div');
+		bar.id = 'sieve-selection-bar';
+		bar.style.cssText = `
+			position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+			z-index: 2147483647; background: #1a1a2e; color: #e0e0e0;
+			border: 1px solid #333; border-radius: 12px; padding: 12px 20px;
+			display: flex; align-items: center; gap: 16px;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			font-size: 14px;
+		`;
+
+		const countEl = document.createElement('span');
+		countEl.id = 'sieve-selection-count';
+		countEl.textContent = '0 selected';
+
+		const captureBtn = document.createElement('button');
+		captureBtn.textContent = 'Capture All';
+		captureBtn.style.cssText = `
+			background: #7c6bf5; color: white; border: none; border-radius: 6px;
+			padding: 8px 16px; cursor: pointer; font-size: 14px; font-weight: 600;
+		`;
+		captureBtn.addEventListener('click', () => handleBatchCapture(creatorId, serverUrl, apiKey));
+
+		const cancelBtn = document.createElement('button');
+		cancelBtn.textContent = 'Cancel';
+		cancelBtn.style.cssText = `
+			background: transparent; color: #999; border: 1px solid #444;
+			border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 14px;
+		`;
+		cancelBtn.addEventListener('click', disableSelectionMode);
+
+		bar.appendChild(countEl);
+		bar.appendChild(captureBtn);
+		bar.appendChild(cancelBtn);
+		document.body.appendChild(bar);
+	}
+
+	function updateSelectionCount(): void {
+		const countEl = document.getElementById('sieve-selection-count');
+		if (countEl) {
+			countEl.textContent = `${selectedTweets.size} selected`;
+		}
+	}
+
+	async function handleBatchCapture(creatorId: string, serverUrl: string, apiKey: string): Promise<void> {
+		if (selectedTweets.size === 0) return;
+
+		const { extractTweetContent } = await import('./utils/twitter-extractor');
+
+		const items: { content: string; source_url?: string }[] = [];
+		for (const tweetEl of selectedTweets) {
+			const extracted = extractTweetContent(tweetEl);
+			if (extracted) {
+				items.push({
+					content: extracted.text,
+					source_url: extracted.url || undefined,
+				});
+			}
+		}
+
+		if (items.length === 0) {
+			showSieveErrorToast('No tweet text could be extracted from selection');
+			disableSelectionMode();
+			return;
+		}
+
+		// Update UI to show progress
+		const captureBtn = document.querySelector('#sieve-selection-bar button') as HTMLButtonElement;
+		if (captureBtn) {
+			captureBtn.disabled = true;
+			captureBtn.textContent = `Capturing ${items.length}...`;
+		}
+
+		try {
+			const { batchCapture } = await import('./utils/sieve-api-client');
+			const result = await batchCapture(serverUrl, apiKey, {
+				items,
+				creator_id: creatorId,
+			});
+
+			const message = `${result.succeeded}/${result.total} capsules created` +
+				(result.failed > 0 ? ` (${result.failed} failed)` : '');
+
+			showSieveToast(message, '', serverUrl);
+		} catch (err: any) {
+			showSieveErrorToast(err.message || 'Batch capture failed');
+		}
+
+		disableSelectionMode();
+	}
+
+	function disableSelectionMode(): void {
+		selectionModeActive = false;
+		document.removeEventListener('click', tweetClickHandler, true);
+
+		// Remove selection styling
+		for (const el of selectedTweets) {
+			el.classList.remove('sieve-selected');
+		}
+		selectedTweets.clear();
+
+		// Remove injected elements
+		document.getElementById('sieve-selection-style')?.remove();
+		document.getElementById('sieve-selection-bar')?.remove();
+	}
 
 })();

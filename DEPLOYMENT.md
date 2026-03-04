@@ -262,7 +262,7 @@ The extension verifies the key against your server and displays the clipper UI o
 3. **Connect the extension** — paste your API key from the Settings page
 4. **Capture knowledge** — use the extension on any page, or the Capture page to paste a URL
 5. **Browse your sieve** on the My Sieve page
-6. **Discover packs** — subscribe to curated leader packs on the Discover page
+6. **Discover packs** — subscribe to curated creator packs on the Discover page
 7. **Access from phone** — the dashboard works on mobile browsers. Add to home screen for app-like experience.
 
 ### For users who also use Claude Code:

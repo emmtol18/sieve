@@ -4,7 +4,8 @@ import { loadSettings, generalSettings } from './utils/storage-utils';
 import Defuddle from 'defuddle';
 import { getDomain } from './utils/string-utils';
 import { createMarkdownContent } from './utils/markdown-converter';
-import { extractTwitterProfile } from './utils/twitter-extractor';
+import { extractTwitterProfile, extractTweetContent } from './utils/twitter-extractor';
+import { batchCapture } from './utils/sieve-api-client';
 
 declare global {
 	interface Window {
@@ -719,8 +720,6 @@ declare global {
 	async function handleBatchCapture(creatorId: string, serverUrl: string, apiKey: string): Promise<void> {
 		if (selectedTweets.size === 0) return;
 
-		const { extractTweetContent } = await import('./utils/twitter-extractor');
-
 		const items: { content: string; source_url?: string }[] = [];
 		for (const tweetEl of selectedTweets) {
 			const extracted = extractTweetContent(tweetEl);
@@ -746,7 +745,6 @@ declare global {
 		}
 
 		try {
-			const { batchCapture } = await import('./utils/sieve-api-client');
 			const result = await batchCapture(serverUrl, apiKey, {
 				items,
 				creator_id: creatorId,

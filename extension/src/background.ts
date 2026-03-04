@@ -4,7 +4,7 @@ import { updateCurrentActiveTab, isValidUrl, isBlankPage } from './utils/active-
 import { TextHighlightData } from './utils/highlighter';
 import { debounce } from './utils/debounce';
 import { DEFAULT_SERVER_URL } from './utils/config';
-import { listLeaders } from './utils/sieve-api-client';
+import { listCreators } from './utils/sieve-api-client';
 import { extractTwitterHandle } from './utils/twitter-extractor';
 
 let sidePanelOpenWindows: Set<number> = new Set();
@@ -59,22 +59,22 @@ async function quickCapture(apiKey: string, serverUrl: string): Promise<void> {
 		const content = pageContent?.selectedHtml || pageContent?.content || '';
 		const url = tab.url || '';
 
-		// Auto-assign leader by Twitter URL
-		let leader_id: string | undefined;
+		// Auto-assign creator by Twitter URL
+		let creator_id: string | undefined;
 		const handle = extractTwitterHandle(url);
 		if (handle) {
 			try {
-				const leaders = await listLeaders(serverUrl, apiKey);
-				const match = leaders.find((leader: any) => {
-					if (!leader.twitter_url) return false;
-					return extractTwitterHandle(leader.twitter_url) === handle;
+				const creators = await listCreators(serverUrl, apiKey);
+				const match = creators.find((creator: any) => {
+					if (!creator.twitter_url) return false;
+					return extractTwitterHandle(creator.twitter_url) === handle;
 				});
-				if (match) leader_id = match.id;
+				if (match) creator_id = match.id;
 			} catch {}
 		}
 
 		const body: any = { content, url, source_url: url };
-		if (leader_id) body.leader_id = leader_id;
+		if (creator_id) body.creator_id = creator_id;
 
 		const response = await fetch(`${serverUrl}/api/capture/`, {
 			method: 'POST',

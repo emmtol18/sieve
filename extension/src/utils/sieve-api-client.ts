@@ -2,7 +2,7 @@ export interface CaptureRequest {
 	content: string;
 	url?: string;
 	source_url?: string;
-	leader_id?: string;
+	creator_id?: string;
 }
 
 export interface CaptureResponse {
@@ -93,7 +93,7 @@ export async function captureToSieve(
 	return await response.json();
 }
 
-export async function createLeader(serverUrl: string, apiKey: string, data: {
+export async function createCreator(serverUrl: string, apiKey: string, data: {
 	name: string;
 	slug: string;
 	description: string;
@@ -104,20 +104,20 @@ export async function createLeader(serverUrl: string, apiKey: string, data: {
 	author_url?: string;
 	topics?: string[];
 }): Promise<any> {
-	const response = await fetch(`${serverUrl}/api/leaders/`, {
+	const response = await fetch(`${serverUrl}/api/creators/`, {
 		method: 'POST',
 		headers: apiHeaders(apiKey),
 		body: JSON.stringify(data),
 	});
-	if (!response.ok) throw new Error(`Failed to create leader: ${response.status}`);
+	if (!response.ok) throw new Error(`Failed to create creator: ${response.status}`);
 	return response.json();
 }
 
-export async function listLeaders(serverUrl: string, apiKey: string): Promise<any[]> {
-	const response = await fetch(`${serverUrl}/api/leaders/`, {
+export async function listCreators(serverUrl: string, apiKey: string): Promise<any[]> {
+	const response = await fetch(`${serverUrl}/api/creators/`, {
 		headers: { 'X-Api-Key': apiKey },
 	});
 	if (!response.ok) return [];
 	const data = await response.json();
-	return data.leaders || [];
+	return data.creators || [];
 }

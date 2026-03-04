@@ -22,7 +22,7 @@ import { debounce } from '../utils/debounce';
 import { sanitizeFileName } from '../utils/string-utils';
 import { saveFile } from '../utils/file-utils';
 import { translatePage, getMessage, setupLanguageAndDirection } from '../utils/i18n';
-import { initializeAdminSection, getSelectedLeaderId } from './admin-leaders';
+import { initializeAdminSection, getSelectedCreatorId } from './admin-creators';
 
 interface ReaderModeResponse {
 	success: boolean;
@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 				await initializeAuth();
 				setupAuthListeners();
 
-				// Initialize admin section (leaders UI) for admin users
+				// Initialize admin section (creators UI) for admin users
 				await initializeAdminSection(currentTabId);
 
 				// Initial content load
@@ -1210,12 +1210,12 @@ async function handleCaptureToSieve(): Promise<void> {
 		const tabInfo = await getCurrentTabInfo();
 		const pageUrl = tabInfo?.url || '';
 
-		const captureRequest: { content: string; url: string; source_url: string; leader_id?: string } = {
+		const captureRequest: { content: string; url: string; source_url: string; creator_id?: string } = {
 			content, url: pageUrl, source_url: pageUrl
 		};
-		const selectedLeaderId = getSelectedLeaderId();
-		if (selectedLeaderId) {
-			captureRequest.leader_id = selectedLeaderId;
+		const selectedCreatorId = getSelectedCreatorId();
+		if (selectedCreatorId) {
+			captureRequest.creator_id = selectedCreatorId;
 		}
 
 		const response = await captureToSieve(

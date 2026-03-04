@@ -82,3 +82,28 @@ class SearchRequest(BaseModel):
     difficulty: str | None = None
     author: str | None = None
     pack: str | None = None
+
+
+class BatchCaptureItem(BaseModel):
+    content: str
+    source_url: str | None = None
+
+
+class BatchCaptureRequest(BaseModel):
+    items: list[BatchCaptureItem]
+    creator_id: str
+    source_type: str = "tweet"
+
+
+class BatchCaptureResultItem(BaseModel):
+    status: str  # "success" or "error"
+    capsule_id: str | None = None
+    title: str | None = None
+    error: str | None = None
+
+
+class BatchCaptureResponse(BaseModel):
+    results: list[BatchCaptureResultItem]
+    total: int
+    succeeded: int
+    failed: int

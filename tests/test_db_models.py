@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from sieve.db.models import Base, Capsule, Follow, Leader, Review, Sieve, Subscription, User
+from sieve.db.models import Base, Capsule, Creator, Follow, Review, Sieve, Subscription, User
 
 
 def test_user_model_fields():
@@ -94,8 +94,8 @@ def test_capsule_defaults():
     assert capsule.skill_eligible is True
 
 
-def test_leader_model_fields():
-    pack = Leader(
+def test_creator_model_fields():
+    pack = Creator(
         id=uuid.uuid4(),
         name="Andrej Karpathy",
         slug="karpathy",
@@ -133,7 +133,7 @@ def test_review_model_fields():
 
 def test_base_metadata_has_all_tables():
     table_names = set(Base.metadata.tables.keys())
-    expected = {"users", "sieves", "capsules", "leaders", "subscriptions", "reviews", "follows", "skills", "skill_capsules"}
+    expected = {"users", "sieves", "capsules", "creators", "subscriptions", "reviews", "follows", "skills", "skill_capsules"}
     assert expected == table_names
 
 

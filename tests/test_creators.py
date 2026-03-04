@@ -5,13 +5,13 @@ from httpx import ASGITransport, AsyncClient
 
 from sieve.api.auth.deps import create_access_token, hash_password
 from sieve.api.capsules.schemas import CaptureRequest
-from sieve.api.leaders.schemas import (
-    LeaderCreate,
-    LeaderListResponse,
-    LeaderResponse,
-    LeaderUpdate,
+from sieve.api.creators.schemas import (
+    CreatorCreate,
+    CreatorListResponse,
+    CreatorResponse,
+    CreatorUpdate,
 )
-from sieve.db.models import Leader, Sieve, User
+from sieve.db.models import Creator, Sieve, User
 
 
 # ---------------------------------------------------------------------------
@@ -19,8 +19,8 @@ from sieve.db.models import Leader, Sieve, User
 # ---------------------------------------------------------------------------
 
 
-def test_leader_model_instantiation():
-    leader = Leader(
+def test_creator_model_instantiation():
+    creator = Creator(
         id=uuid.uuid4(),
         name="Andrej Karpathy",
         slug="karpathy",
@@ -35,29 +35,29 @@ def test_leader_model_instantiation():
         is_featured=True,
         capsule_count=42,
     )
-    assert leader.name == "Andrej Karpathy"
-    assert leader.slug == "karpathy"
-    assert leader.bio == "Former Tesla AI Director"
-    assert leader.expertise_domain == "AI"
-    assert leader.avatar_url == "https://example.com/avatar.jpg"
-    assert leader.twitter_url == "https://twitter.com/karpathy"
-    assert leader.linkedin_url == "https://linkedin.com/in/karpathy"
-    assert leader.is_featured is True
-    assert leader.capsule_count == 42
-    assert "ai" in leader.topics
+    assert creator.name == "Andrej Karpathy"
+    assert creator.slug == "karpathy"
+    assert creator.bio == "Former Tesla AI Director"
+    assert creator.expertise_domain == "AI"
+    assert creator.avatar_url == "https://example.com/avatar.jpg"
+    assert creator.twitter_url == "https://twitter.com/karpathy"
+    assert creator.linkedin_url == "https://linkedin.com/in/karpathy"
+    assert creator.is_featured is True
+    assert creator.capsule_count == 42
+    assert "ai" in creator.topics
 
 
-def test_leader_defaults():
-    leader = Leader(
+def test_creator_defaults():
+    creator = Creator(
         id=uuid.uuid4(),
-        name="Minimal Leader",
+        name="Minimal Creator",
         slug="minimal",
-        description="A minimal leader entry",
+        description="A minimal creator entry",
     )
-    assert leader.is_featured is False
-    assert leader.capsule_count == 0
-    assert leader.rating_avg == 0.0
-    assert leader.review_count == 0
+    assert creator.is_featured is False
+    assert creator.capsule_count == 0
+    assert creator.rating_avg == 0.0
+    assert creator.review_count == 0
 
 
 # ---------------------------------------------------------------------------
@@ -65,16 +65,16 @@ def test_leader_defaults():
 # ---------------------------------------------------------------------------
 
 
-def test_leader_create_schema():
-    data = LeaderCreate(
-        name="Test Leader",
-        slug="test-leader",
+def test_creator_create_schema():
+    data = CreatorCreate(
+        name="Test Creator",
+        slug="test-creator",
         description="Test description",
         bio="Test bio",
         expertise_domain="Testing",
     )
-    assert data.name == "Test Leader"
-    assert data.slug == "test-leader"
+    assert data.name == "Test Creator"
+    assert data.slug == "test-creator"
     assert data.bio == "Test bio"
     assert data.expertise_domain == "Testing"
     assert data.topics == []
@@ -82,8 +82,8 @@ def test_leader_create_schema():
     assert data.avatar_url is None
 
 
-def test_leader_create_schema_defaults():
-    data = LeaderCreate(
+def test_creator_create_schema_defaults():
+    data = CreatorCreate(
         name="Minimal",
         slug="minimal",
         description="Minimal description",
@@ -98,20 +98,20 @@ def test_leader_create_schema_defaults():
     assert data.is_featured is False
 
 
-def test_leader_update_schema_partial():
-    data = LeaderUpdate(name="Updated Name")
+def test_creator_update_schema_partial():
+    data = CreatorUpdate(name="Updated Name")
     dumped = data.model_dump(exclude_unset=True)
     assert dumped == {"name": "Updated Name"}
 
 
-def test_leader_update_schema_empty():
-    data = LeaderUpdate()
+def test_creator_update_schema_empty():
+    data = CreatorUpdate()
     dumped = data.model_dump(exclude_unset=True)
     assert dumped == {}
 
 
-def test_leader_response_schema():
-    resp = LeaderResponse(
+def test_creator_response_schema():
+    resp = CreatorResponse(
         id="abc-123",
         name="Test",
         slug="test",
@@ -132,10 +132,10 @@ def test_leader_response_schema():
     assert resp.capsule_count == 5
 
 
-def test_leader_list_response_schema():
-    resp = LeaderListResponse(leaders=[], total=0)
+def test_creator_list_response_schema():
+    resp = CreatorListResponse(creators=[], total=0)
     assert resp.total == 0
-    assert resp.leaders == []
+    assert resp.creators == []
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +163,7 @@ async def test_require_admin_rejects_non_admin(app, db_session):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
                 "name": "Hacker",
                 "slug": "hacker",
@@ -181,7 +181,7 @@ async def test_require_admin_rejects_unauthenticated(app):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
                 "name": "Anon",
                 "slug": "anon",
@@ -221,11 +221,11 @@ def admin_cookies(admin_user):
 
 
 @pytest.mark.asyncio
-async def test_create_leader(app, admin_cookies):
+async def test_create_creator(app, admin_cookies):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
                 "name": "Andrej Karpathy",
                 "slug": "karpathy",
@@ -246,14 +246,14 @@ async def test_create_leader(app, admin_cookies):
 
 
 @pytest.mark.asyncio
-async def test_create_leader_duplicate_slug(app, admin_cookies):
+async def test_create_creator_duplicate_slug(app, admin_cookies):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # Create first
         await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
-                "name": "Leader One",
+                "name": "Creator One",
                 "slug": "dup-slug",
                 "description": "First",
             },
@@ -261,9 +261,9 @@ async def test_create_leader_duplicate_slug(app, admin_cookies):
         )
         # Create duplicate
         resp = await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
-                "name": "Leader Two",
+                "name": "Creator Two",
                 "slug": "dup-slug",
                 "description": "Second",
             },
@@ -273,60 +273,60 @@ async def test_create_leader_duplicate_slug(app, admin_cookies):
 
 
 @pytest.mark.asyncio
-async def test_list_leaders_public(app, admin_cookies):
+async def test_list_creators_public(app, admin_cookies):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        # Create a leader first
+        # Create a creator first
         await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
-                "name": "Public Leader",
-                "slug": "public-leader",
+                "name": "Public Creator",
+                "slug": "public-creator",
                 "description": "Publicly visible",
             },
             cookies=admin_cookies,
         )
         # List without auth
-        resp = await ac.get("/api/leaders/")
+        resp = await ac.get("/api/creators/")
     assert resp.status_code == 200
     body = resp.json()
     assert body["total"] >= 1
-    slugs = [l["slug"] for l in body["leaders"]]
-    assert "public-leader" in slugs
+    slugs = [c["slug"] for c in body["creators"]]
+    assert "public-creator" in slugs
 
 
 @pytest.mark.asyncio
-async def test_get_leader_by_slug(app, admin_cookies):
+async def test_get_creator_by_slug(app, admin_cookies):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
-                "name": "Slug Leader",
-                "slug": "slug-leader",
+                "name": "Slug Creator",
+                "slug": "slug-creator",
                 "description": "Get by slug test",
             },
             cookies=admin_cookies,
         )
-        resp = await ac.get("/api/leaders/slug-leader")
+        resp = await ac.get("/api/creators/slug-creator")
     assert resp.status_code == 200
-    assert resp.json()["slug"] == "slug-leader"
+    assert resp.json()["slug"] == "slug-creator"
 
 
 @pytest.mark.asyncio
-async def test_get_leader_not_found(app):
+async def test_get_creator_not_found(app):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        resp = await ac.get("/api/leaders/nonexistent")
+        resp = await ac.get("/api/creators/nonexistent")
     assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_update_leader(app, admin_cookies):
+async def test_update_creator(app, admin_cookies):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
                 "name": "Update Me",
                 "slug": "update-me",
@@ -335,7 +335,7 @@ async def test_update_leader(app, admin_cookies):
             cookies=admin_cookies,
         )
         resp = await ac.put(
-            "/api/leaders/update-me",
+            "/api/creators/update-me",
             json={"bio": "Updated bio", "is_featured": True},
             cookies=admin_cookies,
         )
@@ -347,11 +347,11 @@ async def test_update_leader(app, admin_cookies):
 
 
 @pytest.mark.asyncio
-async def test_delete_leader(app, admin_cookies):
+async def test_delete_creator(app, admin_cookies):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
                 "name": "Delete Me",
                 "slug": "delete-me",
@@ -359,24 +359,24 @@ async def test_delete_leader(app, admin_cookies):
             },
             cookies=admin_cookies,
         )
-        resp = await ac.delete("/api/leaders/delete-me", cookies=admin_cookies)
+        resp = await ac.delete("/api/creators/delete-me", cookies=admin_cookies)
     assert resp.status_code == 204
 
     # Verify it's gone
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        resp = await ac.get("/api/leaders/delete-me")
+        resp = await ac.get("/api/creators/delete-me")
     assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_list_leaders_search_filter(app, admin_cookies):
+async def test_list_creators_search_filter(app, admin_cookies):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
-                "name": "Searchable Leader",
+                "name": "Searchable Creator",
                 "slug": "searchable",
                 "description": "Unique description for searching",
                 "expertise_domain": "AI",
@@ -384,65 +384,65 @@ async def test_list_leaders_search_filter(app, admin_cookies):
             cookies=admin_cookies,
         )
         # Search by name
-        resp = await ac.get("/api/leaders/?search=Searchable")
+        resp = await ac.get("/api/creators/?search=Searchable")
     assert resp.status_code == 200
     assert resp.json()["total"] >= 1
 
 
 @pytest.mark.asyncio
-async def test_list_leaders_domain_filter(app, admin_cookies):
+async def test_list_creators_domain_filter(app, admin_cookies):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
-                "name": "Domain Leader",
-                "slug": "domain-leader",
+                "name": "Domain Creator",
+                "slug": "domain-creator",
                 "description": "Domain filter test",
                 "expertise_domain": "Robotics",
             },
             cookies=admin_cookies,
         )
-        resp = await ac.get("/api/leaders/?domain=Robotics")
+        resp = await ac.get("/api/creators/?domain=Robotics")
     assert resp.status_code == 200
     body = resp.json()
-    assert all(l["expertise_domain"] == "Robotics" for l in body["leaders"])
+    assert all(c["expertise_domain"] == "Robotics" for c in body["creators"])
 
 
 # ---------------------------------------------------------------------------
-# Task 5 & 6: CaptureRequest leader_id + leader capsules endpoint
+# CaptureRequest creator_id + creator capsules endpoint
 # ---------------------------------------------------------------------------
 
 
-def test_capture_request_accepts_leader_id():
-    """CaptureRequest schema accepts optional leader_id field."""
-    req = CaptureRequest(content="some content", leader_id="abc-123")
-    assert req.leader_id == "abc-123"
+def test_capture_request_accepts_creator_id():
+    """CaptureRequest schema accepts optional creator_id field."""
+    req = CaptureRequest(content="some content", creator_id="abc-123")
+    assert req.creator_id == "abc-123"
 
 
-def test_capture_request_leader_id_defaults_none():
-    """CaptureRequest.leader_id defaults to None for backward compatibility."""
+def test_capture_request_creator_id_defaults_none():
+    """CaptureRequest.creator_id defaults to None for backward compatibility."""
     req = CaptureRequest(content="some content")
-    assert req.leader_id is None
+    assert req.creator_id is None
 
 
 @pytest.mark.asyncio
-async def test_get_leader_capsules_empty(app, admin_cookies):
-    """GET /api/leaders/{slug}/capsules returns empty list for leader with no capsules."""
+async def test_get_creator_capsules_empty(app, admin_cookies):
+    """GET /api/creators/{slug}/capsules returns empty list for creator with no capsules."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        # Create a leader
+        # Create a creator
         await ac.post(
-            "/api/leaders/",
+            "/api/creators/",
             json={
-                "name": "Empty Leader",
-                "slug": "empty-leader",
-                "description": "Leader with no capsules",
+                "name": "Empty Creator",
+                "slug": "empty-creator",
+                "description": "Creator with no capsules",
             },
             cookies=admin_cookies,
         )
         # Get capsules (public, no auth needed)
-        resp = await ac.get("/api/leaders/empty-leader/capsules")
+        resp = await ac.get("/api/creators/empty-creator/capsules")
     assert resp.status_code == 200
     body = resp.json()
     assert body["capsules"] == []
@@ -450,10 +450,10 @@ async def test_get_leader_capsules_empty(app, admin_cookies):
 
 
 @pytest.mark.asyncio
-async def test_get_leader_capsules_not_found(app):
-    """GET /api/leaders/nonexistent/capsules returns 404."""
+async def test_get_creator_capsules_not_found(app):
+    """GET /api/creators/nonexistent/capsules returns 404."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        resp = await ac.get("/api/leaders/nonexistent/capsules")
+        resp = await ac.get("/api/creators/nonexistent/capsules")
     assert resp.status_code == 404
-    assert resp.json()["detail"] == "Leader not found"
+    assert resp.json()["detail"] == "Creator not found"

@@ -1,5 +1,5 @@
 import pytest
-from sieve.api.auth.deps import create_access_token, hash_password
+from sieve.api.auth.deps import hash_password
 from sieve.db.models import Capsule, Follow, Sieve, User
 
 

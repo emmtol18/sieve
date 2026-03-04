@@ -13,6 +13,13 @@ let hasHighlights = false;
 let isContextMenuCreating = false;
 let popupPorts: { [tabId: number]: browser.Runtime.Port } = {};
 
+type CaptureMode = 'auto' | 'page' | 'selection';
+
+interface QuickCaptureOptions {
+	mode?: CaptureMode;
+	selectionText?: string;
+}
+
 // Popup mode management: quick mode disables popup so onClicked fires
 async function updatePopupMode(): Promise<void> {
 	const stored = await browser.storage.sync.get('sieve_auth');
@@ -36,7 +43,7 @@ browser.action.onClicked.addListener(async (tab) => {
 	const stored = await browser.storage.sync.get('sieve_auth');
 	const settings = (stored as any).sieve_auth || {};
 	if (settings.apiKey) {
-		quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL);
+		quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL, { mode: 'auto' });
 	} else {
 		browser.action.setPopup({ popup: 'popup.html' });
 		browser.action.openPopup();
@@ -48,7 +55,11 @@ browser.action.onClicked.addListener(async (tab) => {
 	}
 });
 
-async function quickCapture(apiKey: string, serverUrl: string): Promise<void> {
+async function quickCapture(
+	apiKey: string,
+	serverUrl: string,
+	options: QuickCaptureOptions = {}
+): Promise<void> {
 	try {
 		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
 		const tab = tabs[0];
@@ -56,7 +67,24 @@ async function quickCapture(apiKey: string, serverUrl: string): Promise<void> {
 
 		await ensureContentScriptLoadedInBackground(tab.id);
 		const pageContent = await browser.tabs.sendMessage(tab.id, { action: 'getPageContent' }) as any;
-		const content = pageContent?.selectedHtml || pageContent?.content || '';
+		const selectedHtml = (pageContent?.selectedHtml || '').trim();
+		const pageHtml = (pageContent?.content || '').trim();
+		const selectedText = (options.selectionText || '').trim();
+		const mode = options.mode || 'auto';
+
+		let content = '';
+		if (mode === 'selection') {
+			content = selectedText || selectedHtml || pageHtml;
+		} else if (mode === 'page') {
+			content = pageHtml || selectedText || selectedHtml;
+		} else {
+			content = selectedText || selectedHtml || pageHtml;
+		}
+
+		if (!content) {
+			throw new Error('No content found to capture');
+		}
+
 		const url = tab.url || '';
 
 		// Auto-assign creator by Twitter URL
@@ -473,8 +501,8 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 		}
 
 		if (typedRequest.action === "capturePageToSieve") {
-			const { apiKey, serverUrl } = typedRequest as any;
-			quickCapture(apiKey, serverUrl).then(() => {
+			const { apiKey, serverUrl, mode, selectionText } = typedRequest as any;
+			quickCapture(apiKey, serverUrl, { mode, selectionText }).then(() => {
 				sendResponse({ success: true });
 			}).catch((err: any) => {
 				sendResponse({ success: false, error: err.message });
@@ -499,7 +527,7 @@ browser.commands.onCommand.addListener(async (command, tab) => {
 		const stored = await browser.storage.sync.get('sieve_auth');
 		const settings = (stored as any).sieve_auth || {};
 		if (settings.apiKey) {
-			quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL);
+			quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL, { mode: 'auto' });
 		} else {
 			browser.action.openPopup();
 		}
@@ -608,7 +636,14 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 		const stored = await browser.storage.sync.get('sieve_auth');
 		const settings = (stored as any).sieve_auth || {};
 		if (settings.apiKey) {
-			quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL);
+			if (info.menuItemId === "capture-selection-to-sieve") {
+				quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL, {
+					mode: 'selection',
+					selectionText: info.selectionText || '',
+				});
+			} else {
+				quickCapture(settings.apiKey, settings.serverUrl || DEFAULT_SERVER_URL, { mode: 'page' });
+			}
 		} else {
 			browser.action.openPopup();
 		}

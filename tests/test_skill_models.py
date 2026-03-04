@@ -1,6 +1,6 @@
 import uuid
 
-from sieve.db.models import Skill, SkillCapsule, Sieve
+from sieve.db.models import Skill, SkillCapsule
 
 
 def test_skill_model_has_required_columns():

@@ -417,7 +417,7 @@ async def htmx_feed(
     if not capsules:
         empty_html = templates.get_template("partials/feed_empty.html").render(
             message="No capsules yet.",
-            cta_url="/capture",
+            cta_url="/",
             cta_text="Capture your first knowledge",
         )
         return HTMLResponse(content=empty_html)

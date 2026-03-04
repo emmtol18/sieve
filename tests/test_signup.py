@@ -1,9 +1,5 @@
 """Tests for signup username support across all signup paths."""
 
-import pytest
-
-from sieve.db.models import User
-
 
 async def test_signup_requires_username(client):
     """Signup creates user with username."""

@@ -75,7 +75,8 @@ curl -X POST http://localhost:8421/api/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email": "you@example.com", "password": "your-password", "display_name": "Your Name"}'
 
-# Save the api_key from the response — you'll need it for MCP + CLI
+# Save the api_key from the response — you'll need it for extension quick capture
+# (MCP + CLI use SIEVE_USER_EMAIL and SIEVE_DATABASE_URL)
 ```
 
 ## Import from Obsidian
@@ -190,7 +191,7 @@ neural-sieve-v3/
 │   ├── mcp/              # MCP server for Claude Code
 │   ├── cli.py            # Click CLI entry point
 │   └── config.py         # Pydantic settings
-├── tests/                # 195 tests
+├── tests/                # 229 tests
 ├── scripts/              # Migration scripts
 ├── docs/plans/           # Design + implementation docs
 └── pyproject.toml

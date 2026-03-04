@@ -133,7 +133,7 @@ def test_review_model_fields():
 
 def test_base_metadata_has_all_tables():
     table_names = set(Base.metadata.tables.keys())
-    expected = {"users", "sieves", "capsules", "creators", "subscriptions", "reviews", "follows", "skills", "skill_capsules"}
+    expected = {"users", "sieves", "capsules", "creators", "subscriptions", "reviews", "follows", "skills", "skill_capsules", "domains"}
     assert expected == table_names
 
 

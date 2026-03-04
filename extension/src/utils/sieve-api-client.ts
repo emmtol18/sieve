@@ -13,6 +13,31 @@ export interface CaptureResponse {
 	[key: string]: unknown;
 }
 
+export interface BatchCaptureItem {
+	content: string;
+	source_url?: string;
+}
+
+export interface BatchCaptureRequest {
+	items: BatchCaptureItem[];
+	creator_id: string;
+	source_type?: string;
+}
+
+export interface BatchCaptureResultItem {
+	status: 'success' | 'error';
+	capsule_id?: string;
+	title?: string;
+	error?: string;
+}
+
+export interface BatchCaptureResponse {
+	results: BatchCaptureResultItem[];
+	total: number;
+	succeeded: number;
+	failed: number;
+}
+
 export class SieveApiError extends Error {
 	code: 'auth_expired' | 'network_error' | 'server_error';
 	status?: number;
@@ -70,6 +95,38 @@ export async function captureToSieve(
 
 	try {
 		response = await fetch(`${serverUrl}/api/capture/`, {
+			method: 'POST',
+			headers: apiHeaders(apiKey),
+			body: JSON.stringify(request),
+		});
+	} catch {
+		throw new SieveApiError('network_error', 'Failed to connect to Neural Sieve');
+	}
+
+	if (!response.ok) {
+		const body = await response.json().catch(() => ({ detail: 'Unknown error' }));
+		if (response.status === 401) {
+			throw new SieveApiError('auth_expired', body.detail || 'Invalid API key', 401);
+		}
+		throw new SieveApiError(
+			'server_error',
+			body.detail || `Server error (${response.status})`,
+			response.status
+		);
+	}
+
+	return await response.json();
+}
+
+export async function batchCapture(
+	serverUrl: string,
+	apiKey: string,
+	request: BatchCaptureRequest
+): Promise<BatchCaptureResponse> {
+	let response: Response;
+
+	try {
+		response = await fetch(`${serverUrl}/api/capture/batch`, {
 			method: 'POST',
 			headers: apiHeaders(apiKey),
 			body: JSON.stringify(request),

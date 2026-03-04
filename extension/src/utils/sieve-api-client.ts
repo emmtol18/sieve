@@ -113,6 +113,15 @@ export async function createCreator(serverUrl: string, apiKey: string, data: {
 	return response.json();
 }
 
+export async function listDomains(serverUrl: string, apiKey: string): Promise<{ id: string; name: string; slug: string; sort_order: number }[]> {
+	const response = await fetch(`${serverUrl}/api/domains/`, {
+		headers: { 'X-Api-Key': apiKey },
+	});
+	if (!response.ok) return [];
+	const data = await response.json();
+	return data.domains || [];
+}
+
 export async function listCreators(serverUrl: string, apiKey: string): Promise<any[]> {
 	const response = await fetch(`${serverUrl}/api/creators/`, {
 		headers: { 'X-Api-Key': apiKey },

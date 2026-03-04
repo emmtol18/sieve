@@ -9,7 +9,7 @@ from sieve.api.auth.deps import get_current_user, verify_token
 from sieve.api.capsules.routes import capsule_to_response
 from sieve.api.creators.routes import creator_to_response
 from sieve.db.database import get_db
-from sieve.db.models import Capsule, Creator, Follow, Sieve, Skill, SkillCapsule, User
+from sieve.db.models import Capsule, Creator, Domain, Follow, Sieve, Skill, SkillCapsule, User
 from sieve.utils import extract_domain
 
 router = APIRouter(tags=["dashboard"])
@@ -81,8 +81,12 @@ async def sieve_page(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/discover", response_class=HTMLResponse)
-async def discover_page(request: Request):
-    return _protected(request, "discover.html")
+async def discover_page(request: Request, db: AsyncSession = Depends(get_db)):
+    if not _is_authenticated(request):
+        return LOGIN_REDIRECT
+    result = await db.execute(select(Domain).order_by(Domain.sort_order))
+    domains = result.scalars().all()
+    return _render(request, "discover.html", {"domains": domains})
 
 
 @router.get("/creator/{slug}", response_class=HTMLResponse)

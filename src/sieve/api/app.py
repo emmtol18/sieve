@@ -15,6 +15,7 @@ from sieve.api.discover.routes import router as discover_router
 from sieve.api.feed.routes import router as feed_router
 from sieve.api.import_vault.routes import router as import_router
 from sieve.api.creators.routes import router as creators_router
+from sieve.api.domains.routes import router as domains_router
 from sieve.api.sieves.routes import router as sieves_router
 from sieve.dashboard.htmx_routes import router as htmx_router
 from sieve.dashboard.routes import router as dashboard_router
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(discover_router)
     app.include_router(import_router)
     app.include_router(creators_router)
+    app.include_router(domains_router)
     app.include_router(htmx_router)
     app.mount("/static", StaticFiles(directory="src/sieve/dashboard/static"), name="static")
     app.include_router(dashboard_router)

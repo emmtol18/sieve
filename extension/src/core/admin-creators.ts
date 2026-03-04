@@ -1,5 +1,5 @@
 import { generalSettings } from '../utils/storage-utils';
-import { createCreator, listCreators } from '../utils/sieve-api-client';
+import { createCreator, listCreators, listDomains } from '../utils/sieve-api-client';
 import { isTwitterProfile, extractTwitterHandle } from '../utils/twitter-extractor';
 import browser from '../utils/browser-polyfill';
 
@@ -21,6 +21,9 @@ export async function initializeAdminSection(tabId: number): Promise<void> {
 	}
 
 	adminSection.style.display = 'block';
+
+	// Populate domain dropdown from API
+	await populateDomainSelect();
 
 	// Get current tab URL to check if it's a Twitter profile
 	try {
@@ -45,6 +48,27 @@ export async function initializeAdminSection(tabId: number): Promise<void> {
 	// Populate the creator select dropdown and auto-select by Twitter handle
 	await populateCreatorSelect();
 	autoSelectCreatorByTwitterUrl();
+}
+
+async function populateDomainSelect(): Promise<void> {
+	const domainSelect = document.getElementById('creator-domain') as HTMLSelectElement | null;
+	if (!domainSelect || !generalSettings.apiKey) return;
+
+	try {
+		const domains = await listDomains(generalSettings.serverUrl, generalSettings.apiKey);
+		// Clear existing options
+		while (domainSelect.firstChild) {
+			domainSelect.removeChild(domainSelect.firstChild);
+		}
+		for (const domain of domains) {
+			const option = document.createElement('option');
+			option.value = domain.name;
+			option.textContent = domain.name;
+			domainSelect.appendChild(option);
+		}
+	} catch (err) {
+		console.error('Failed to load domains:', err);
+	}
 }
 
 function resetCreatorSelect(selectEl: HTMLSelectElement): void {

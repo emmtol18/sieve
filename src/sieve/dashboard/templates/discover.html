@@ -14,13 +14,9 @@
 
 <div id="domain-filter" class="filter-pills">
     <button class="pill pill--active" hx-get="/htmx/creators/" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">All</button>
-    <button class="pill" hx-get="/htmx/creators/?domain=AI/ML" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">AI/ML</button>
-    <button class="pill" hx-get="/htmx/creators/?domain=Developer+Tools" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Dev Tools</button>
-    <button class="pill" hx-get="/htmx/creators/?domain=Search+%26+Retrieval" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Search</button>
-    <button class="pill" hx-get="/htmx/creators/?domain=Startups+%26+Indie+Hacking" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Startups</button>
-    <button class="pill" hx-get="/htmx/creators/?domain=Product+%26+Design" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Product</button>
-    <button class="pill" hx-get="/htmx/creators/?domain=Engineering+Leadership" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Engineering</button>
-    <button class="pill" hx-get="/htmx/creators/?domain=Open+Source" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">Open Source</button>
+    {% for d in domains %}
+    <button class="pill" hx-get="/htmx/creators/?domain={{ d.name | urlencode }}" hx-target="#discover-content" hx-swap="innerHTML" onclick="document.querySelectorAll('.pill').forEach(p=>p.classList.remove('pill--active'));this.classList.add('pill--active')">{{ d.name }}</button>
+    {% endfor %}
 </div>
 
 <div id="discover-content" class="card-grid"

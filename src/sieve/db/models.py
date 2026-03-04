@@ -221,6 +221,16 @@ class SkillCapsule(Base):
     capsule: Mapped["Capsule"] = relationship()
 
 
+class Domain(Base):
+    __tablename__ = "domains"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    sort_order: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Creator(Base):
     __tablename__ = "creators"
 

@@ -40,6 +40,7 @@ export async function initializeAdminSection(tabId: number): Promise<void> {
 		if (isTwitterProfile(currentTabUrl)) {
 			addCreatorSection.style.display = 'block';
 			setupAddCreatorButton(tabId);
+			setupSelectTweetsButton(tabId);
 		} else {
 			addCreatorSection.style.display = 'none';
 		}
@@ -177,6 +178,45 @@ function setupAddCreatorButton(tabId: number): void {
 				btn.disabled = false;
 				btn.textContent = 'Add as Creator';
 			}, 2000);
+		}
+	});
+}
+
+function setupSelectTweetsButton(tabId: number): void {
+	const selectTweetsBtn = document.getElementById('select-tweets-btn');
+	if (!selectTweetsBtn) return;
+
+	selectTweetsBtn.addEventListener('click', async () => {
+		if (!generalSettings.apiKey) return;
+
+		const creatorId = getSelectedCreatorId();
+		if (!creatorId) {
+			const btn = selectTweetsBtn as HTMLButtonElement;
+			btn.textContent = 'Select a creator first';
+			setTimeout(() => { btn.textContent = 'Select Tweets'; }, 2000);
+			return;
+		}
+
+		try {
+			// Ensure content script is loaded
+			await browser.runtime.sendMessage({ action: 'ensureContentScriptLoaded', tabId });
+
+			// Send message to content script to enable selection mode
+			await browser.runtime.sendMessage({
+				action: 'sendMessageToTab',
+				tabId,
+				message: {
+					action: 'enableTweetSelectionMode',
+					creatorId,
+					serverUrl: generalSettings.serverUrl,
+					apiKey: generalSettings.apiKey,
+				},
+			});
+
+			// Close the popup so the user can interact with the page
+			window.close();
+		} catch (err: any) {
+			console.error('Failed to enable tweet selection mode:', err);
 		}
 	});
 }

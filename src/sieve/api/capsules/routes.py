@@ -217,6 +217,47 @@ async def delete_capsule(
     await db.commit()
 
 
+@router.post("/{capsule_id}/save", response_model=CapsuleResponse, status_code=status.HTTP_201_CREATED)
+async def save_capsule_to_sieve(
+    capsule_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Copy a creator pack capsule into the user's personal sieve."""
+    result = await db.execute(select(Capsule).where(Capsule.id == capsule_id))
+    original = result.scalar_one_or_none()
+    if not original:
+        raise HTTPException(status_code=404, detail="Capsule not found")
+    if not original.pack_id:
+        raise HTTPException(status_code=400, detail="Can only save creator pack capsules")
+
+    sieve = await _get_user_sieve(user, db)
+
+    copy = Capsule(
+        sieve_id=sieve.id,
+        pack_id=None,
+        title=original.title,
+        executive_summary=original.executive_summary,
+        core_insight=original.core_insight,
+        full_content=original.full_content,
+        tags=original.tags,
+        keywords=original.keywords,
+        topics=original.topics,
+        category=original.category,
+        domain=original.domain,
+        difficulty=original.difficulty,
+        content_type=original.content_type,
+        author=original.author,
+        source_url=original.source_url,
+        capture_method="saved",
+        source_type="creator_pack",
+    )
+    db.add(copy)
+    await db.commit()
+    await db.refresh(copy)
+    return capsule_to_response(copy)
+
+
 @router.post("/search", response_model=CapsuleListResponse)
 async def search_capsules(
     body: SearchRequest,

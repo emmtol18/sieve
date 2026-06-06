@@ -114,6 +114,15 @@ A copy of this config lives in `.mcp.example.json`.
 > falls back to fast keyword matching instead of semantic ranking. Add a key to
 > your vault's `.env` to enable conceptual/semantic search.
 
+To verify the connection works, run the no-key smoke test:
+
+```bash
+uv run python scripts/smoke_test_mcp.py
+```
+
+See [docs/MCP_TESTING.md](docs/MCP_TESTING.md) for the full test plan
+(unit tests, smoke test, connecting a real client, and integration tests).
+
 **Available Resources (Passive Context):**
 
 Resources are automatically available in the AI's context - no tool calls needed:

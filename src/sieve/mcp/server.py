@@ -56,9 +56,18 @@ def run_server():
 
     server = Server("neural-sieve")
 
-    # Create OpenAI client once for query expansion (reused across requests)
-    openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
-    logger.debug(f"[MCP] OpenAI client initialized (model: {settings.query_expansion_model})")
+    # Create the OpenAI client once for semantic ranking (reused across
+    # requests). It's optional: without a key the server still starts and
+    # serves everything, with search degrading to fast keyword matching.
+    if settings.has_openai_key:
+        openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+        logger.debug(f"[MCP] OpenAI client initialized (model: {settings.query_expansion_model})")
+    else:
+        openai_client = None
+        logger.warning(
+            "[MCP] No OPENAI_API_KEY configured - search will use keyword "
+            "matching only (semantic ranking disabled)"
+        )
 
     def get_capsules() -> list[dict]:
         """Load all active capsules with content."""
@@ -369,14 +378,16 @@ def run_server():
             )]
 
     async def search_capsules(query: str, limit: int = 10, category: str | None = None) -> list[TextContent]:
-        """Search capsules using LLM semantic ranking with keyword fallback.
+        """Search capsules by relevance.
 
-        LLM-first flow:
+        Flow:
         1. Load all capsules (optionally filtered by category)
-        2. LLM ranks all capsules by semantic relevance
-        3. On LLM failure, fall back to keyword matching
-
-        Only returns capsules scoring >= relevance_threshold (default 6/10).
+        2. If an OpenAI key is configured, rank by LLM semantic relevance and
+           keep only capsules scoring >= relevance_threshold (default 6/10).
+        3. Otherwise (no key, or the LLM call fails), fall back to keyword
+           matching and return every positive match - keyword scores are on a
+           different scale than the semantic threshold, so applying the 6/10
+           cutoff there would hide good matches.
         """
         threshold = settings.relevance_threshold
         logger.info(f"[MCP] Searching for: '{query}' (limit: {limit}, threshold: {threshold}, category: {category})")
@@ -391,26 +402,38 @@ def run_server():
             else:
                 logger.info(f"[MCP] Category filter '{category}' matched nothing, using all {len(capsules)} capsules")
 
-        # Primary: LLM semantic ranking of all capsules
-        try:
-            logger.info(f"[MCP] LLM ranking {len(capsules)} capsules...")
-            ranked = await _llm_rank_capsules_batched(query, capsules)
-        except Exception as e:
-            logger.warning(f"[Search] LLM ranking failed: {e}, falling back to keywords")
+        # Primary: LLM semantic ranking (only when a key is configured).
+        used_llm = False
+        if openai_client is not None:
+            try:
+                logger.info(f"[MCP] LLM ranking {len(capsules)} capsules...")
+                ranked = await _llm_rank_capsules_batched(query, capsules)
+                used_llm = True
+            except Exception as e:
+                logger.warning(f"[Search] LLM ranking failed: {e}, falling back to keywords")
+                ranked = _keyword_fallback(query, capsules)
+        else:
+            logger.info("[MCP] No OpenAI client - using keyword matching")
             ranked = _keyword_fallback(query, capsules)
 
-        # Filter by relevance threshold (default 6/10 for high signal)
-        results = [(score, c) for score, c in ranked if score >= threshold][:limit]
+        if used_llm:
+            # Semantic scores are calibrated to the 0-10 threshold.
+            results = [(score, c) for score, c in ranked if score >= threshold][:limit]
+            mode = "semantic"
+        else:
+            # Keyword fallback already excludes zero-score capsules; just cap.
+            results = ranked[:limit]
+            mode = "keyword"
 
         if not results:
-            logger.info(f"[MCP] No capsules scored {threshold}+ for '{query}'")
-            return [TextContent(type="text", text=f"No highly relevant capsules found for '{query}' (threshold: {threshold}/10)")]
+            logger.info(f"[MCP] No matches for '{query}' (mode: {mode})")
+            return [TextContent(type="text", text=f"No relevant capsules found for '{query}'.")]
 
-        logger.info(f"[MCP] Search '{query}': returning {len(results)} results (scored {threshold}+)")
+        logger.info(f"[MCP] Search '{query}': returning {len(results)} results (mode: {mode})")
 
-        text = f"Found {len(results)} relevant capsules:\n\n"
+        text = f"Found {len(results)} relevant capsules ({mode} match):\n\n"
         for relevance, c in results:
-            text += f"**Relevance: {relevance}/10**\n"
+            text += f"**Relevance: {relevance:.1f}/10**\n"
             text += format_capsule(c)
             text += "\n---\n\n"
 

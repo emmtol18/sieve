@@ -53,6 +53,9 @@ select = ["E", "F", "I", "UP"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: tests that call external services (require a real API key)",
+]
 
 [tool.coverage.run]
 source = ["src/sieve"]

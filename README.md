@@ -92,19 +92,27 @@ SIEVE_PORT=8420
 
 ## MCP Integration
 
-Add to your Claude Desktop or other MCP client:
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`)
+or other MCP client, then restart the client:
 
 ```json
 {
   "mcpServers": {
     "neural-sieve": {
       "command": "uv",
-      "args": ["run", "sieve", "mcp"],
-      "cwd": "/path/to/neural-sieve"
+      "args": ["run", "--directory", "/absolute/path/to/your/vault", "sieve", "mcp"]
     }
   }
 }
 ```
+
+`--directory` points at the vault folder you ran `sieve init` in, so the
+server finds your capsules and `.env` no matter where the client launches it.
+A copy of this config lives in `.mcp.example.json`.
+
+> The MCP server starts even **without** an `OPENAI_API_KEY` - search simply
+> falls back to fast keyword matching instead of semantic ranking. Add a key to
+> your vault's `.env` to enable conceptual/semantic search.
 
 **Available Resources (Passive Context):**
 

@@ -17,7 +17,10 @@ class Settings(BaseSettings):
     )
 
     # OpenAI
-    openai_api_key: str = Field(alias="OPENAI_API_KEY")
+    # Optional so read-only components (the MCP server, dashboard browsing)
+    # can start without a key. Commands that need it (start/watch/process/
+    # index) validate its presence explicitly via require_openai_key().
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     openai_model: str = "gpt-5-mini"
     query_expansion_model: str = "gpt-5-nano"
 
@@ -40,6 +43,15 @@ class Settings(BaseSettings):
     relay_url: Optional[str] = None  # e.g. https://xxx.trycloudflare.com
     relay_admin_key: Optional[str] = None
     relay_pull_interval: int = 60  # seconds
+
+    @property
+    def has_openai_key(self) -> bool:
+        """Whether a usable OpenAI API key is configured.
+
+        Treats empty and the common test placeholder as "not configured" so
+        LLM-dependent features degrade gracefully instead of erroring.
+        """
+        return bool(self.openai_api_key) and self.openai_api_key != "test-api-key"
 
     @property
     def inbox_path(self) -> Path:

@@ -87,6 +87,29 @@ class TestSettings:
 
         assert settings.openai_api_key == "env-openai-key"
 
+    def test_openai_api_key_optional(self, monkeypatch):
+        """Settings load without a key so the MCP server can start read-only."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        settings = Settings(_env_file=None)
+
+        assert settings.openai_api_key == ""
+        assert settings.has_openai_key is False
+
+    def test_has_openai_key_true_for_real_key(self, monkeypatch):
+        """A real-looking key reports as configured."""
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-real-key")
+        settings = Settings(_env_file=None)
+
+        assert settings.openai_api_key == "sk-real-key"
+        assert settings.has_openai_key is True
+
+    def test_has_openai_key_false_for_placeholder(self, monkeypatch):
+        """The shared test placeholder is treated as 'not configured'."""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-api-key")
+        settings = Settings(_env_file=None)
+
+        assert settings.has_openai_key is False
+
 
 class TestGetSettings:
     """Tests for get_settings factory function."""

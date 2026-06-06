@@ -2,8 +2,7 @@
   "mcpServers": {
     "neural-sieve": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/neural-sieve", "sieve", "mcp"]
+      "args": ["run", "--directory", "/absolute/path/to/your/vault", "sieve", "mcp"]
     }
   }
 }
-

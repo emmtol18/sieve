@@ -8,9 +8,24 @@ from pathlib import Path
 import click
 import httpx
 
-from .config import get_settings
+from .config import Settings, get_settings
 from .logging_config import setup_colored_logging
 from .process import ProcessLock, get_service_status
+
+
+def require_openai_key(settings: Settings) -> None:
+    """Exit with a friendly message if no OpenAI API key is configured.
+
+    Used by commands that process files and therefore need the LLM. The MCP
+    server and dashboard intentionally do not call this - they degrade to
+    read-only / keyword behavior without a key.
+    """
+    if not settings.openai_api_key:
+        click.echo(
+            "Error: OPENAI_API_KEY is not set. Add it to your .env file.",
+            err=True,
+        )
+        sys.exit(1)
 
 
 @click.group()
@@ -104,6 +119,8 @@ def start(ctx, daemon):
         click.echo("Make sure .env file exists with OPENAI_API_KEY", err=True)
         sys.exit(1)
 
+    require_openai_key(settings)
+
     coordinator = ServiceCoordinator(settings, verbose=verbose, daemon=daemon)
 
     try:
@@ -144,6 +161,8 @@ def watch(ctx):
         click.echo(f"Error loading settings: {e}", err=True)
         click.echo("Make sure .env file exists with OPENAI_API_KEY", err=True)
         sys.exit(1)
+
+    require_openai_key(settings)
 
     watcher = FileWatcher(settings)
 
@@ -206,6 +225,7 @@ def process(ctx, file_path):
     setup_colored_logging(ctx.obj.get("verbose", False))
     path = Path(file_path)
     settings = get_settings()
+    require_openai_key(settings)
     processor = Processor(settings)
 
     click.echo(f"Processing: {path.name}")
@@ -228,6 +248,7 @@ def index(ctx):
 
     setup_colored_logging(ctx.obj.get("verbose", False))
     settings = get_settings()
+    require_openai_key(settings)
     indexer = Indexer(settings)
 
     click.echo("Regenerating Capsules/INDEX.md...")
@@ -354,6 +375,8 @@ def pull(ctx, once):
             err=True,
         )
         sys.exit(1)
+
+    require_openai_key(settings)
 
     client = RelayClient(settings)
     processor = Processor(settings)
